@@ -1,1 +1,1 @@
-# intel8086-decoder
+# intel8086-emulator
