@@ -42,68 +42,76 @@ const char* const registers[2][8] = {
 };
 
 // Mode (MOD) lookup table
-u8 mode[4] = {
-    0, // Memory mode, no displacement follows
-    1, // Memory mode 8 bit
-    2, // Memory mode 16 bit
-    3  // Register to (no displacement) 
+const char* const mode[4] = {
+    "Memory mode",  // Memory mode, no displacement follows
+    "8bit memory mode",  // Memory mode 8 bit
+    "16bit memory mode",  // Memory mode 16 bit
+    "Register to register",  // Register to (no displacement) 
 };
 
 void decode_next_instruction(char *buf, char *out_buf, size_t *out_buf_i) 
 {
-    u8 is16bit = ((u8)buf[0]) & 1;
-    u8 reg_dir = ((u8)buf[0] >> 1) & 1;
-    printf("is_16bit: %d\nreg_dir: %d\n", is16bit, reg_dir);
-    
-    u8 instruct = (buf[0] >> 2) & 0x3F;
-    const char *instruct_name = NULL;
-
     u8 r_m = buf[1] & 0x07;
-    u8 reg = (buf[1] >> 0x03) & 0x07;
-    u8 mod = (buf[1] >> 0x06) & 0x03;
+    u8 reg = (buf[1] >> 3) & 0x07;
+    u8 mod = (buf[1] >> 6) & 0x03;
 
-    printf("mode: %d\n", mod);
-    
-    u8 left = r_m;
-    u8 right = reg;
-    if (reg_dir == 1) {
-        left = r_m;
-        right = reg;
-    }
+    printf("buf[0]: %d; buf[1]: %d\n", buf[0], buf[1]);
+    printf("mode: %s (%d) ; reg: %d ; r_m: %d\n", mode[mod], mod, reg, r_m);
 
-    if (mod == 0x00) { // memory mode, no displacement follows
-    
-    }
-    else if (mod == 0x01) { // 8-bit immediate-to-register 
-        // @Todo: a lookup table for instructions
-        switch(instruct) {
-            case 0x33: {instruct_name = "mov"; break;}
+    u8 is16bit = ((u8)buf[0]) & 1;
+    u8 opcode = 0;
+    const char *opcode_name = NULL;
+
+    // TODO: We have to check the opcode first and decide the mod after. See at: page 164.
+
+    if (mod == 0x03) { // register-to-register
+        u8 reg_dir = ((u8)buf[0] >> 1) & 1;
+        u8 left = r_m;
+        u8 right = reg;
+        if (reg_dir == 1) {
+            left = r_m;
+            right = reg;
+        }
+
+        opcode = (buf[0] >> 2) & 0x3F;
+        switch(opcode) { 
+            case 0x22: {opcode_name = "mov";  break;}
+            case 0xFF: {opcode_name = "push"; break;}
+            case 0x8F: {opcode_name = "pop";  break;}
             default: {
-                printf("[WARNING]: INSTRUCTION (%d) IS PROBABLY NOT HANDLED YET!", instruct);
+                printf("[WARNING]: INSTRUCTION (%d) IS PROBABLY NOT HANDLED YET!\n", opcode);
                 assert(0);
             }
         }
- 
-        printf("%s %s, %d\n", instruct_name, registers[is16bit][left], (s16)right);
-        *out_buf_i += sprintf(out_buf+(*out_buf_i), "%s %s, %s\n", instruct_name, registers[is16bit][left], registers[is16bit][right]);
-    }
-    else if (mod == 0x02) { // 16-bit immediate-to-register
+        printf("opcode: %s (%d)\n", opcode_name, opcode);
 
+        printf("%s %s, %s\n", opcode_name, registers[is16bit][left], registers[is16bit][right]);
+        *out_buf_i += sprintf(out_buf+(*out_buf_i), "%s %s, %s\n", opcode_name, registers[is16bit][left], registers[is16bit][right]);
     }
-    else if (mod == 0x03) { // register-to-register    
-        // @Todo: a lookup table for instructions
-        switch(instruct) { 
-            case 0x22: {instruct_name = "mov";  break;}
-            case 0xFF: {instruct_name = "push"; break;}
-            case 0x8F: {instruct_name = "pop";  break;}
+    // TODO: We have to check the opcode first and decide the mod after. See at: page 164.
+    else if (mod == 0x00) {
+        opcode = (buf[0] >> 4) & 0x0F;
+        switch(opcode) {
+            case 0x0B: {opcode_name = "mov"; break;}
             default: {
-                printf("[WARNING]: INSTRUCTION (%d) IS PROBABLY NOT HANDLED YET!", instruct);
+                printf("[WARNING]: INSTRUCTION (%d) IS PROBABLY NOT HANDLED YET!\n", opcode);
                 assert(0);
             }
         }
+        printf("opcode: %s (%d)\n", opcode_name, opcode);
+        
+        is16bit = (buf[0] >> 3) & 0x01;
+        reg = (buf[0]) & 0x07;
 
-        printf("%s %s, %s\n", instruct_name, registers[is16bit][left], registers[is16bit][right]);
-        *out_buf_i += sprintf(out_buf+(*out_buf_i), "%s %s, %s\n", instruct_name, registers[is16bit][left], registers[is16bit][right]);
+        s16 data = buf[1] & 0xFF;
+        if (is16bit) {
+            data = ((data << 8) & 0xFF00) | buf[2];
+        }
+
+        printf("is16bit (wide): %d ; reg: %s (%d)\n", is16bit, registers[is16bit][reg], reg);
+
+        printf("%s %s, %d\n", opcode_name, registers[is16bit][reg], data);
+        *out_buf_i += sprintf(out_buf+(*out_buf_i), "%s %s, %d\n", opcode_name, registers[is16bit][reg], data);
     }
 
 }
@@ -121,6 +129,9 @@ int main(int argc, char **argv)
     char out_buf[2048] = {0}; // @Todo: string builder
     size_t out_buf_i = 0;
     ZERO_MEMORY(out_buf, 2048);
+
+    // TODO: Must to read all of the bytes first, because we don't know at this point
+    //  that if it is will be a 16 bit (wide) or not.
 
     u16 readed_size = 0;
     while ((readed_size = fread(buf, 1, 2, fp))) {
