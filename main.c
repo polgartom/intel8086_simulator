@@ -49,6 +49,15 @@ size_t read_entire_file(char *filename, char **buf)
 #define REGISTER_DIRECTION_LEFT  1
 #define REGISTER_DIRECTION_RIGHT 0
 
+#define REG_ACCUMULATOR "ax"
+#define REG_BASE_REGISTER "bx"
+#define REG_COUNT_REGISTER "cx"
+#define REG_DATA_REGISER "dx"
+#define REG_STACK_POINTER "sp"
+#define REG_BASE_POINTER "bp"
+#define REG_SOURCE_INDEX "si"
+#define REG_DESTINATION_INDEX "di"
+
 // Registers (REG) lookup table
 const char* const registers[2][8] = {
     // W=0 (8bit)
@@ -93,19 +102,18 @@ void str_append(String_Builder *builder, char *str)
 
 void str_sprintf(String_Builder *builder, char *fmt, ...) 
 {
-    // Determine required size
     s64 size = 0;
     va_list ap;
 
     // @Bug: \n \r \t characters not counted somehow, but if we do let's say 2 \n\n character then it will
     //  count as 1 \n
+    // Determine required size
     va_start(ap, fmt);
     size = vsnprintf(NULL, size, fmt, ap);
     va_end(ap);
 
     assert(size > -1 && builder->index + size <= builder->max_size);
 
-    // Append string
     va_start(ap, fmt);
     size = vsnprintf(builder->buffer+builder->index, size+1, fmt, ap);
     va_end(ap);
@@ -122,6 +130,7 @@ char *get_address_calc(u8 r_m, u8 mod, s16 displacement)
     static char address_str[100]; // Cant be multithreaded
     ZERO_MEMORY(address_str, 100);
 
+    // effective address calculation from page 162.
     switch (r_m) {
         case 0x00: {address = "bx + si"; break;}
         case 0x01: {address = "bx + di"; break;}
@@ -143,11 +152,9 @@ char *get_address_calc(u8 r_m, u8 mod, s16 displacement)
 
     if (displacement == 0) {
         sprintf(address_str, "[%s]", address);
-    }
-    else if (displacement > 0) {
+    } else if (displacement > 0) {
         sprintf(address_str, "[%s + %d]", address, displacement);
-    }
-    else {
+    } else {
         sprintf(address_str, "[%s - %d]", address, displacement*-1);
     } 
 
@@ -340,6 +347,36 @@ int main(int argc, char **argv)
 
             i+=2;
         }
+        else if (((buf[i] >> 1) & 0x7F) == 0x50) { // Memory to accumulator
+            u8 is_16bit = buf[i] & 0x01;
+        
+            printf("[Memory-to-accumulator]: buf[i]: %d, opcode: %d; 16bit: %d\n", buf[i], 0x50, is_16bit);
+
+            s16 address = buf[i+1];
+            if (is_16bit) {
+                address = BYTE_SWAP_16BIT(buf[i+1], buf[i+2]);
+                i++;
+            }
+
+            str_sprintf(&builder, "%s %s, [%d]\n", "mov", REG_ACCUMULATOR, address);
+            
+            i+=2;
+        }
+        else if (((buf[i] >> 1) & 0x7F) == 0x51) { // Accumulator to memory
+            u8 is_16bit = buf[i] & 0x01;
+        
+            printf("[Accumulator-to-Memory]: buf[i]: %d, opcode: %d; 16bit: %d\n", buf[i], 0x50, is_16bit);
+
+            s16 address = buf[i+1];
+            if (is_16bit) {
+                address = BYTE_SWAP_16BIT(buf[i+1], buf[i+2]);
+                i++;
+            }
+
+            str_sprintf(&builder, "%s [%d], %s\n", "mov", address, REG_ACCUMULATOR);
+            
+            i+=2;
+        }
         else {
             printf("[WARNING] NOT HANDLED YET! Break...\n");
             printf("buf[i] == %d ; buf[i+1] == %d\n", buf[i], buf[i+1]);
@@ -350,7 +387,7 @@ int main(int argc, char **argv)
 
 parse_end:
 
-    printf("\n\n--------------\n\n[OUTPUT]: \n\n%s\n\nsize: %ld\n\n", builder.buffer, builder.index+1);
+    printf("\n\n--------------\n[OUTPUT]: \n\n%s\n--------------\noutput asm size: %ld\n\n", builder.buffer, builder.index+1);
 
 //    FILE *fp = fopen("./output.asm", "wb");
 //    fwrite(out_buf, strlen(out_buf), 1, fp);
