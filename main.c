@@ -23,6 +23,8 @@ typedef unsigned char  u8;
 typedef unsigned short u16;
 typedef unsigned int   u32;
 
+typedef u8 _bool;
+
 size_t read_entire_file(char *filename, char **buf)
 {
     FILE *fp = fopen(filename, "rb");
@@ -43,37 +45,6 @@ size_t read_entire_file(char *filename, char **buf)
 
     return fsize;
 }
-
-// ----------------------------------------------
-
-#define REGISTER_DIRECTION_LEFT  1
-#define REGISTER_DIRECTION_RIGHT 0
-
-#define REG_ACCUMULATOR "ax"
-#define REG_BASE_REGISTER "bx"
-#define REG_COUNT_REGISTER "cx"
-#define REG_DATA_REGISER "dx"
-#define REG_STACK_POINTER "sp"
-#define REG_BASE_POINTER "bp"
-#define REG_SOURCE_INDEX "si"
-#define REG_DESTINATION_INDEX "di"
-
-// Registers (REG) lookup table
-const char* const registers[2][8] = {
-    // W=0 (8bit)
-    { "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh" },
-
-    // W=1 (16bit)
-    { "ax", "cx", "dx", "bx", "sp", "bp", "si", "di" }
-};
-
-// Mode (MOD) lookup table
-const char* const mode[4] = {
-    "Memory mode",  // Memory mode, no displacement follows
-    "8bit memory mode",  // Memory mode 8 bit
-    "16bit memory mode",  // Memory mode 16 bit
-    "Register to register",  // Register to (no displacement) 
-};
 
 typedef struct {
     char *buffer;
@@ -96,11 +67,11 @@ void str_append(String_Builder *builder, char *str)
     assert(builder->index + size<= builder->max_size);
 
     memcpy(builder->buffer+builder->index, str, size);
-    builder->index += size+1;
-    builder->buffer[builder->index+1] = '\0';
+    builder->index += size;
+    builder->buffer[builder->index] = '\0';
 }
 
-void str_sprintf(String_Builder *builder, char *fmt, ...) 
+void str_sprintf_and_append(String_Builder *builder, char *fmt, ...) 
 {
     s64 size = 0;
     va_list ap;
@@ -122,6 +93,51 @@ void str_sprintf(String_Builder *builder, char *fmt, ...)
 
     builder->index += size;
 }
+
+// ----------------------------------------------
+
+#define REGISTER_DIRECTION_LEFT  1
+#define REGISTER_DIRECTION_RIGHT 0
+
+
+// Registers (REG) lookup table
+const char* const registers[2][8] = {
+    // W=0 (8bit)
+    { "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh" },
+
+    // W=1 (16bit)
+    { "ax", "cx", "dx", "bx", "sp", "bp", "si", "di" }
+};
+
+// Register indexes for the lookup table
+#define REG_INDEX_ACCUMULATOR 0
+
+//#define REG_BASE_REGISTER     "bx"
+//#define REG_COUNT_REGISTER    "cx"
+//#define REG_DATA_REGISER      "dx"
+//#define REG_STACK_POINTER     "sp"
+//#define REG_BASE_POINTER      "bp"
+//#define REG_SOURCE_INDEX      "si"
+//#define REG_DESTINATION_INDEX "di"
+
+// Mode (MOD) lookup table
+const char* const mode[4] = {
+    "Memory mode",  // Memory mode, no displacement follows
+    "8bit memory mode",  // Memory mode 8 bit
+    "16bit memory mode",  // Memory mode 16 bit
+    "Register to register",  // Register to (no displacement) 
+};
+
+#define DECODE_MOD_REG_RM(byte) \
+    u8 mod = (byte >> 6) & 0x03; \
+    u8 reg = (byte>> 3) & 0x07; \
+    u8 r_m = byte & 0x07; \
+
+#define DECODE_MOD_000_RM(byte) \
+    u8 mod = (byte >> 6) & 0x03; \
+    assert(((byte >> 3) & 0x07) == 0); \
+    u8 r_m = byte & 0x07; \
+
 
 char *get_address_calc(u8 r_m, u8 mod, s16 displacement) 
 {
@@ -161,174 +177,115 @@ char *get_address_calc(u8 r_m, u8 mod, s16 displacement)
     return address_str;
 }
 
-int main(int argc, char **argv)
+_bool mov_decode(char *buf, size_t *_i, String_Builder *builder)
 {
-    printf("%s\n", argv[1]);
+    size_t i = *_i;
 
-    String_Builder builder = {0};
-    create_string_builder(&builder, 8096);
+    if (((buf[i] >> 4) & 0x0F) == 0x0B) { // mov (imediate to register)
         
-    char *buf = NULL;
-    size_t fsize = read_entire_file(argv[1], &buf);
-
-    size_t i = 0;
-    do {
-        u8 opcode = buf[i];
-        const char *opcode_name = NULL;
+        // 1. byte
+        u8 reg = buf[i] & 0x07;
+        u8 is_16bit = (buf[i] >> 3) & 0x01;
         
-        // printf("byte1: %d; byte2: %d\n", buf[0], buf[1]);
-
-        if (((buf[i] >> 4) & 0x0F) == 0x0B) { // mov (imediate to register)
-            
-            // 1. byte
-            opcode = 0x0B;
-            opcode_name = "mov";
-            u8 reg = buf[i] & 0x07;
-            u8 is_16bit = (buf[i] >> 3) & 0x01;
-            
-            // 2. byte or if is_16bit, then 2-3. byte
-            s16 data = buf[i+1];
-            if (is_16bit) {
-                data = BYTE_SWAP_16BIT(buf[i+1], buf[i+2]);
-                i++;
-            }
-
-            printf("[imediate to register]: opcode: %d ; 16bit: %d ; reg: %s (%d) ; data: %d\n", opcode, is_16bit, (char*)registers[reg], reg, data);
-
-            str_sprintf(&builder, "%s %s, %d\n", opcode_name, registers[is_16bit][reg], data);
-             
-            i+=2;
+        // 2. byte or if is_16bit, then 2-3. byte
+        s16 data = buf[i+1];
+        if (is_16bit) {
+            data = BYTE_SWAP_16BIT(buf[i+1], buf[i+2]);
+            i++;
         }
-        else if (((buf[i] >> 2) & 0x3F) == 0x22) { // mov (register/memory to/from register)
+
+        printf("[imediate to register]: opcode: %d ; 16bit: %d ; reg: %s (%d) ; data: %d\n", 0x0B, is_16bit, (char*)registers[reg], reg, data);
+
+        str_sprintf_and_append(builder, "%s %s, %d\n", "mov", registers[is_16bit][reg], data);
+         
+        i+=2;
+    }
+    else if (((buf[i] >> 2) & 0x3F) == 0x22) { // mov (register/memory to/from register)
+    
+        // 1. byte
+        u8 reg_dir = (buf[i] >> 1) & 0x01;
+        u8 is_16bit = buf[i] & 1;
+
+        // 2. byte
+        DECODE_MOD_REG_RM(buf[i+1])
+
+        printf("[reg/memory to/from register]: buf[i]: %d, opcode: %d; 16bit: %d ; mode: %s (%d) ; reg: %d ; r_m: %d ; reg_dir: %d\n", buf[i], 0x22, is_16bit, mode[mod], mod, reg, r_m, reg_dir);
         
-            // 1. byte
-            opcode = 0x22;
-            opcode_name = "mov";
-            u8 reg_dir = (buf[i] >> 1) & 0x01;
-            u8 is_16bit = buf[i] & 1;
+        if (mod == 0x00) { // Memory mode, no displacement follows, except when R/M = 110, then 16 bit displacement follows
 
-            // 2. byte
-            u8 mod = (buf[i+1] >> 6) & 0x03;
-            u8 reg = (buf[i+1] >> 3) & 0x07;
-            u8 r_m = buf[i+1] & 0x07;
-
-            printf("[reg/memory to/from register]: buf[i]: %d, opcode: %d; 16bit: %d ; mode: %s (%d) ; reg: %d ; r_m: %d ; reg_dir: %d\n", buf[i], opcode, is_16bit, mode[mod], mod, reg, r_m, reg_dir);
-            
-            if (mod == 0x00) { // Memory mode, no displacement follows, except when R/M = 110, then 16 bit displacement follows
-
-                s16 displacement_16_bit = 0;
-                if (r_m == 0x06) {
-                    // Direct address
-                    displacement_16_bit = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
-                    i+=2;
-                }
-
-                char *address = get_address_calc(r_m, mod, displacement_16_bit);
-
-                if (reg_dir == REGISTER_DIRECTION_LEFT) {
-                    str_sprintf(&builder, "%s %s, %s\n", opcode_name, registers[is_16bit][reg], address);
-                } else {
-                    str_sprintf(&builder, "%s %s, %s\n", opcode_name, address, registers[is_16bit][reg]);
-                }
-            }
-            else if (mod == 0x01) { // Memory mode, 8-bit displacement follows
-               
-                s8 displacement_8_bit = buf[i+2];
-                i++;
- 
-                char *address = get_address_calc(r_m, mod, displacement_8_bit);
-
-                if (reg_dir == REGISTER_DIRECTION_LEFT) {
-                    str_sprintf(&builder, "%s %s, %s\n", opcode_name, registers[is_16bit][reg], address);
-                } else {
-                    str_sprintf(&builder, "%s %s, %s\n", opcode_name, address, registers[is_16bit][reg]);
-                }
-            }
-            else if (mod == 0x02) { // Memory mode, 16-bit displacement follows
-                
-                s16 displacement_16_bit = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
+            s16 displacement_16_bit = 0;
+            if (r_m == 0x06) {
+                // Direct address
+                displacement_16_bit = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
                 i+=2;
-                
-                char *address = get_address_calc(r_m, mod, displacement_16_bit);
-
-                if (reg_dir == REGISTER_DIRECTION_LEFT) {
-                    str_sprintf(&builder, "%s %s, %s", opcode_name, registers[is_16bit][reg], address);
-                } else {
-                    str_sprintf(&builder, "%s %s, %s\n", opcode_name, address, registers[is_16bit][reg]);
-                }
-            }
-            else if (mod == 0x03) { // Register mode, no displacement follows
-                u8 left = r_m;
-                u8 right = reg;
-                if (reg_dir == REGISTER_DIRECTION_LEFT) {
-                    left = r_m;
-                    right = reg;
-                }
-
-                str_sprintf(&builder, "%s %s, %s\n", opcode_name, registers[is_16bit][left], registers[is_16bit][right]);
             }
 
-            i+=2;
+            char *address = get_address_calc(r_m, mod, displacement_16_bit);
+
+            if (reg_dir == REGISTER_DIRECTION_LEFT) {
+                str_sprintf_and_append(builder, "%s %s, %s\n", "mov", registers[is_16bit][reg], address);
+            } else {
+                str_sprintf_and_append(builder, "%s %s, %s\n", "mov", address, registers[is_16bit][reg]);
+            }
         }
-        else if (((buf[i] >> 1) & 0x7F) == 0x63) { // Immediate to register/memory
-            // 1. byte
-            opcode = 0x63;
-            opcode_name = "mov";
-            u8 is_16bit = (buf[i] & 1);
-            
-            // 2. byte
-            u8 mod = (buf[i+1] >> 6) & 0x03;
-            assert(((buf[i+1] >> 3) & 0x07) == 0); 
-            u8 r_m = buf[i+1] & 0x07;
+        else if (mod == 0x01) { // Memory mode, 8-bit displacement follows
+           
+            s8 displacement_8_bit = buf[i+2];
+            i++;
 
-            printf("[Immediate to register/memory]: buf[i]: %d, opcode: %d; 16bit: %d ; mode: %s (%d) ; r_m: %d\n", buf[i], opcode, is_16bit, mode[mod], mod, r_m);
+            char *address = get_address_calc(r_m, mod, displacement_8_bit);
 
-            if (mod == 0x00) { // Memory mode, no displacement follows, except when R/M = 110, then 16 bit displacement follows
-                s16 displacement_16_bit = 0;
-                s16 data = 0;
-                const char *data_type = NULL;
-
-                if (r_m == 0x06) {
-                    displacement_16_bit = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
-
-                    data = buf[i+4];
-                    data_type = "byte";
-                    if (is_16bit) {
-                        data = BYTE_SWAP_16BIT(buf[i+4], buf[i+5]);
-                        data_type = "word";
-                        i++;
-                    }
-
-                    i+=3;
-                } 
-                else {
-                    // if no displacement, then the data will be at where displacement has to be
-                    data = buf[i+2];
-                    data_type = "byte";
-                    if (is_16bit) {
-                        data = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
-                        data_type = "word";
-                        i++;
-                    }
-                    i+=1;
-                }
-
-                char *address = get_address_calc(r_m, mod, displacement_16_bit);
-
-                str_sprintf(&builder, "%s %s, %s %d\n", opcode_name, address, data_type, data);
-            } 
-            else if (mod == 0x01) { // Memory mode, 8-bit displacement follows
-                assert(0);
-                s8 displacement_8_bit = buf[i+2];
-                i++;
-                    
-                char *address = get_address_calc(r_m, mod, displacement_8_bit);
+            if (reg_dir == REGISTER_DIRECTION_LEFT) {
+                str_sprintf_and_append(builder, "%s %s, %s\n", "mov", registers[is_16bit][reg], address);
+            } else {
+                str_sprintf_and_append(builder, "%s %s, %s\n", "mov", address, registers[is_16bit][reg]);
             }
-            else if (mod == 0x02) { // Memory mode, 16-bit displacement follows
-                s16 displacement_16_bit = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
+        }
+        else if (mod == 0x02) { // Memory mode, 16-bit displacement follows
+            
+            s16 displacement_16_bit = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
+            i+=2;
+            
+            char *address = get_address_calc(r_m, mod, displacement_16_bit);
 
-                s16 data = buf[i+4];
-                const char *data_type = "byte";
+            if (reg_dir == REGISTER_DIRECTION_LEFT) {
+                str_sprintf_and_append(builder, "%s %s, %s\n", "mov", registers[is_16bit][reg], address);
+            } else {
+                str_sprintf_and_append(builder, "%s %s, %s\n", "mov", address, registers[is_16bit][reg]);
+            }
+        }
+        else if (mod == 0x03) { // Register mode, no displacement follows
+            u8 left = r_m;
+            u8 right = reg;
+            if (reg_dir == REGISTER_DIRECTION_LEFT) {
+                left = r_m;
+                right = reg;
+            }
+
+            str_sprintf_and_append(builder, "%s %s, %s\n", "mov", registers[is_16bit][left], registers[is_16bit][right]);
+        }
+
+        i+=2;
+    }
+    else if (((buf[i] >> 1) & 0x7F) == 0x63) { // Immediate to register/memory
+        // 1. byte
+        u8 is_16bit = (buf[i] & 1);
+        
+        // 2. byte
+        DECODE_MOD_000_RM(buf[i+1])
+
+        printf("[Immediate to register/memory]: buf[i]: %d, opcode: %d; 16bit: %d ; mode: %s (%d) ; r_m: %d\n", buf[i], 0x63, is_16bit, mode[mod], mod, r_m);
+
+        if (mod == 0x00) { // Memory mode, no displacement follows, except when R/M = 110, then 16 bit displacement follows
+            s16 displacement_16_bit = 0;
+            s16 data = 0;
+            const char *data_type = NULL;
+
+            if (r_m == 0x06) {
+                displacement_16_bit = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
+
+                data = buf[i+4];
+                data_type = "byte";
                 if (is_16bit) {
                     data = BYTE_SWAP_16BIT(buf[i+4], buf[i+5]);
                     data_type = "word";
@@ -336,46 +293,293 @@ int main(int argc, char **argv)
                 }
 
                 i+=3;
-
-                char *address = get_address_calc(r_m, mod, displacement_16_bit);
-
-                str_sprintf(&builder, "%s %s, %s %d\n", opcode_name, address, data_type, data);
             } 
             else {
-                assert(0);
+                // if no displacement, then the data will be at where displacement has to be
+                data = buf[i+2];
+                data_type = "byte";
+                if (is_16bit) {
+                    data = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
+                    data_type = "word";
+                    i++;
+                }
+                i+=1;
             }
 
-            i+=2;
-        }
-        else if (((buf[i] >> 1) & 0x7F) == 0x50) { // Memory to accumulator
-            u8 is_16bit = buf[i] & 0x01;
-        
-            printf("[Memory-to-accumulator]: buf[i]: %d, opcode: %d; 16bit: %d\n", buf[i], 0x50, is_16bit);
+            char *address = get_address_calc(r_m, mod, displacement_16_bit);
 
-            s16 address = buf[i+1];
+            str_sprintf_and_append(builder, "%s %s, %s %d\n", "mov", address, data_type, data);
+        } 
+        else if (mod == 0x01) { // Memory mode, 8-bit displacement follows
+            assert(0);
+            s8 displacement_8_bit = buf[i+2];
+            i++;
+                
+            char *address = get_address_calc(r_m, mod, displacement_8_bit);
+        }
+        else if (mod == 0x02) { // Memory mode, 16-bit displacement follows
+            s16 displacement_16_bit = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
+
+            s16 data = buf[i+4];
+            const char *data_type = "byte";
             if (is_16bit) {
-                address = BYTE_SWAP_16BIT(buf[i+1], buf[i+2]);
+                data = BYTE_SWAP_16BIT(buf[i+4], buf[i+5]);
+                data_type = "word";
                 i++;
             }
 
-            str_sprintf(&builder, "%s %s, [%d]\n", "mov", REG_ACCUMULATOR, address);
-            
-            i+=2;
-        }
-        else if (((buf[i] >> 1) & 0x7F) == 0x51) { // Accumulator to memory
-            u8 is_16bit = buf[i] & 0x01;
-        
-            printf("[Accumulator-to-Memory]: buf[i]: %d, opcode: %d; 16bit: %d\n", buf[i], 0x50, is_16bit);
+            i+=3;
 
-            s16 address = buf[i+1];
-            if (is_16bit) {
-                address = BYTE_SWAP_16BIT(buf[i+1], buf[i+2]);
+            char *address = get_address_calc(r_m, mod, displacement_16_bit);
+
+            str_sprintf_and_append(builder, "%s %s, %s %d\n", "mov", address, data_type, data);
+        } 
+        else {
+            assert(0);
+        }
+
+        i+=2;
+    }
+    else if (((buf[i] >> 1) & 0x7F) == 0x50) { // Memory to accumulator
+        u8 is_16bit = buf[i] & 0x01;
+    
+        printf("[Memory-to-accumulator]: buf[i]: %d, opcode: %d; 16bit: %d\n", buf[i], 0x50, is_16bit);
+
+        s16 address = buf[i+1];
+        if (is_16bit) {
+            address = BYTE_SWAP_16BIT(buf[i+1], buf[i+2]);
+            i++;
+        }
+
+        str_sprintf_and_append(builder, "%s %s, [%d]\n", "mov", registers[is_16bit][REG_INDEX_ACCUMULATOR], address);
+        
+        i+=2;
+    }
+    else if (((buf[i] >> 1) & 0x7F) == 0x51) { // Accumulator to memory
+        u8 is_16bit = buf[i] & 0x01;
+    
+        printf("[Accumulator-to-Memory]: buf[i]: %d, opcode: %d; 16bit: %d\n", buf[i], 0x50, is_16bit);
+
+        s16 address = buf[i+1];
+        if (is_16bit) {
+            address = BYTE_SWAP_16BIT(buf[i+1], buf[i+2]);
+            i++;
+        }
+
+        str_sprintf_and_append(builder, "%s [%d], %s\n", "mov", address, registers[is_16bit][REG_INDEX_ACCUMULATOR]);
+        
+        i+=2;
+    } else {
+        // It is not a "mov" instruction
+        return 0;
+    }
+
+    *_i = i;
+
+    return 1;
+}
+
+_bool add_decode(char *buf, size_t *_i, String_Builder *builder)
+{
+    size_t i = *_i;
+
+    if (((buf[i] >> 2) & 0x3F) == 0x00) { // Reg/memory with register to either
+        // 1. byte
+        u8 reg_dir = (buf[i] >> 1) & 0x01;
+        u8 is_16bit = buf[i] & 1;
+
+        // 2. byte
+        DECODE_MOD_REG_RM(buf[i+1])
+
+        printf("[reg/memory to/from register]: buf[i]: %d, opcode: %d; 16bit: %d ; mode: %s (%d) ; reg: %d ; r_m: %d ; reg_dir: %d\n", buf[i], 0x22, is_16bit, mode[mod], mod, reg, r_m, reg_dir);
+
+        if (mod == 0x00) { // Memory mode, no displacement follows, except when R/M = 110, then 16 bit displacement follows
+
+            s16 displacement_16_bit = 0;
+            if (r_m == 0x06) {
+                // Direct address
+                displacement_16_bit = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
+                i+=2;
+            }
+
+            char *address = get_address_calc(r_m, mod, displacement_16_bit);
+
+            if (reg_dir == REGISTER_DIRECTION_LEFT) {
+                str_sprintf_and_append(builder, "%s %s, %s\n", "add", registers[is_16bit][reg], address);
+            } else {
+                str_sprintf_and_append(builder, "%s %s, %s\n", "add", address, registers[is_16bit][reg]);
+            }
+        }
+        else if (mod == 0x01) { // Memory mode, 8-bit displacement follows
+           
+            s8 displacement_8_bit = buf[i+2];
+            i++;
+
+            char *address = get_address_calc(r_m, mod, displacement_8_bit);
+
+            if (reg_dir == REGISTER_DIRECTION_LEFT) {
+                str_sprintf_and_append(builder, "%s %s, %s\n", "add", registers[is_16bit][reg], address);
+            } else {
+                str_sprintf_and_append(builder, "%s %s, %s\n", "add", address, registers[is_16bit][reg]);
+            }
+        }
+        else if (mod == 0x02) { // Memory mode, 16-bit displacement follows
+            
+            s16 displacement_16_bit = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
+            i+=2;
+            
+            char *address = get_address_calc(r_m, mod, displacement_16_bit);
+
+            if (reg_dir == REGISTER_DIRECTION_LEFT) {
+                str_sprintf_and_append(builder, "%s %s, %s\n", "add", registers[is_16bit][reg], address);
+            } else {
+                str_sprintf_and_append(builder, "%s %s, %s\n", "add", address, registers[is_16bit][reg]);
+            }
+        }
+        else if (mod == 0x03) { // Register mode, no displacement follows
+            u8 left = r_m;
+            u8 right = reg;
+            if (reg_dir == REGISTER_DIRECTION_LEFT) {
+                left = r_m;
+                right = reg;
+            }
+            str_sprintf_and_append(builder, "%s %s, %s\n", "add", registers[is_16bit][left], registers[is_16bit][right]);
+        }
+        else {
+            assert(0);
+        }
+
+        i+=2;
+
+    }
+    else if (((buf[i] >> 2) & 0x3F) == 0x20) { // Immediate to register/memory
+        // 1. byte
+        u8 is_16bit = (buf[i] & 1);
+        u8 is_signed = (buf[i] >> 1) & 1; 
+        
+        // 2. byte
+        DECODE_MOD_000_RM(buf[i+1])
+
+        printf("[add-Immediate to register/memory]: buf[i]: %d, opcode: %d; 16bit: %d ; mode: %s (%d) ; r_m: %d\n", buf[i], 0x63, is_16bit, mode[mod], mod, r_m);
+
+        if (mod == 0x00) { // Memory mode, no displacement follows, except when R/M = 110, then 16 bit displacement follows
+            s16 displacement_16_bit = 0;
+            s16 data = 0;
+            const char *data_type = NULL;
+
+            if (r_m == 0x06) {
+                displacement_16_bit = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
+
+                data = buf[i+4];
+                data_type = "byte";
+                if (is_16bit && !is_signed) {
+                    data = BYTE_SWAP_16BIT(buf[i+4], buf[i+5]);
+                    data_type = "word";
+                    i++;
+                }
+
+                i+=3;
+            } 
+            else {
+                // if no displacement, then the data will be at where displacement has to be
+                data = buf[i+2];
+                data_type = "byte";
+                if (is_16bit && !is_signed) {
+                    data = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
+                    data_type = "word";
+                    i++;
+                }
+                i+=1;
+            }
+
+            char *address = get_address_calc(r_m, mod, displacement_16_bit);
+
+            str_sprintf_and_append(builder, "%s %s, %s %d\n", "add", address, data_type, data);
+        } 
+        else if (mod == 0x01) { // Memory mode, 8-bit displacement follows
+            assert(0);
+            s8 displacement_8_bit = buf[i+2];
+            i++;
+                
+            char *address = get_address_calc(r_m, mod, displacement_8_bit);
+        }
+        else if (mod == 0x02) { // Memory mode, 16-bit displacement follows
+            s16 displacement_16_bit = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
+
+            s16 data = buf[i+4];
+            const char *data_type = "byte";
+            if (is_16bit && !is_signed) {
+                data = BYTE_SWAP_16BIT(buf[i+4], buf[i+5]);
+                data_type = "word";
                 i++;
             }
 
-            str_sprintf(&builder, "%s [%d], %s\n", "mov", address, REG_ACCUMULATOR);
-            
-            i+=2;
+            i+=3;
+
+            char *address = get_address_calc(r_m, mod, displacement_16_bit);
+
+            str_sprintf_and_append(builder, "%s %s, %s %d\n", "add", address, data_type, data);
+
+        } else if (mod == 0x03) {
+            const char *data_type = "byte";
+
+            s16 data = buf[i+2];
+            if (is_16bit && !is_signed) {
+                data = BYTE_SWAP_16BIT(buf[i+2], buf[i+3]);
+                data_type = "word";
+                i++;
+            }
+            i++;
+
+            str_sprintf_and_append(builder, "%s %s, %s %d\n", "add", registers[is_16bit][r_m], data_type, data);
+        }
+
+        i+=2;
+    }
+    else if (((buf[i] >> 1) & 0x7F) == 0x02) {
+        // 1. byte
+        u8 is_16bit = buf[i] & 0x01;
+        
+        // 2. byte or if is_16bit, then 2-3. byte
+        s16 data = buf[i+1];
+        if (is_16bit) {
+            data = BYTE_SWAP_16BIT(buf[i+1], buf[i+2]);
+            i++;
+        }
+
+        str_sprintf_and_append(builder, "%s %s, %d\n", "add", registers[is_16bit][REG_INDEX_ACCUMULATOR], data);
+         
+        i+=2;
+
+    }
+    else {
+        return 0;
+    }
+
+    *_i = i;
+
+    return 1;
+}
+
+int main(int argc, char **argv)
+{
+    printf("binary filename: %s\n", argv[1]);
+
+    char *buf = NULL;
+    size_t fsize = read_entire_file(argv[1], &buf);
+
+    String_Builder builder = {0};
+    create_string_builder(&builder, 8096);
+
+    // @Todo: Can we obtain this "bits 16" stuff from somewhere or do we only know it because we are decoding the 8086/8088?
+    str_append(&builder, "bits 16\n\n");  
+
+    size_t i = 0;
+    _bool success = 0;
+    do {
+        if (mov_decode(buf, &i, &builder)) {
+        }
+        else if (add_decode(buf, &i, &builder)) {
         }
         else {
             printf("[WARNING] NOT HANDLED YET! Break...\n");
@@ -384,8 +588,6 @@ int main(int argc, char **argv)
         } 
 
     } while(i != fsize);
-
-parse_end:
 
     printf("\n\n--------------\n[OUTPUT]: \n\n%s\n--------------\noutput asm size: %ld\n\n", builder.buffer, builder.index+1);
 
