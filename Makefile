@@ -2,7 +2,7 @@
 make: run
 
 build:
-	gcc main.c -o main.out -Wall 
+	gcc main.c -o main.out -Wall -g 
 
 run:
 	make build
