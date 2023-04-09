@@ -1,9 +1,11 @@
-.SILENT: run
-make: run
+CC = gcc 
+CCFLAGS = -Wall -g -W
 
-build:
-	gcc main.c -o main.out -Wall -g 
+release: CCFLAGS += -O3
+release: build
 
-run:
-	make build
-	exec ./main.out ./input/listing_0041_add_sub_cmp_jnz
+build: 
+	$(CC) $(CCFLAGS) $(wildcard ./*.c) -o sim86.out
+
+make: build
+

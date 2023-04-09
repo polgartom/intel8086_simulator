@@ -44,57 +44,6 @@ size_t read_entire_file(char *filename, char **buf)
     return fsize;
 }
 
-typedef struct {
-    char *buffer;
-    size_t max_size;
-    size_t index;
-} String_Builder;
-
-void alloc_memory_for_string_builder(String_Builder *builder, size_t max_size)
-{
-    builder->buffer = (char *)malloc(max_size+1);
-    builder->max_size = max_size;
-    builder->index = 0;
-
-    ZERO_MEMORY(builder->buffer, max_size+1);
-}
-
-void str_append(String_Builder *builder, char *str)
-{
-    size_t size = strlen(str);
-    assert(builder->index + size<= builder->max_size);
-
-    memcpy(builder->buffer+builder->index, str, size);
-    builder->index += size;
-    builder->buffer[builder->index] = '\0';
-}
-
-void str_sprintf_and_append(String_Builder *builder, const char *fmt, ...) 
-{
-    s64 size = 0;
-    va_list ap;
-
-    // @Bug: \n \r \t characters not counted somehow, but if we do let's say 2 \n\n character then it will
-    //  count as 1 \n
-    // Determine required size
-    va_start(ap, fmt);
-    size = vsnprintf(NULL, size, fmt, ap);
-    va_end(ap);
-
-    assert(size > -1 && builder->index + size <= builder->max_size);
-
-    va_start(ap, fmt);
-    size = vsnprintf(builder->buffer+builder->index, size+1, fmt, ap);
-    va_end(ap);
-
-    assert(size > -1);
-
-    builder->index += size;
-}
-
-#define str_sprintf_and_append_with_space(builder, fmt, ...) \
-    str_sprintf_and_append(builder, " "fmt, ##__VA_ARGS__); \
-
 // ----------------------------------------------
 
 typedef struct {
@@ -104,32 +53,75 @@ typedef struct {
     size_t size;
 } Buffer;
 
-typedef struct {
-    u16 byte_index;
-    char label[32];
-} ASM_Label;
+typedef enum  {
+    Operand_None,
+
+    Operand_Memory,
+    Operand_Register,
+    Operand_Immediate,
+    Operand_Relative_Immediate,
+
+} Operand_Type;
+
+typedef enum {
+    Effective_Address_direct,
+    
+    Effective_Address_bx_si,
+    Effective_Address_bx_di,
+    Effective_Address_bp_si,
+    Effective_Address_bp_di,
+    Effective_Address_si,
+    Effective_Address_di,
+    Effective_Address_bp,
+    Effective_Address_bx,
+
+} Effective_Address_Base;
 
 typedef struct {
-    u16 byte_index;
-    char buf[64];
-} ASM_Instruction;
+    
+    Effective_Address_Base base;
+    s32 displacement;
+
+} Effective_Address_Expression;
+
+typedef struct {
+    Operand_Type type;  
+
+    union {
+        const char *reg;
+        Effective_Address_Expression address;
+        u16 immediate_u16;
+        s16 immediate_s16;
+    };
+
+} Instruction_Operand;
+
+#define FLAG_IS_16BIT  0b00000001
+#define FLAG_REG_DIR   0b00000010
+#define FLAG_IS_SIGNED 0b00000100
+
+typedef struct {
+    u16 byte_offset;
+    u8  size;
+    const char *opcode;
+
+    u32 flags;
+
+    Instruction_Operand operands[2];
+
+} Instruction;
 
 typedef struct {
     Buffer *binary;
-    String_Builder *builder;
     
-    ASM_Instruction *current_instruction;
-    ASM_Instruction instructions[1024]; // @Todo: Alloc this dinamically
+    Instruction *current_instruction;
+    Instruction instructions[1024]; // @Todo: Alloc this dinamically
     u16 number_of_instructions;
 } ASM_Decoder;
 
 
-#define MAX_ASM_LABELS 128
-ASM_Label ASM_LABELS[MAX_ASM_LABELS] = {0};
-
 #define ASMD_CURR_BYTE(_d) *(_d->binary->buffer)
-// @Performance: I hate this function call but the compiler throw me a warning if I do this with a macro 
-s8 ASMD_NEXT_BYTE(ASM_Decoder *_d) { return *(++_d->binary->buffer); }
+u8 ASMD_NEXT_BYTE(ASM_Decoder *_d) { return *(++_d->binary->buffer); }
 #define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) *(_d->binary->buffer+1)
 #define ASMD_CURR_BYTE_INDEX(_d) ((_d->binary->buffer) - (_d->binary->start_ptr))
 
@@ -148,14 +140,6 @@ const char* const registers[2][8] = {
 // Register indexes for the lookup table
 #define REG_INDEX_ACCUMULATOR 0
 
-//#define REG_BASE_REGISTER     "bx"
-//#define REG_COUNT_REGISTER    "cx"
-//#define REG_DATA_REGISER      "dx"
-//#define REG_STACK_POINTER     "sp"
-//#define REG_BASE_POINTER      "bp"
-//#define REG_SOURCE_INDEX      "si"
-//#define REG_DESTINATION_INDEX "di"
-
 // Mode (MOD) lookup table
 const char* const mode[4] = {
     "Memory mode",  // Memory mode, no displacement follows
@@ -164,59 +148,44 @@ const char* const mode[4] = {
     "Register to register",  // Register to (no displacement) 
 };
 
-#define ARITHMETIC_OPCODE_LOOKUP(byte, opcode_name) \
-     switch ((byte >> 3) & 7) { \
-        case 0: { opcode = "add"; break; } \
-        case 5: { opcode = "sub"; break; } \
-        case 7: { opcode = "cmp"; break; } \
+#define ARITHMETIC_OPCODE_LOOKUP(__byte, __opcode) \
+     switch ((__byte >> 3) & 7) { \
+        case 0: { __opcode = "add"; break; } \
+        case 5: { __opcode = "sub"; break; } \
+        case 7: { __opcode = "cmp"; break; } \
         default: { \
             printf("[WARNING]: This arithmetic instruction is not handled yet!\n"); \
             goto _debug_parse_end; \
         } \
     } \
 
-char *get_address_calculation(ASM_Decoder *d, u8 r_m, u8 mod, s16 displacement) 
+Effective_Address_Base get_address_base(u8 r_m, u8 mod) 
 {
-    // overkill tmp size
-    static char tmp[128];
-    ZERO_MEMORY(tmp, 128);
-
-    const char *address = NULL;
     switch (r_m) {
-        case 0x00: {address = "bx + si"; break;}
-        case 0x01: {address = "bx + di"; break;}
-        case 0x02: {address = "bp + si"; break;}
-        case 0x03: {address = "bp + di"; break;}
-        case 0x04: {address = "si"; break;}
-        case 0x05: {address = "di"; break;}
+        case 0x00: {return Effective_Address_bx_si;}
+        case 0x01: {return Effective_Address_bx_di;}
+        case 0x02: {return Effective_Address_bp_si;}
+        case 0x03: {return Effective_Address_bp_di;}
+        case 0x04: {return Effective_Address_si;   }
+        case 0x05: {return Effective_Address_di;   }
         case 0x06: {
             if (mod == 0x00) {
-                // Direct Address
-                sprintf(tmp, "[%d]", displacement);
-                return tmp;
+                return Effective_Address_direct; 
             }
-
-            address = "bp";  
-            break;
+            return Effective_Address_bp;
         }
-        case 0x07: {address = "bx"; break;}
-        default: assert(0);
+        case 0x07: {return Effective_Address_bx;}
+        default: {
+            fprintf(stderr, "[ERROR]: Invalid effective address expression!\n");
+            assert(0);
+        } 
     }
-
-    if (displacement == 0) {
-        sprintf(tmp, "[%s]", address);
-    } else if (displacement > 0) {
-        sprintf(tmp, "[%s + %d]", address, displacement);
-    } else {
-        sprintf(tmp, "[%s - %d]", address, displacement*-1);
-    } 
-
-    return tmp;
 }
 
-void register_memory_to_from_decode(ASM_Decoder *d, const char *opcode, u8 reg_dir, u8 is_16bit)
+void register_memory_to_from_decode(ASM_Decoder *d, u8 reg_dir, u8 is_16bit)
 {
-    char byte = ASMD_NEXT_BYTE(d);
+    u8 byte = ASMD_NEXT_BYTE(d);
+    Instruction *instruction = d->current_instruction;
 
     u8 mod = (byte >> 6) & 0x03;
     u8 reg = (byte >> 3) & 0x07;
@@ -233,9 +202,11 @@ void register_memory_to_from_decode(ASM_Decoder *d, const char *opcode, u8 reg_d
             src = registers[is_16bit][r_m];
         }
 
-        printf("[%s]: opcode: %s, reg_dir: %d, is16bit: %d ; dest: %s ; src: %s\n", __FUNCTION__, opcode, reg_dir, is_16bit, dest, src);
+        instruction->operands[0].type = Operand_Register;
+        instruction->operands[1].type = Operand_Register;
+        instruction->operands[0].reg = dest;
+        instruction->operands[1].reg = src;
 
-        sprintf(d->current_instruction->buf, "%s %s, %s\n", opcode, dest, src);
         return;
     }
 
@@ -246,18 +217,27 @@ void register_memory_to_from_decode(ASM_Decoder *d, const char *opcode, u8 reg_d
     else if (mod == 0x01) { 
         displacement = ASMD_NEXT_BYTE(d);
     }
-    
-    char *address = get_address_calculation(d, r_m, mod, displacement);
+   
+    Instruction_Operand a_operand;
+    Instruction_Operand b_operand;
 
-    printf("[%s]: opcode: %s, reg_dir: %d, is16bit: %d ; disp: %d; addr: %s\n", __FUNCTION__, opcode, reg_dir, is_16bit, displacement, address);
+    a_operand.type = Operand_Memory;
+    a_operand.address.base = get_address_base(r_m, mod);
+    a_operand.address.displacement = displacement;
+
+    b_operand.type = Operand_Register;
+    b_operand.reg = registers[is_16bit][reg];
 
     if (reg_dir == REG_IS_DEST) {
-        sprintf(d->current_instruction->buf, "%s %s, %s\n", opcode, registers[is_16bit][reg], address);
+        instruction->operands[0] = b_operand;
+        instruction->operands[1] = a_operand;
     } else {
-        sprintf(d->current_instruction->buf, "%s %s, %s\n", opcode, address, registers[is_16bit][reg]);
+        instruction->operands[0] = a_operand;
+        instruction->operands[1] = b_operand;
     }
 }
 
+/*
 void build_instuction_dest_data(ASM_Decoder *d, const char *opcode, char *dest, u8 is_signed, u8 is_16bit)
 {
     // @Todo: if we know that the register is cl then the data type not necessary to specified, because cl is going to be
@@ -271,67 +251,63 @@ void build_instuction_dest_data(ASM_Decoder *d, const char *opcode, char *dest, 
     
     sprintf(d->current_instruction->buf, "%s %s, %s %d\n", opcode, dest, data_type, data);
 }
+*/
 
-void immediate_to_register_memory_decode(ASM_Decoder *d, const char *opcode, u8 is_signed, u8 is_16bit)
+void add_immediate_to_operand(ASM_Decoder *d, Instruction_Operand *operand, u8 is_signed, u8 is_16bit)
 {
-    char byte = ASMD_NEXT_BYTE(d);
-    u8 mod = (byte >> 6) & 0x03;
-    u8 r_m = byte & 0x07;
-    s16 displacement = 0;
-
-    char *dest = 0;
-
-    if (mod == 0x03) {
-        dest = (char*)registers[is_16bit][r_m];
+    operand->type = Operand_Immediate;
+    if (is_16bit && !is_signed) {
+        operand->immediate_u16 = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
+    } else {
+        operand->immediate_s16 = ASMD_NEXT_BYTE(d);
     }
-    else if (mod == 0x00) { 
-        if (r_m == 0x06) {
-            displacement = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
-        }
-        dest = get_address_calculation(d, r_m, mod, displacement);
-    } 
-    else if (mod == 0x02) {
-        displacement = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
-        dest = get_address_calculation(d, r_m, mod, displacement);
-    }
-    else if (mod == 0x01) { 
-        printf("NOT HANDLED 8 bit displacement in immediate to register/memory!\n");
-        assert(0);
-        displacement = ASMD_NEXT_BYTE(d);
-        dest = get_address_calculation(d, r_m, mod, displacement);
-    }
-
-    printf("[%s]: opcode: %s, is_signed: %d, is16bit: %d ; disp: %d ; dest: %s\n", __FUNCTION__, opcode, is_signed, is_16bit, displacement, dest);
-
-    build_instuction_dest_data(d, opcode, dest, is_signed, is_16bit);
 }
 
-// @CleanUp: What a mess
-char *label_of_byte_index(s16 byte_index)
+void immediate_to_register_memory_decode(ASM_Decoder *d, u8 is_signed, u8 is_16bit)
 {
-    for (u16 i = 0; i < MAX_ASM_LABELS; i++) {
-        if (ASM_LABELS[i].byte_index == byte_index) {
-            return ASM_LABELS[i].label; // @Break: The 0 byte can be problematic
+    char byte = ASMD_NEXT_BYTE(d);
+    Instruction *instruction = d->current_instruction;
+
+    u8 mod = (byte >> 6) & 0x03;
+    u8 r_m = byte & 0x07;
+
+    if (mod == 0x03) {
+        instruction->operands[0].type = Operand_Register;
+        instruction->operands[0].reg  = (char*)registers[is_16bit][r_m];
+    } 
+    else {
+        s16 displacement = 0;
+
+        if (mod == 0x00) { 
+            if (r_m == 0x06) {
+                displacement = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
+            }
+        } 
+        else if (mod == 0x02) {
+            displacement = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
         }
-    }
-    
-    // Create a label for the byte index if not exists
-    for (u16 i = 0; i < MAX_ASM_LABELS; i++) {
-        if (!strlen(ASM_LABELS[i].label)) {
-            ASM_LABELS[i].byte_index = byte_index;
-            sprintf(ASM_LABELS[i].label, "_label_%d_", byte_index);
-            return ASM_LABELS[i].label;
+        else if (mod == 0x01) { 
+            fprintf(stderr, "[ERROR]: NOT HANDLED 8 bit displacement in immediate to register/memory!\n");
+            assert(0);
+            displacement = ASMD_NEXT_BYTE(d);
         }
+
+        instruction->operands[0].type = Operand_Memory;
+        instruction->operands[0].address.base = get_address_base(r_m, mod);
+        instruction->operands[0].address.displacement = displacement;
     }
 
-    printf("[ERROR]: No more free space for MAX_ASM_LABELS!\n");
-    assert(0);
+    add_immediate_to_operand(d, &instruction->operands[1], is_signed, is_16bit);
 }
 
 // -------------------------------------------
 
 int main(int argc, char **argv)
 {
+    if (argc < 2) {
+        fprintf(stderr, "No binary file specified!\n");
+    }
+
     printf("binary filename: %s\n", argv[1]);
 
     Buffer bin;
@@ -339,94 +315,140 @@ int main(int argc, char **argv)
     bin.start_ptr = bin.buffer;
     bin.end_ptr = bin.buffer + bin.size; 
 
-    String_Builder builder = {0};
-    alloc_memory_for_string_builder(&builder, 8096);
-
-    ASM_Decoder decoder = {&bin, &builder};
-    decoder.current_instruction = &decoder.instructions[0];
-
-    // @Todo: Can we obtain this "bits 16" stuff from somewhere or do we only know it because we are decoding the 8086/8088?
-    str_append(&builder, "bits 16\n\n");  
-
-    u8 reg_dir = 0;
-    u8 is_16bit = 0;
+    ASM_Decoder decoder = {&bin, .current_instruction = &decoder.instructions[0]};
 
     do {
-        char byte = ASMD_CURR_BYTE((&decoder));
-        decoder.current_instruction->byte_index = ASMD_CURR_BYTE_INDEX((&decoder));
+        u8 byte = ASMD_CURR_BYTE((&decoder));
+        u8 reg_dir = 0;
+        u8 is_16bit = 0;
+
+        decoder.current_instruction->byte_offset = ASMD_CURR_BYTE_INDEX((&decoder));
         decoder.number_of_instructions++;
+
+        Instruction *instruction = decoder.current_instruction;
         
         // ARITHMETIC
         if (((byte >> 6) & 7) == 0) {
-            const char *opcode = NULL;
-            ARITHMETIC_OPCODE_LOOKUP(byte, opcode);
+            ARITHMETIC_OPCODE_LOOKUP(byte, instruction->opcode);
 
             if (((byte >> 1) & 3) == 2) {
                 // Immediate to accumulator                
                 is_16bit = byte & 1;
-                char *reg_accumulator = (char *)registers[is_16bit][REG_INDEX_ACCUMULATOR];
+                if (is_16bit) {
+                    instruction->flags |= FLAG_IS_16BIT;
+                }
 
-                build_instuction_dest_data(&decoder, opcode, reg_accumulator, 0, is_16bit);
+                instruction->operands[0].type = Operand_Register;
+                instruction->operands[0].reg = registers[is_16bit][REG_INDEX_ACCUMULATOR];
+
+                add_immediate_to_operand(&decoder, &instruction->operands[1], 0, is_16bit);
             }
             else if (((byte >> 2) & 1) == 0) {
                 reg_dir = (byte >> 1) & 1;
-                is_16bit = byte & 1;
 
-                register_memory_to_from_decode(&decoder, opcode, reg_dir, is_16bit);
+                is_16bit = byte & 1;
+                if (is_16bit) {
+                    instruction->flags |= FLAG_IS_16BIT;
+                }
+
+                register_memory_to_from_decode(&decoder, reg_dir, is_16bit);
             } else {
+                fprintf(stderr, "[ERROR]: Invalid opcode!\n");
                 assert(0);
             }
         }
         else if (((byte >> 2) & 63) == 32) {
-            is_16bit = byte & 1;
-            u8 is_signed = (byte >> 1) & 1;
+            ARITHMETIC_OPCODE_LOOKUP(ASMD_NEXT_BYTE_WITHOUT_STEP((&decoder)), instruction->opcode);
 
-            const char *opcode = NULL;
-            ARITHMETIC_OPCODE_LOOKUP(ASMD_NEXT_BYTE_WITHOUT_STEP((&decoder)), opcode);
-           
-            immediate_to_register_memory_decode(&decoder, opcode, is_signed, is_16bit);
+            is_16bit = byte & 1;
+            if (is_16bit) {
+                instruction->flags |= FLAG_IS_16BIT;
+            }
+
+            u8 is_signed = (byte >> 1) & 1;
+            if (is_signed) {
+                instruction->flags |= FLAG_IS_SIGNED;
+            }
+
+                       
+            immediate_to_register_memory_decode(&decoder, is_signed, is_16bit);
         }
         // MOV
         else if (((byte >> 2) & 63) == 34) {
+            instruction->opcode = "mov";
+            
             reg_dir = (byte >> 1) & 1;
             is_16bit = byte & 1;
+            if (is_16bit) {
+                instruction->flags |= FLAG_IS_16BIT;
+            }
 
-            register_memory_to_from_decode(&decoder, "mov", reg_dir, is_16bit);
+            register_memory_to_from_decode(&decoder, reg_dir, is_16bit);
         }
         else if (((byte >> 1) & 127) == 99) {
+            instruction->opcode = "mov";
+
             char second_byte = ASMD_NEXT_BYTE_WITHOUT_STEP((&decoder));
             assert(((second_byte >> 3) & 7) == 0);
-            is_16bit = byte & 1;
 
-            immediate_to_register_memory_decode(&decoder, "mov", 0, is_16bit);
+            is_16bit = byte & 1;
+            if (is_16bit) {
+                instruction->flags |= FLAG_IS_16BIT;
+            }
+
+            immediate_to_register_memory_decode(&decoder, 0, is_16bit);
         }
         else if (((byte >> 4) & 0x0F) == 0x0B) {
-            u8 reg = byte & 0x07;
-            is_16bit = (byte >> 3) & 0x01;
-            char *dest = (char *)registers[is_16bit][reg];
+            instruction->opcode = "mov";
 
-            build_instuction_dest_data(&decoder, "mov", dest, 0, is_16bit);
+            u8 reg = byte & 0x07;
+
+            is_16bit = (byte >> 3) & 1;
+            if (is_16bit) {
+                instruction->flags |= FLAG_IS_16BIT;
+            }
+
+            instruction->operands[0].type = Operand_Register;
+            instruction->operands[0].reg = registers[is_16bit][reg];
+
+            add_immediate_to_operand(&decoder, &instruction->operands[1], 0, is_16bit);
         }
         else if (((byte >> 2) & 0x3F) == 0x28) {
+            instruction->opcode = "mov";
+
             // Memory to/from accumulator
             is_16bit = byte & 1;
-            reg_dir = (byte >> 1) & 1;
-            char *reg_accumulator = (char *)registers[is_16bit][REG_INDEX_ACCUMULATOR];
-            s16 address = ASMD_NEXT_BYTE((&decoder));
             if (is_16bit) {
-                address = BYTE_SWAP_16BIT(address, ASMD_NEXT_BYTE((&decoder)));
+                instruction->flags |= FLAG_IS_16BIT;
             }
 
-            if (reg_dir == 0) {
-                sprintf(decoder.current_instruction->buf, "%s %s, [%d]\n", "mov", reg_accumulator, address);
-            } else {
-                sprintf(decoder.current_instruction->buf, "%s [%d], %s\n", "mov", address, reg_accumulator);
+            decoder.current_instruction->opcode = "mov";
+
+            Instruction_Operand a_operand;
+            a_operand.type = Operand_Memory;
+            a_operand.address.base = Effective_Address_direct;
+
+            a_operand.address.displacement = ASMD_NEXT_BYTE((&decoder));
+            if (is_16bit) {
+                a_operand.address.displacement = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE((&decoder)), ASMD_NEXT_BYTE((&decoder)));
             }
+
+            Instruction_Operand b_operand;
+            b_operand.type = Operand_Register;
+            b_operand.reg = registers[is_16bit][REG_INDEX_ACCUMULATOR];
+
+            reg_dir = (byte >> 1) & 1;
+            if (reg_dir == 0) {
+                instruction->operands[0] = b_operand;
+                instruction->operands[1] = a_operand;
+            } else {
+                instruction->operands[0] = a_operand;
+                instruction->operands[1] = b_operand;
+            }
+            
         }
         // Return from CALL (jumps)
         else if (((byte >> 4) & 15) == 0x07) {
-            // @Todo: I have to change the string builder, because of labeling.
-            //  I have to move memory to right, also need to track the label positions
             s8 ip_inc8 = ASMD_NEXT_BYTE((&decoder)); // 8 bit signed increment to instruction pointer
             const char *opcode = NULL;
             switch (byte & 0x0F) {
@@ -447,15 +469,18 @@ int main(int argc, char **argv)
                 case 0b0001: { opcode = "jno"; break;               }
                 case 0b1001: { opcode = "jns"; break;               }
                 default: {
-                    printf("[ERROR]: This invalid opcode");
+                    fprintf(stderr, "[ERROR]: This invalid opcode\n");
                     assert(0);
                 }
             }
 
-            printf("opcode: %s ; ip_inc8: %d\n", opcode, ip_inc8);
+            instruction->opcode = opcode;
 
-            char *label = label_of_byte_index(ASMD_CURR_BYTE_INDEX((&decoder))+1 + ip_inc8);
-            sprintf(decoder.current_instruction->buf, "%s %s\n", opcode, label);
+            // We have to add +2, because the relative displacement (offset) start from the second byte (ip_inc8)
+            //  of instruction. 
+            instruction->operands[0].type = Operand_Relative_Immediate;
+            instruction->operands[0].immediate_u16 = ip_inc8+2;
+            //sprintf(decoder.current_instruction->buf, "%s $%+d\n", opcode, ip_inc8+2);
         }
         else if (((byte >> 4) & 0x0F) == 0b1110) {
             s8 ip_inc8 = ASMD_NEXT_BYTE((&decoder));
@@ -466,18 +491,20 @@ int main(int argc, char **argv)
                 case 0b0000: { opcode = "loopnz"; break; /* or loopne */  }
                 case 0b0011: { opcode = "jcxz"; break;                    }
                 default: {
-                    printf("[ERROR]: This invalid opcode");
+                    fprintf(stderr, "[ERROR]: This is invalid opcode\n");
                     assert(0);
                 }
             }
 
-            printf("opcode: %s ; ip_inc8: %d\n", opcode, ip_inc8);
+            instruction->opcode = opcode;
 
-            char *label = label_of_byte_index(ASMD_CURR_BYTE_INDEX((&decoder))+1 + ip_inc8);
-            sprintf(decoder.current_instruction->buf, "%s %s\n", opcode, label);
+            // We have to add +2, because the relative displacement (offset) start from the second byte (ip_inc8)
+            //  of instruction. 
+            instruction->operands[0].type = Operand_Relative_Immediate;
+            instruction->operands[0].immediate_u16 = ip_inc8+2;
         }
         else {
-            printf("NOT HANDLED!\n");
+            fprintf(stderr, "[WARNING]: Instruction is not handled!\n");
             break;
         }
 
@@ -490,20 +517,67 @@ _debug_parse_end:
 
     printf("\n\n----------------\n[OUTPUT]: \n\n");
 
+    fprintf(stdout, "bits 16\n");  
     for (u16 i = 0; i < decoder.number_of_instructions; i++) {
-        ASM_Instruction instruction = decoder.instructions[i];
+        Instruction *instruction = &decoder.instructions[i];
 
-        // @Performance: What a mess too. But it is working!
-        for (u16 j = 0; j < MAX_ASM_LABELS; j++) {
-            if (ASM_LABELS[j].byte_index != 0 && ASM_LABELS[j].byte_index == instruction.byte_index) {
-                if (strlen(ASM_LABELS[j].label)) {
-                    printf("\n%s:\n", ASM_LABELS[j].label);
+        fprintf(stdout, "%s", instruction->opcode);
+        
+        const char *separator = " ";
+        for (u8 j = 0; j < 2; j++) {
+            Instruction_Operand *op = &instruction->operands[j];
+            if (op->type == Operand_None) {
+                continue;
+            }
+            
+            fprintf(stdout, "%s", separator);
+            separator = ", ";
+
+            switch (op->type) {
+                case Operand_None: {
                     break;
                 }
+                case Operand_Register: {
+                    fprintf(stdout, "%s", op->reg);
+
+                    break;
+                }
+                case Operand_Memory: {
+                    if (instruction->operands[0].type != Operand_Register) {
+                        fprintf(stdout, "%s ", (instruction->flags & FLAG_IS_16BIT) ? "word" : "byte");
+                    }
+
+                    char const *r_m_base[] = {"","bx+si","bx+di","bp+si","bp+di","si","di","bp","bx"};
+                    fprintf(stdout, "[%s", r_m_base[op->address.base]);
+                    if (op->address.displacement) {
+                        fprintf(stdout, "%+d", op->address.displacement);
+                    }
+                    fprintf(stdout, "]");
+
+                    break;
+                }
+                case Operand_Immediate: {
+                    if ((instruction->flags & FLAG_IS_16BIT) && !(instruction->flags & FLAG_IS_SIGNED)) {
+                        fprintf(stdout, "%d", op->immediate_u16);
+                    } else {
+                        fprintf(stdout, "%d", op->immediate_s16);
+                    }
+
+                    break;
+                }
+                case Operand_Relative_Immediate: {
+                    fprintf(stdout, "$%+d", op->immediate_s16);
+
+                    break;
+                }
+                default: {
+                    fprintf(stderr, "[WARNING]: I found a not operand at print out!\n");
+                }
             }
+
         }
 
-        printf("%s", instruction.buf);
+        fprintf(stdout, "\n");
     }
 
     return 0;
