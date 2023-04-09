@@ -59,7 +59,6 @@ void alloc_memory_for_string_builder(String_Builder *builder, size_t max_size)
     ZERO_MEMORY(builder->buffer, max_size+1);
 }
 
-
 void str_append(String_Builder *builder, char *str)
 {
     size_t size = strlen(str);
@@ -106,14 +105,33 @@ typedef struct {
 } Buffer;
 
 typedef struct {
+    u16 byte_index;
+    char label[32];
+} ASM_Label;
+
+typedef struct {
+    u16 byte_index;
+    char buf[64];
+} ASM_Instruction;
+
+typedef struct {
     Buffer *binary;
     String_Builder *builder;
+    
+    ASM_Instruction *current_instruction;
+    ASM_Instruction instructions[1024]; // @Todo: Alloc this dinamically
+    u16 number_of_instructions;
 } ASM_Decoder;
+
+
+#define MAX_ASM_LABELS 128
+ASM_Label ASM_LABELS[MAX_ASM_LABELS] = {0};
 
 #define ASMD_CURR_BYTE(_d) *(_d->binary->buffer)
 // @Performance: I hate this function call but the compiler throw me a warning if I do this with a macro 
 s8 ASMD_NEXT_BYTE(ASM_Decoder *_d) { return *(++_d->binary->buffer); }
 #define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) *(_d->binary->buffer+1)
+#define ASMD_CURR_BYTE_INDEX(_d) ((_d->binary->buffer) - (_d->binary->start_ptr))
 
 #define REG_IS_DEST 1
 #define REG_IS_SRC  0
@@ -196,7 +214,6 @@ char *get_address_calculation(ASM_Decoder *d, u8 r_m, u8 mod, s16 displacement)
     return tmp;
 }
 
-
 void register_memory_to_from_decode(ASM_Decoder *d, const char *opcode, u8 reg_dir, u8 is_16bit)
 {
     char byte = ASMD_NEXT_BYTE(d);
@@ -218,7 +235,7 @@ void register_memory_to_from_decode(ASM_Decoder *d, const char *opcode, u8 reg_d
 
         printf("[%s]: opcode: %s, reg_dir: %d, is16bit: %d ; dest: %s ; src: %s\n", __FUNCTION__, opcode, reg_dir, is_16bit, dest, src);
 
-        str_sprintf_and_append(d->builder, "%s %s, %s\n", opcode, dest, src);
+        sprintf(d->current_instruction->buf, "%s %s, %s\n", opcode, dest, src);
         return;
     }
 
@@ -235,9 +252,9 @@ void register_memory_to_from_decode(ASM_Decoder *d, const char *opcode, u8 reg_d
     printf("[%s]: opcode: %s, reg_dir: %d, is16bit: %d ; disp: %d; addr: %s\n", __FUNCTION__, opcode, reg_dir, is_16bit, displacement, address);
 
     if (reg_dir == REG_IS_DEST) {
-        str_sprintf_and_append(d->builder, "%s %s, %s\n", opcode, registers[is_16bit][reg], address);
+        sprintf(d->current_instruction->buf, "%s %s, %s\n", opcode, registers[is_16bit][reg], address);
     } else {
-        str_sprintf_and_append(d->builder, "%s %s, %s\n", opcode, address, registers[is_16bit][reg]);
+        sprintf(d->current_instruction->buf, "%s %s, %s\n", opcode, address, registers[is_16bit][reg]);
     }
 }
 
@@ -252,7 +269,7 @@ void build_instuction_dest_data(ASM_Decoder *d, const char *opcode, char *dest, 
         data_type = "word";
     }
     
-    str_sprintf_and_append(d->builder, "%s %s, %s %d\n", opcode, dest, data_type, data);
+    sprintf(d->current_instruction->buf, "%s %s, %s %d\n", opcode, dest, data_type, data);
 }
 
 void immediate_to_register_memory_decode(ASM_Decoder *d, const char *opcode, u8 is_signed, u8 is_16bit)
@@ -289,6 +306,28 @@ void immediate_to_register_memory_decode(ASM_Decoder *d, const char *opcode, u8 
     build_instuction_dest_data(d, opcode, dest, is_signed, is_16bit);
 }
 
+// @CleanUp: What a mess
+char *label_of_byte_index(s16 byte_index)
+{
+    for (u16 i = 0; i < MAX_ASM_LABELS; i++) {
+        if (ASM_LABELS[i].byte_index == byte_index) {
+            return ASM_LABELS[i].label; // @Break: The 0 byte can be problematic
+        }
+    }
+    
+    // Create a label for the byte index if not exists
+    for (u16 i = 0; i < MAX_ASM_LABELS; i++) {
+        if (!strlen(ASM_LABELS[i].label)) {
+            ASM_LABELS[i].byte_index = byte_index;
+            sprintf(ASM_LABELS[i].label, "_label_%d_", byte_index);
+            return ASM_LABELS[i].label;
+        }
+    }
+
+    printf("[ERROR]: No more free space for MAX_ASM_LABELS!\n");
+    assert(0);
+}
+
 // -------------------------------------------
 
 int main(int argc, char **argv)
@@ -304,6 +343,7 @@ int main(int argc, char **argv)
     alloc_memory_for_string_builder(&builder, 8096);
 
     ASM_Decoder decoder = {&bin, &builder};
+    decoder.current_instruction = &decoder.instructions[0];
 
     // @Todo: Can we obtain this "bits 16" stuff from somewhere or do we only know it because we are decoding the 8086/8088?
     str_append(&builder, "bits 16\n\n");  
@@ -313,6 +353,8 @@ int main(int argc, char **argv)
 
     do {
         char byte = ASMD_CURR_BYTE((&decoder));
+        decoder.current_instruction->byte_index = ASMD_CURR_BYTE_INDEX((&decoder));
+        decoder.number_of_instructions++;
         
         // ARITHMETIC
         if (((byte >> 6) & 7) == 0) {
@@ -376,10 +418,63 @@ int main(int argc, char **argv)
             }
 
             if (reg_dir == 0) {
-                str_sprintf_and_append(decoder.builder, "%s %s, [%d]\n", "mov", reg_accumulator, address);
+                sprintf(decoder.current_instruction->buf, "%s %s, [%d]\n", "mov", reg_accumulator, address);
             } else {
-                str_sprintf_and_append(decoder.builder, "%s [%d], %s\n", "mov", address, reg_accumulator);
+                sprintf(decoder.current_instruction->buf, "%s [%d], %s\n", "mov", address, reg_accumulator);
             }
+        }
+        // Return from CALL (jumps)
+        else if (((byte >> 4) & 15) == 0x07) {
+            // @Todo: I have to change the string builder, because of labeling.
+            //  I have to move memory to right, also need to track the label positions
+            s8 ip_inc8 = ASMD_NEXT_BYTE((&decoder)); // 8 bit signed increment to instruction pointer
+            const char *opcode = NULL;
+            switch (byte & 0x0F) {
+                case 0b0000: { opcode = "jo";  break;               }
+                case 0b1000: { opcode = "js";  break;               }
+                case 0b0010: { opcode = "jb";  break; /* or jnae */ }
+                case 0b0100: { opcode = "je";  break; /* or jz */   }
+                case 0b0110: { opcode = "jbe"; break; /* or jna */  }
+                case 0b1010: { opcode = "jp";  break; /* or jpe */  }
+                case 0b0101: { opcode = "jnz"; break; /* or jne */  }
+                case 0b1100: { opcode = "jl";  break; /* or jnge */ }
+                case 0b1110: { opcode = "jle"; break; /* or jng */  }
+                case 0b1101: { opcode = "jnl"; break; /* or jge */  }
+                case 0b1111: { opcode = "jg";  break; /* or jnle */ }
+                case 0b0011: { opcode = "jae"; break; /* or jnle */ }
+                case 0b0111: { opcode = "ja";  break; /* or jnbe */ }
+                case 0b1011: { opcode = "jnp"; break; /* or jpo */  }
+                case 0b0001: { opcode = "jno"; break;               }
+                case 0b1001: { opcode = "jns"; break;               }
+                default: {
+                    printf("[ERROR]: This invalid opcode");
+                    assert(0);
+                }
+            }
+
+            printf("opcode: %s ; ip_inc8: %d\n", opcode, ip_inc8);
+
+            char *label = label_of_byte_index(ASMD_CURR_BYTE_INDEX((&decoder))+1 + ip_inc8);
+            sprintf(decoder.current_instruction->buf, "%s %s\n", opcode, label);
+        }
+        else if (((byte >> 4) & 0x0F) == 0b1110) {
+            s8 ip_inc8 = ASMD_NEXT_BYTE((&decoder));
+            const char *opcode = NULL;
+            switch (byte & 0x0F) {
+                case 0b0010: { opcode = "loop"; break;                    }
+                case 0b0001: { opcode = "loopz"; break;  /* or loope */   }
+                case 0b0000: { opcode = "loopnz"; break; /* or loopne */  }
+                case 0b0011: { opcode = "jcxz"; break;                    }
+                default: {
+                    printf("[ERROR]: This invalid opcode");
+                    assert(0);
+                }
+            }
+
+            printf("opcode: %s ; ip_inc8: %d\n", opcode, ip_inc8);
+
+            char *label = label_of_byte_index(ASMD_CURR_BYTE_INDEX((&decoder))+1 + ip_inc8);
+            sprintf(decoder.current_instruction->buf, "%s %s\n", opcode, label);
         }
         else {
             printf("NOT HANDLED!\n");
@@ -387,12 +482,29 @@ int main(int argc, char **argv)
         }
 
         bin.buffer++;
+        decoder.current_instruction++;
 
     } while(bin.buffer != bin.end_ptr);
 
 _debug_parse_end:
 
-    printf("\n\n--------------\n[OUTPUT]: \n\n%s\n--------------\noutput asm size: %ld\n\n", builder.buffer, builder.index+1);
+    printf("\n\n----------------\n[OUTPUT]: \n\n");
+
+    for (u16 i = 0; i < decoder.number_of_instructions; i++) {
+        ASM_Instruction instruction = decoder.instructions[i];
+
+        // @Performance: What a mess too. But it is working!
+        for (u16 j = 0; j < MAX_ASM_LABELS; j++) {
+            if (ASM_LABELS[j].byte_index != 0 && ASM_LABELS[j].byte_index == instruction.byte_index) {
+                if (strlen(ASM_LABELS[j].label)) {
+                    printf("\n%s:\n", ASM_LABELS[j].label);
+                    break;
+                }
+            }
+        }
+
+        printf("%s", instruction.buf);
+    }
 
     return 0;
 }
