@@ -100,7 +100,7 @@ typedef struct {
     Instruction instructions[1024]; // @Todo: Alloc this dinamically
     u16 number_of_instructions;
 
-} ASM_Decoder;
+} Decoder_Context;
 
 ///////////////////////////////////////////////////
 

@@ -1,7 +1,7 @@
 #include "sim86.h"
 
 #define ASMD_CURR_BYTE(_d) *(_d->binary->buffer)
-u8 ASMD_NEXT_BYTE(ASM_Decoder *_d) { return *(++_d->binary->buffer); }
+u8 ASMD_NEXT_BYTE(Decoder_Context *_d) { return *(++_d->binary->buffer); }
 #define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) *(_d->binary->buffer+1)
 #define ASMD_CURR_BYTE_INDEX(_d) ((_d->binary->buffer) - (_d->binary->start_ptr))
 
@@ -38,8 +38,6 @@ size_t read_entire_file(char *filename, char **buf)
     return fsize;
 }
 
-// ----------------------------------------------
-
 
 Effective_Address_Base get_address_base(u8 r_m, u8 mod) 
 {
@@ -64,7 +62,31 @@ Effective_Address_Base get_address_base(u8 r_m, u8 mod)
     }
 }
 
-void register_memory_to_from_decode(ASM_Decoder *d, u8 reg_dir, u8 is_16bit)
+void immediate_to_operand(Decoder_Context *d, Instruction_Operand *operand, u8 is_signed, u8 is_16bit)
+{
+    operand->type = Operand_Immediate;
+    if (is_16bit && !is_signed) {
+        operand->immediate_u16 = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
+    } else {
+        operand->immediate_s16 = ASMD_NEXT_BYTE(d);
+    }
+}
+
+void displacement_to_operand(Decoder_Context *d, Instruction_Operand *operand, u8 mod, u8 r_m)
+{
+    operand->type = Operand_Memory;
+    operand->address.base = get_address_base(r_m, mod);
+    operand->address.displacement = 0;
+
+    if ((mod == 0x00 && r_m == 0x06) || mod == 0x02) { 
+        operand->address.displacement = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
+    } 
+    else if (mod == 0x01) { 
+        operand->address.displacement = ASMD_NEXT_BYTE(d);
+    }
+}
+
+void register_memory_to_from_decode(Decoder_Context *d, u8 reg_dir, u8 is_16bit)
 {
     u8 byte = ASMD_NEXT_BYTE(d);
     Instruction *instruction = d->current_instruction;
@@ -92,21 +114,10 @@ void register_memory_to_from_decode(ASM_Decoder *d, u8 reg_dir, u8 is_16bit)
         return;
     }
 
-    s16 displacement = 0;
-    if ((mod == 0x00 && r_m == 0x06) || mod == 0x02) {
-        displacement = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
-    }
-    else if (mod == 0x01) { 
-        displacement = ASMD_NEXT_BYTE(d);
-    }
-   
     Instruction_Operand a_operand;
+    displacement_to_operand(d, &a_operand, mod, r_m);
+
     Instruction_Operand b_operand;
-
-    a_operand.type = Operand_Memory;
-    a_operand.address.base = get_address_base(r_m, mod);
-    a_operand.address.displacement = displacement;
-
     b_operand.type = Operand_Register;
     b_operand.reg = registers[is_16bit][reg];
 
@@ -119,17 +130,7 @@ void register_memory_to_from_decode(ASM_Decoder *d, u8 reg_dir, u8 is_16bit)
     }
 }
 
-void add_immediate_to_operand(ASM_Decoder *d, Instruction_Operand *operand, u8 is_signed, u8 is_16bit)
-{
-    operand->type = Operand_Immediate;
-    if (is_16bit && !is_signed) {
-        operand->immediate_u16 = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
-    } else {
-        operand->immediate_s16 = ASMD_NEXT_BYTE(d);
-    }
-}
-
-void immediate_to_register_memory_decode(ASM_Decoder *d, u8 is_signed, u8 is_16bit)
+void immediate_to_register_memory_decode(Decoder_Context *d, u8 is_signed, u8 is_16bit)
 {
     char byte = ASMD_NEXT_BYTE(d);
     Instruction *instruction = d->current_instruction;
@@ -142,31 +143,13 @@ void immediate_to_register_memory_decode(ASM_Decoder *d, u8 is_signed, u8 is_16b
         instruction->operands[0].reg  = (char*)registers[is_16bit][r_m];
     } 
     else {
-        s16 displacement = 0;
-
-        if (mod == 0x00) { 
-            if (r_m == 0x06) {
-                displacement = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
-            }
-        } 
-        else if (mod == 0x02) {
-            displacement = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
-        }
-        else if (mod == 0x01) { 
-            fprintf(stderr, "[ERROR]: NOT HANDLED 8 bit displacement in immediate to register/memory!\n");
-            assert(0);
-            displacement = ASMD_NEXT_BYTE(d);
-        }
-
-        instruction->operands[0].type = Operand_Memory;
-        instruction->operands[0].address.base = get_address_base(r_m, mod);
-        instruction->operands[0].address.displacement = displacement;
+        displacement_to_operand(d, &instruction->operands[0], mod, r_m);
     }
 
-    add_immediate_to_operand(d, &instruction->operands[1], is_signed, is_16bit);
+    immediate_to_operand(d, &instruction->operands[1], is_signed, is_16bit);
 }
 
-void print_out_instructions(ASM_Decoder *d, FILE *dest)
+void print_out_instructions(Decoder_Context *d, FILE *dest)
 {
     fprintf(dest, "bits 16\n\n");  
 
@@ -250,7 +233,7 @@ int main(int argc, char **argv)
     bin.start_ptr = bin.buffer;
     bin.end_ptr = bin.buffer + bin.size; 
 
-    ASM_Decoder decoder = {&bin, .current_instruction = &decoder.instructions[0]};
+    Decoder_Context decoder = {&bin, .current_instruction = &decoder.instructions[0]};
 
     do {
         u8 byte = ASMD_CURR_BYTE((&decoder));
@@ -276,7 +259,7 @@ int main(int argc, char **argv)
                 instruction->operands[0].type = Operand_Register;
                 instruction->operands[0].reg = registers[is_16bit][REG_INDEX_ACCUMULATOR];
 
-                add_immediate_to_operand(&decoder, &instruction->operands[1], 0, is_16bit);
+                immediate_to_operand(&decoder, &instruction->operands[1], 0, is_16bit);
             }
             else if (((byte >> 2) & 1) == 0) {
                 reg_dir = (byte >> 1) & 1;
@@ -346,7 +329,7 @@ int main(int argc, char **argv)
             instruction->operands[0].type = Operand_Register;
             instruction->operands[0].reg = registers[is_16bit][reg];
 
-            add_immediate_to_operand(&decoder, &instruction->operands[1], 0, is_16bit);
+            immediate_to_operand(&decoder, &instruction->operands[1], 0, is_16bit);
         }
         else if (((byte >> 2) & 0x3F) == 0x28) {
             instruction->opcode = "mov";
