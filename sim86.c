@@ -1,27 +1,21 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <stdarg.h>
+#include "sim86.h"
 
-#define ZERO_MEMORY(dest, len) memset(((char*)dest), 0, (len))
-#define STR_EQUAL(str1, str2) (strcmp(str1, str2) == 0)
-#define STR_LEN(x) (x != NULL ? strlen(x) : 0)
-#define LOG(f_, ...) printf(f_ "\n", ##__VA_ARGS__)
+#define ASMD_CURR_BYTE(_d) *(_d->binary->buffer)
+u8 ASMD_NEXT_BYTE(ASM_Decoder *_d) { return *(++_d->binary->buffer); }
+#define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) *(_d->binary->buffer+1)
+#define ASMD_CURR_BYTE_INDEX(_d) ((_d->binary->buffer) - (_d->binary->start_ptr))
 
-// "Intel convention, if the displacement is two bytes, the most-significant 
-// byte is stored second in the instruction."
-#define BYTE_SWAP_16BIT(LO, HI) ((LO & 0x00FF) | ((HI << 8) & 0xFF00))
+#define ARITHMETIC_OPCODE_LOOKUP(__byte, __opcode) \
+     switch ((__byte >> 3) & 7) { \
+        case 0: { __opcode = "add"; break; } \
+        case 5: { __opcode = "sub"; break; } \
+        case 7: { __opcode = "cmp"; break; } \
+        default: { \
+            printf("[WARNING]: This arithmetic instruction is not handled yet!\n"); \
+            goto _debug_parse_end; \
+        } \
+    } \
 
-typedef char  s8;
-typedef short s16;
-typedef int   s32;
-typedef long  s64;
-
-typedef unsigned char  u8;
-typedef unsigned short u16;
-typedef unsigned int   u32;
 
 size_t read_entire_file(char *filename, char **buf)
 {
@@ -46,118 +40,6 @@ size_t read_entire_file(char *filename, char **buf)
 
 // ----------------------------------------------
 
-typedef struct {
-    char *buffer;
-    char *start_ptr;
-    char *end_ptr;
-    size_t size;
-} Buffer;
-
-typedef enum  {
-    Operand_None,
-
-    Operand_Memory,
-    Operand_Register,
-    Operand_Immediate,
-    Operand_Relative_Immediate,
-
-} Operand_Type;
-
-typedef enum {
-    Effective_Address_direct,
-    
-    Effective_Address_bx_si,
-    Effective_Address_bx_di,
-    Effective_Address_bp_si,
-    Effective_Address_bp_di,
-    Effective_Address_si,
-    Effective_Address_di,
-    Effective_Address_bp,
-    Effective_Address_bx,
-
-} Effective_Address_Base;
-
-typedef struct {
-    
-    Effective_Address_Base base;
-    s32 displacement;
-
-} Effective_Address_Expression;
-
-typedef struct {
-    Operand_Type type;  
-
-    union {
-        const char *reg;
-        Effective_Address_Expression address;
-        u16 immediate_u16;
-        s16 immediate_s16;
-    };
-
-} Instruction_Operand;
-
-#define FLAG_IS_16BIT  0b00000001
-#define FLAG_REG_DIR   0b00000010
-#define FLAG_IS_SIGNED 0b00000100
-
-typedef struct {
-    u16 byte_offset;
-    u8  size;
-    const char *opcode;
-
-    u32 flags;
-
-    Instruction_Operand operands[2];
-
-} Instruction;
-
-typedef struct {
-    Buffer *binary;
-    
-    Instruction *current_instruction;
-    Instruction instructions[1024]; // @Todo: Alloc this dinamically
-    u16 number_of_instructions;
-} ASM_Decoder;
-
-
-#define ASMD_CURR_BYTE(_d) *(_d->binary->buffer)
-u8 ASMD_NEXT_BYTE(ASM_Decoder *_d) { return *(++_d->binary->buffer); }
-#define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) *(_d->binary->buffer+1)
-#define ASMD_CURR_BYTE_INDEX(_d) ((_d->binary->buffer) - (_d->binary->start_ptr))
-
-#define REG_IS_DEST 1
-#define REG_IS_SRC  0
-
-// Registers (REG) lookup table
-const char* const registers[2][8] = {
-    // W=0 (8bit)
-    { "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh" },
-
-    // W=1 (16bit)
-    { "ax", "cx", "dx", "bx", "sp", "bp", "si", "di" }
-};
-
-// Register indexes for the lookup table
-#define REG_INDEX_ACCUMULATOR 0
-
-// Mode (MOD) lookup table
-const char* const mode[4] = {
-    "Memory mode",  // Memory mode, no displacement follows
-    "8bit memory mode",  // Memory mode 8 bit
-    "16bit memory mode",  // Memory mode 16 bit
-    "Register to register",  // Register to (no displacement) 
-};
-
-#define ARITHMETIC_OPCODE_LOOKUP(__byte, __opcode) \
-     switch ((__byte >> 3) & 7) { \
-        case 0: { __opcode = "add"; break; } \
-        case 5: { __opcode = "sub"; break; } \
-        case 7: { __opcode = "cmp"; break; } \
-        default: { \
-            printf("[WARNING]: This arithmetic instruction is not handled yet!\n"); \
-            goto _debug_parse_end; \
-        } \
-    } \
 
 Effective_Address_Base get_address_base(u8 r_m, u8 mod) 
 {
@@ -237,22 +119,6 @@ void register_memory_to_from_decode(ASM_Decoder *d, u8 reg_dir, u8 is_16bit)
     }
 }
 
-/*
-void build_instuction_dest_data(ASM_Decoder *d, const char *opcode, char *dest, u8 is_signed, u8 is_16bit)
-{
-    // @Todo: if we know that the register is cl then the data type not necessary to specified, because cl is going to be
-    //  byte and cx is going to be word and so on...
-    s16 data = ASMD_NEXT_BYTE(d);
-    const char *data_type = "byte";
-    if (is_16bit && !is_signed) {
-        data = BYTE_SWAP_16BIT(data, ASMD_NEXT_BYTE(d));
-        data_type = "word";
-    }
-    
-    sprintf(d->current_instruction->buf, "%s %s, %s %d\n", opcode, dest, data_type, data);
-}
-*/
-
 void add_immediate_to_operand(ASM_Decoder *d, Instruction_Operand *operand, u8 is_signed, u8 is_16bit)
 {
     operand->type = Operand_Immediate;
@@ -300,7 +166,76 @@ void immediate_to_register_memory_decode(ASM_Decoder *d, u8 is_signed, u8 is_16b
     add_immediate_to_operand(d, &instruction->operands[1], is_signed, is_16bit);
 }
 
-// -------------------------------------------
+void print_out_instructions(ASM_Decoder *d, FILE *dest)
+{
+    fprintf(dest, "bits 16\n\n");  
+
+    for (u16 i = 0; i < d->number_of_instructions; i++) {
+        Instruction *instruction = &d->instructions[i];
+
+        if (!instruction->opcode) continue;
+
+        fprintf(dest, "%s", instruction->opcode);
+        
+        const char *separator = " ";
+        for (u8 j = 0; j < 2; j++) {
+            Instruction_Operand *op = &instruction->operands[j];
+            if (op->type == Operand_None) {
+                continue;
+            }
+            
+            fprintf(dest, "%s", separator);
+            separator = ", ";
+
+            switch (op->type) {
+                case Operand_None: {
+                    break;
+                }
+                case Operand_Register: {
+                    fprintf(dest, "%s", op->reg);
+
+                    break;
+                }
+                case Operand_Memory: {
+                    if (instruction->operands[0].type != Operand_Register) {
+                        fprintf(dest, "%s ", (instruction->flags & FLAG_IS_16BIT) ? "word" : "byte");
+                    }
+
+                    char const *r_m_base[] = {"","bx+si","bx+di","bp+si","bp+di","si","di","bp","bx"};
+
+                    fprintf(dest, "[%s", r_m_base[op->address.base]);
+                    if (op->address.displacement) {
+                        fprintf(dest, "%+d", op->address.displacement);
+                    }
+                    fprintf(dest, "]");
+
+                    break;
+                }
+                case Operand_Immediate: {
+                    if ((instruction->flags & FLAG_IS_16BIT) && !(instruction->flags & FLAG_IS_SIGNED)) {
+                        fprintf(dest, "%d", op->immediate_u16);
+                    } else {
+                        fprintf(dest, "%d", op->immediate_s16);
+                    }
+
+                    break;
+                }
+                case Operand_Relative_Immediate: {
+                    fprintf(dest, "$%+d", op->immediate_s16);
+
+                    break;
+                }
+                default: {
+                    fprintf(stderr, "[WARNING]: I found a not operand at print out!\n");
+                }
+            }
+
+        }
+
+        fprintf(dest, "\n");
+    }
+
+}
 
 int main(int argc, char **argv)
 {
@@ -480,7 +415,6 @@ int main(int argc, char **argv)
             //  of instruction. 
             instruction->operands[0].type = Operand_Relative_Immediate;
             instruction->operands[0].immediate_u16 = ip_inc8+2;
-            //sprintf(decoder.current_instruction->buf, "%s $%+d\n", opcode, ip_inc8+2);
         }
         else if (((byte >> 4) & 0x0F) == 0b1110) {
             s8 ip_inc8 = ASMD_NEXT_BYTE((&decoder));
@@ -513,72 +447,10 @@ int main(int argc, char **argv)
 
     } while(bin.buffer != bin.end_ptr);
 
-_debug_parse_end:
-
-    printf("\n\n----------------\n[OUTPUT]: \n\n");
-
-    fprintf(stdout, "bits 16\n");  
-    for (u16 i = 0; i < decoder.number_of_instructions; i++) {
-        Instruction *instruction = &decoder.instructions[i];
-
-        fprintf(stdout, "%s", instruction->opcode);
-        
-        const char *separator = " ";
-        for (u8 j = 0; j < 2; j++) {
-            Instruction_Operand *op = &instruction->operands[j];
-            if (op->type == Operand_None) {
-                continue;
-            }
-            
-            fprintf(stdout, "%s", separator);
-            separator = ", ";
-
-            switch (op->type) {
-                case Operand_None: {
-                    break;
-                }
-                case Operand_Register: {
-                    fprintf(stdout, "%s", op->reg);
-
-                    break;
-                }
-                case Operand_Memory: {
-                    if (instruction->operands[0].type != Operand_Register) {
-                        fprintf(stdout, "%s ", (instruction->flags & FLAG_IS_16BIT) ? "word" : "byte");
-                    }
-
-                    char const *r_m_base[] = {"","bx+si","bx+di","bp+si","bp+di","si","di","bp","bx"};
-                    fprintf(stdout, "[%s", r_m_base[op->address.base]);
-                    if (op->address.displacement) {
-                        fprintf(stdout, "%+d", op->address.displacement);
-                    }
-                    fprintf(stdout, "]");
-
-                    break;
-                }
-                case Operand_Immediate: {
-                    if ((instruction->flags & FLAG_IS_16BIT) && !(instruction->flags & FLAG_IS_SIGNED)) {
-                        fprintf(stdout, "%d", op->immediate_u16);
-                    } else {
-                        fprintf(stdout, "%d", op->immediate_s16);
-                    }
-
-                    break;
-                }
-                case Operand_Relative_Immediate: {
-                    fprintf(stdout, "$%+d", op->immediate_s16);
-
-                    break;
-                }
-                default: {
-                    fprintf(stderr, "[WARNING]: I found a not operand at print out!\n");
-                }
-            }
-
-        }
-
-        fprintf(stdout, "\n");
-    }
+_debug_parse_end:;
+    
+    FILE *dest = stdout;
+    print_out_instructions(&decoder, dest);
 
     return 0;
 }
