@@ -1,9 +1,9 @@
 #include "sim86.h"
 
-#define ASMD_CURR_BYTE(_d) *(_d->binary->buffer)
-u8 ASMD_NEXT_BYTE(Decoder_Context *_d) { return *(++_d->binary->buffer); }
-#define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) *(_d->binary->buffer+1)
-#define ASMD_CURR_BYTE_INDEX(_d) ((_d->binary->buffer) - (_d->binary->start_ptr))
+#define ASMD_CURR_BYTE(_d) _d->memory.data[_d->mem_index]
+u8 ASMD_NEXT_BYTE(Decoder_Context *_d) { return _d->memory.data[++_d->mem_index]; }
+#define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) _d->memory.data[_d->mem_index+1]
+#define ASMD_CURR_BYTE_INDEX(_d) _d->mem_index
 
 #define ARITHMETIC_OPCODE_LOOKUP(__byte, __opcode) \
      switch ((__byte >> 3) & 7) { \
@@ -11,13 +11,49 @@ u8 ASMD_NEXT_BYTE(Decoder_Context *_d) { return *(++_d->binary->buffer); }
         case 5: { __opcode = "sub"; break; } \
         case 7: { __opcode = "cmp"; break; } \
         default: { \
-            printf("[WARNING]: This arithmetic instruction is not handled yet!\n"); \
+            printf("[WARNING/%s:%d]: This arithmetic instruction is not handled yet!\n", __FUNCTION__, __LINE__); \
             goto _debug_parse_end; \
         } \
     } \
 
+#define GET_REG_ENUM      0
+#define GET_REG_MEM_INDEX 1
+#define GET_REG_MEM_SIZE  2
 
-size_t read_entire_file(char *filename, char **buf)
+#define REG_ACCUMULATOR 0
+const u8* get_register(u8 is_word, u8 reg)
+{
+    // [byte/word][register_index_by_table][meta_data]
+    static const u8 registers[2][8][3] = {
+        // BYTE (8bit)
+        { 
+        //   Register_index, mem_offset (byte), mem_size (byte)
+            {Register_al, 0, 1}, {Register_cl, 2, 1}, {Register_dl, 4, 1}, {Register_bl, 6, 1},
+            {Register_ah, 1, 2}, {Register_ch, 3, 1}, {Register_dh, 5, 1}, {Register_bh, 7, 1}
+        },
+        // WORD (16bit)
+        {
+            {Register_ax, 0, 2}, {Register_cx, 2,  2}, {Register_dx, 4,  2}, {Register_bx, 6,  2},
+            {Register_sp, 8, 2}, {Register_bp, 10, 2}, {Register_si, 12, 2}, {Register_di, 14, 2}
+        }
+    };
+
+    return registers[is_word][reg];
+}
+
+const char *get_register_name(Register reg)
+{
+    static const char *register_names[] = {
+        "al", "cl", "dl", "bl",
+        "ah", "ch", "dh", "bh",
+        "ax", "cx", "dx", "bx",
+        "sp", "bp", "si", "di"
+    };
+
+    return register_names[reg];
+}
+
+size_t load_to_memory(Decoder_Context *ctx, char *filename)
 {
     FILE *fp = fopen(filename, "rb");
     if (fp == NULL) {
@@ -26,18 +62,18 @@ size_t read_entire_file(char *filename, char **buf)
     }
 
     fseek(fp, 0, SEEK_END);
-    size_t fsize = ftell(fp);
+    u32 fsize = ftell(fp);
     rewind(fp);
 
-    *buf = (char *)malloc(fsize);
-    ZERO_MEMORY(*buf, fsize+1);
+    assert(fsize+1 <= MAX_MEMORY_SIZE);
 
-    fread(*buf, fsize, 1, fp);
+    ZERO_MEMORY(ctx->memory.data, fsize+1);
+
+    fread(ctx->memory.data, fsize, 1, fp);
     fclose(fp);
 
     return fsize;
 }
-
 
 Effective_Address_Base get_address_base(u8 r_m, u8 mod) 
 {
@@ -62,13 +98,30 @@ Effective_Address_Base get_address_base(u8 r_m, u8 mod)
     }
 }
 
-void immediate_to_operand(Decoder_Context *d, Instruction_Operand *operand, u8 is_signed, u8 is_16bit)
+void immediate_to_operand(Decoder_Context *ctx, Instruction_Operand *operand, u8 is_signed, u8 is_16bit, u8 immediate_depends_from_signed)
 {
     operand->type = Operand_Immediate;
-    if (is_16bit && !is_signed) {
-        operand->immediate_u16 = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
+    s8 x = ASMD_NEXT_BYTE(ctx);
+
+    // If this an arithmetic operation then only can be an u16 or a s8 data type based on
+    // that if it is wide and not signed immediate
+    if (immediate_depends_from_signed) {
+        if (is_16bit && !is_signed) {
+            operand->immediate_u16 = BYTE_SWAP_16BIT(x, ASMD_NEXT_BYTE(ctx));
+        } else {
+            operand->immediate_s16 = x;
+        }
+        return;
+    }
+
+    if (is_16bit) {
+        if (!is_signed) {
+            operand->immediate_u16 = BYTE_SWAP_16BIT(x, ASMD_NEXT_BYTE(ctx));
+        } else {
+            operand->immediate_s16 = BYTE_SWAP_16BIT(x, ASMD_NEXT_BYTE(ctx));
+        }
     } else {
-        operand->immediate_s16 = ASMD_NEXT_BYTE(d);
+        operand->immediate_s16 = x;
     }
 }
 
@@ -79,31 +132,31 @@ void displacement_to_operand(Decoder_Context *d, Instruction_Operand *operand, u
     operand->address.displacement = 0;
 
     if ((mod == 0x00 && r_m == 0x06) || mod == 0x02) { 
-        operand->address.displacement = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d));
+        operand->address.displacement = (s16)(BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d)));
     } 
     else if (mod == 0x01) { 
-        operand->address.displacement = ASMD_NEXT_BYTE(d);
+        operand->address.displacement = (s8)ASMD_NEXT_BYTE(d);
     }
 }
 
-void register_memory_to_from_decode(Decoder_Context *d, u8 reg_dir, u8 is_16bit)
+void register_memory_to_from_decode(Decoder_Context *d, u8 reg_dir)
 {
     u8 byte = ASMD_NEXT_BYTE(d);
-    Instruction *instruction = d->current_instruction;
+    Instruction *instruction = d->instruction;
 
     u8 mod = (byte >> 6) & 0x03;
     u8 reg = (byte >> 3) & 0x07;
     u8 r_m = byte & 0x07;
     
-    const char *src = NULL;
-    const char *dest = NULL;
+    Register src;
+    Register dest;
 
     if (mod == 0x03) { 
-        dest = registers[is_16bit][r_m];
-        src = registers[is_16bit][reg];
+        dest = r_m;
+        src = reg;
         if (reg_dir == REG_IS_DEST) {
-            dest = registers[is_16bit][reg];
-            src = registers[is_16bit][r_m];
+            dest = reg;
+            src = r_m;
         }
 
         instruction->operands[0].type = Operand_Register;
@@ -119,7 +172,7 @@ void register_memory_to_from_decode(Decoder_Context *d, u8 reg_dir, u8 is_16bit)
 
     Instruction_Operand b_operand;
     b_operand.type = Operand_Register;
-    b_operand.reg = registers[is_16bit][reg];
+    b_operand.reg = reg;
 
     if (reg_dir == REG_IS_DEST) {
         instruction->operands[0] = b_operand;
@@ -130,244 +183,223 @@ void register_memory_to_from_decode(Decoder_Context *d, u8 reg_dir, u8 is_16bit)
     }
 }
 
-void immediate_to_register_memory_decode(Decoder_Context *d, u8 is_signed, u8 is_16bit)
+void immediate_to_register_memory_decode(Decoder_Context *d, s8 is_signed, u8 is_16bit, u8 immediate_depends_from_signed)
 {
     char byte = ASMD_NEXT_BYTE(d);
-    Instruction *instruction = d->current_instruction;
+    Instruction *instruction = d->instruction;
 
     u8 mod = (byte >> 6) & 0x03;
     u8 r_m = byte & 0x07;
 
     if (mod == 0x03) {
         instruction->operands[0].type = Operand_Register;
-        instruction->operands[0].reg  = (char*)registers[is_16bit][r_m];
+        instruction->operands[0].reg  = r_m;
     } 
     else {
         displacement_to_operand(d, &instruction->operands[0], mod, r_m);
     }
 
-    immediate_to_operand(d, &instruction->operands[1], is_signed, is_16bit);
+    immediate_to_operand(d, &instruction->operands[1], is_signed, is_16bit, immediate_depends_from_signed);
 }
 
-void print_out_instructions(Decoder_Context *d, FILE *dest)
+void print_instruction(Instruction *instruction)
 {
-    fprintf(dest, "bits 16\n\n");  
+    FILE *dest = stdout;
 
-    for (u16 i = 0; i < d->number_of_instructions; i++) {
-        Instruction *instruction = &d->instructions[i];
-
-        if (!instruction->opcode) continue;
-
-        fprintf(dest, "%s", instruction->opcode);
+    fprintf(dest, "%s", instruction->opcode);
+    
+    const char *separator = " ";
+    for (u8 j = 0; j < 2; j++) {
+        Instruction_Operand *op = &instruction->operands[j];
+        if (op->type == Operand_None) {
+            continue;
+        }
         
-        const char *separator = " ";
-        for (u8 j = 0; j < 2; j++) {
-            Instruction_Operand *op = &instruction->operands[j];
-            if (op->type == Operand_None) {
-                continue;
+        fprintf(dest, "%s", separator);
+        separator = ", ";
+
+        switch (op->type) {
+            case Operand_None: {
+                break;
             }
-            
-            fprintf(dest, "%s", separator);
-            separator = ", ";
+            case Operand_Register: {
+                fprintf(dest, "%s", get_register_name(get_register(instruction->flags & FLAG_IS_16BIT, op->reg)[GET_REG_ENUM]));
 
-            switch (op->type) {
-                case Operand_None: {
-                    break;
-                }
-                case Operand_Register: {
-                    fprintf(dest, "%s", op->reg);
-
-                    break;
-                }
-                case Operand_Memory: {
-                    if (instruction->operands[0].type != Operand_Register) {
-                        fprintf(dest, "%s ", (instruction->flags & FLAG_IS_16BIT) ? "word" : "byte");
-                    }
-
-                    char const *r_m_base[] = {"","bx+si","bx+di","bp+si","bp+di","si","di","bp","bx"};
-
-                    fprintf(dest, "[%s", r_m_base[op->address.base]);
-                    if (op->address.displacement) {
-                        fprintf(dest, "%+d", op->address.displacement);
-                    }
-                    fprintf(dest, "]");
-
-                    break;
-                }
-                case Operand_Immediate: {
-                    if ((instruction->flags & FLAG_IS_16BIT) && !(instruction->flags & FLAG_IS_SIGNED)) {
-                        fprintf(dest, "%d", op->immediate_u16);
-                    } else {
-                        fprintf(dest, "%d", op->immediate_s16);
-                    }
-
-                    break;
-                }
-                case Operand_Relative_Immediate: {
-                    fprintf(dest, "$%+d", op->immediate_s16);
-
-                    break;
-                }
-                default: {
-                    fprintf(stderr, "[WARNING]: I found a not operand at print out!\n");
-                }
+                break;
             }
+            case Operand_Memory: {
+                if (instruction->operands[0].type != Operand_Register) {
+                    fprintf(dest, "%s ", (instruction->flags & FLAG_IS_16BIT) ? "word" : "byte");
+                }
 
+                char const *r_m_base[] = {"","bx+si","bx+di","bp+si","bp+di","si","di","bp","bx"};
+
+                fprintf(dest, "[%s", r_m_base[op->address.base]);
+                if (op->address.displacement) {
+                    fprintf(dest, "%+d", op->address.displacement);
+                }
+                fprintf(dest, "]");
+
+                break;
+            }
+            case Operand_Immediate: {
+                if ((instruction->flags & FLAG_IS_16BIT) && !(instruction->flags & FLAG_IS_SIGNED)) {
+                    fprintf(dest, "%d", op->immediate_u16);
+                } else {
+                    fprintf(dest, "%d", op->immediate_s16);
+                }
+
+                break;
+            }
+            case Operand_Relative_Immediate: {
+                fprintf(dest, "$%+d", op->immediate_s16);
+
+                break;
+            }
+            default: {
+                fprintf(stderr, "[WARNING]: I found a not operand at print out!\n");
+            }
         }
 
-        fprintf(dest, "\n");
     }
 
+    fprintf(dest, "\n");
 }
 
-int main(int argc, char **argv)
+void try_to_decode(Decoder_Context *ctx)
 {
-    if (argc < 2) {
-        fprintf(stderr, "No binary file specified!\n");
-    }
-
-    printf("binary filename: %s\n", argv[1]);
-
-    Buffer bin;
-    bin.size = read_entire_file(argv[1], &bin.buffer);
-    bin.start_ptr = bin.buffer;
-    bin.end_ptr = bin.buffer + bin.size; 
-
-    Decoder_Context decoder = {&bin, .current_instruction = &decoder.instructions[0]};
-
     do {
-        u8 byte = ASMD_CURR_BYTE((&decoder));
+        u8 byte = ASMD_CURR_BYTE(ctx);
         u8 reg_dir = 0;
         u8 is_16bit = 0;
 
-        decoder.current_instruction->byte_offset = ASMD_CURR_BYTE_INDEX((&decoder));
-        decoder.number_of_instructions++;
-
-        Instruction *instruction = decoder.current_instruction;
+        Instruction instruction = {};
+        ctx->instruction = &instruction;
         
         // ARITHMETIC
         if (((byte >> 6) & 7) == 0) {
-            ARITHMETIC_OPCODE_LOOKUP(byte, instruction->opcode);
+            ARITHMETIC_OPCODE_LOOKUP(byte, ctx->instruction->opcode);
 
             if (((byte >> 1) & 3) == 2) {
                 // Immediate to accumulator                
                 is_16bit = byte & 1;
                 if (is_16bit) {
-                    instruction->flags |= FLAG_IS_16BIT;
+                    ctx->instruction->flags |= FLAG_IS_16BIT;
                 }
 
-                instruction->operands[0].type = Operand_Register;
-                instruction->operands[0].reg = registers[is_16bit][REG_INDEX_ACCUMULATOR];
+                ctx->instruction->operands[0].type = Operand_Register;
+                ctx->instruction->operands[0].reg = REG_ACCUMULATOR;
 
-                immediate_to_operand(&decoder, &instruction->operands[1], 0, is_16bit);
+                immediate_to_operand(ctx, &ctx->instruction->operands[1], 0, is_16bit, 1);
             }
             else if (((byte >> 2) & 1) == 0) {
                 reg_dir = (byte >> 1) & 1;
 
                 is_16bit = byte & 1;
                 if (is_16bit) {
-                    instruction->flags |= FLAG_IS_16BIT;
+                    ctx->instruction->flags |= FLAG_IS_16BIT;
                 }
 
-                register_memory_to_from_decode(&decoder, reg_dir, is_16bit);
+                register_memory_to_from_decode(ctx, reg_dir);
             } else {
                 fprintf(stderr, "[ERROR]: Invalid opcode!\n");
                 assert(0);
             }
         }
         else if (((byte >> 2) & 63) == 32) {
-            ARITHMETIC_OPCODE_LOOKUP(ASMD_NEXT_BYTE_WITHOUT_STEP((&decoder)), instruction->opcode);
+            ARITHMETIC_OPCODE_LOOKUP(ASMD_NEXT_BYTE_WITHOUT_STEP(ctx), ctx->instruction->opcode);
 
             is_16bit = byte & 1;
             if (is_16bit) {
-                instruction->flags |= FLAG_IS_16BIT;
+                ctx->instruction->flags |= FLAG_IS_16BIT;
             }
 
             u8 is_signed = (byte >> 1) & 1;
             if (is_signed) {
-                instruction->flags |= FLAG_IS_SIGNED;
+                ctx->instruction->flags |= FLAG_IS_SIGNED;
             }
 
-                       
-            immediate_to_register_memory_decode(&decoder, is_signed, is_16bit);
+            immediate_to_register_memory_decode(ctx, is_signed, is_16bit, 1);
         }
         // MOV
         else if (((byte >> 2) & 63) == 34) {
-            instruction->opcode = "mov";
+            ctx->instruction->opcode = "mov";
             
             reg_dir = (byte >> 1) & 1;
             is_16bit = byte & 1;
             if (is_16bit) {
-                instruction->flags |= FLAG_IS_16BIT;
+                ctx->instruction->flags |= FLAG_IS_16BIT;
             }
 
-            register_memory_to_from_decode(&decoder, reg_dir, is_16bit);
+            register_memory_to_from_decode(ctx, reg_dir);
         }
         else if (((byte >> 1) & 127) == 99) {
-            instruction->opcode = "mov";
+            ctx->instruction->opcode = "mov";
 
-            char second_byte = ASMD_NEXT_BYTE_WITHOUT_STEP((&decoder));
+            char second_byte = ASMD_NEXT_BYTE_WITHOUT_STEP(ctx);
             assert(((second_byte >> 3) & 7) == 0);
 
             is_16bit = byte & 1;
             if (is_16bit) {
-                instruction->flags |= FLAG_IS_16BIT;
+                ctx->instruction->flags |= FLAG_IS_16BIT;
             }
+            ctx->instruction->flags |= FLAG_IS_SIGNED;
 
-            immediate_to_register_memory_decode(&decoder, 0, is_16bit);
+            immediate_to_register_memory_decode(ctx, 1, is_16bit, 0);
         }
         else if (((byte >> 4) & 0x0F) == 0x0B) {
-            instruction->opcode = "mov";
+            ctx->instruction->opcode = "mov";
 
             u8 reg = byte & 0x07;
 
             is_16bit = (byte >> 3) & 1;
             if (is_16bit) {
-                instruction->flags |= FLAG_IS_16BIT;
+                ctx->instruction->flags |= FLAG_IS_16BIT;
             }
+            ctx->instruction->flags |= FLAG_IS_SIGNED;
 
-            instruction->operands[0].type = Operand_Register;
-            instruction->operands[0].reg = registers[is_16bit][reg];
+            ctx->instruction->operands[0].type = Operand_Register;
+            ctx->instruction->operands[0].reg = reg;
 
-            immediate_to_operand(&decoder, &instruction->operands[1], 0, is_16bit);
+            immediate_to_operand(ctx, &ctx->instruction->operands[1], 1, is_16bit, 0);
         }
         else if (((byte >> 2) & 0x3F) == 0x28) {
-            instruction->opcode = "mov";
+            ctx->instruction->opcode = "mov";
 
             // Memory to/from accumulator
             is_16bit = byte & 1;
             if (is_16bit) {
-                instruction->flags |= FLAG_IS_16BIT;
+                ctx->instruction->flags |= FLAG_IS_16BIT;
             }
 
-            decoder.current_instruction->opcode = "mov";
+            ctx->instruction->opcode = "mov";
 
             Instruction_Operand a_operand;
             a_operand.type = Operand_Memory;
             a_operand.address.base = Effective_Address_direct;
 
-            a_operand.address.displacement = ASMD_NEXT_BYTE((&decoder));
+            a_operand.address.displacement = (s8)ASMD_NEXT_BYTE(ctx);
             if (is_16bit) {
-                a_operand.address.displacement = BYTE_SWAP_16BIT(ASMD_NEXT_BYTE((&decoder)), ASMD_NEXT_BYTE((&decoder)));
+                a_operand.address.displacement = (s16)BYTE_SWAP_16BIT(a_operand.address.displacement, ASMD_NEXT_BYTE(ctx));
             }
 
             Instruction_Operand b_operand;
             b_operand.type = Operand_Register;
-            b_operand.reg = registers[is_16bit][REG_INDEX_ACCUMULATOR];
+            b_operand.reg = REG_ACCUMULATOR;
 
             reg_dir = (byte >> 1) & 1;
             if (reg_dir == 0) {
-                instruction->operands[0] = b_operand;
-                instruction->operands[1] = a_operand;
+                ctx->instruction->operands[0] = b_operand;
+                ctx->instruction->operands[1] = a_operand;
             } else {
-                instruction->operands[0] = a_operand;
-                instruction->operands[1] = b_operand;
+                ctx->instruction->operands[0] = a_operand;
+                ctx->instruction->operands[1] = b_operand;
             }
             
         }
         // Return from CALL (jumps)
         else if (((byte >> 4) & 15) == 0x07) {
-            s8 ip_inc8 = ASMD_NEXT_BYTE((&decoder)); // 8 bit signed increment to instruction pointer
+            s8 ip_inc8 = ASMD_NEXT_BYTE(ctx); // 8 bit signed increment to instruction pointer
             const char *opcode = NULL;
             switch (byte & 0x0F) {
                 case 0b0000: { opcode = "jo";  break;               }
@@ -392,15 +424,15 @@ int main(int argc, char **argv)
                 }
             }
 
-            instruction->opcode = opcode;
+            ctx->instruction->opcode = opcode;
 
             // We have to add +2, because the relative displacement (offset) start from the second byte (ip_inc8)
             //  of instruction. 
-            instruction->operands[0].type = Operand_Relative_Immediate;
-            instruction->operands[0].immediate_u16 = ip_inc8+2;
+            ctx->instruction->operands[0].type = Operand_Relative_Immediate;
+            ctx->instruction->operands[0].immediate_u16 = ip_inc8+2;
         }
         else if (((byte >> 4) & 0x0F) == 0b1110) {
-            s8 ip_inc8 = ASMD_NEXT_BYTE((&decoder));
+            s8 ip_inc8 = ASMD_NEXT_BYTE(ctx);
             const char *opcode = NULL;
             switch (byte & 0x0F) {
                 case 0b0010: { opcode = "loop"; break;                    }
@@ -413,27 +445,38 @@ int main(int argc, char **argv)
                 }
             }
 
-            instruction->opcode = opcode;
+            ctx->instruction->opcode = opcode;
 
             // We have to add +2, because the relative displacement (offset) start from the second byte (ip_inc8)
             //  of instruction. 
-            instruction->operands[0].type = Operand_Relative_Immediate;
-            instruction->operands[0].immediate_u16 = ip_inc8+2;
+            ctx->instruction->operands[0].type = Operand_Relative_Immediate;
+            ctx->instruction->operands[0].immediate_u16 = ip_inc8+2;
         }
         else {
             fprintf(stderr, "[WARNING]: Instruction is not handled!\n");
             break;
         }
 
-        bin.buffer++;
-        decoder.current_instruction++;
+        print_instruction(ctx->instruction);
 
-    } while(bin.buffer != bin.end_ptr);
+        ctx->mem_index++;
+
+    } while(ctx->memory.size != ctx->mem_index);
 
 _debug_parse_end:;
-    
-    FILE *dest = stdout;
-    print_out_instructions(&decoder, dest);
+
+}
+
+int main(int argc, char **argv)
+{
+    if (argc < 2 || STR_LEN(argv[1]) == 0) {
+        fprintf(stderr, "No binary file specified!\n");
+    }
+    printf("binary filename: %s\n", argv[1]);
+
+    Decoder_Context ctx = {};
+    ctx.memory.size = load_to_memory(&ctx, argv[1]);
+    try_to_decode(&ctx);
 
     return 0;
 }
