@@ -16,12 +16,16 @@ u8 ASMD_NEXT_BYTE(Decoder_Context *_d) { return _d->memory.data[++_d->mem_index]
         } \
     } \
 
+////////////////////////////////////////
+
+Memory regmem;
+
 #define GET_REG_ENUM      0
 #define GET_REG_MEM_INDEX 1
 #define GET_REG_MEM_SIZE  2
 
 #define REG_ACCUMULATOR 0
-const u8* get_register(u8 is_word, u8 reg)
+const u8* get_register(u8 is_16bit, u8 reg)
 {
     // [byte/word][register_index_by_table][meta_data]
     static const u8 registers[2][8][3] = {
@@ -38,7 +42,7 @@ const u8* get_register(u8 is_word, u8 reg)
         }
     };
 
-    return registers[is_word][reg];
+    return registers[is_16bit][reg];
 }
 
 const char *get_register_name(Register reg)
@@ -266,6 +270,54 @@ void print_instruction(Instruction *instruction)
     fprintf(dest, "\n");
 }
 
+void emulate(Instruction *i) 
+{
+    printf("\n");
+    if (STR_EQUAL(i->opcode, "mov")) {
+        Instruction_Operand dest_op = i->operands[0];
+        Instruction_Operand src_op = i->operands[1];
+
+        assert(dest_op.type == Operand_Register);
+
+        const u8* dest_reg = get_register(i->flags & FLAG_IS_16BIT, dest_op.reg);
+        const char *dest_reg_name = get_register_name(dest_reg[GET_REG_ENUM]);
+        u8 dest_current_data = regmem.data[dest_reg[GET_REG_MEM_INDEX]];
+
+        printf("%s: %d\n", dest_reg_name, dest_current_data);
+
+        if (src_op.type == Operand_Register) {
+            const u8* src_reg = get_register(i->flags & FLAG_IS_16BIT, src_op.reg);
+            const char *src_reg_name = get_register_name(src_reg[GET_REG_ENUM]);
+            u8 src_current_data = src_reg[GET_REG_MEM_INDEX];
+
+            printf("%s(%d) -> %s(%d)\n", src_reg_name, src_current_data, dest_reg_name, dest_current_data);
+
+            regmem.data[dest_reg[GET_REG_MEM_INDEX]] = src_reg[GET_REG_MEM_INDEX];
+
+        } else if (src_op.type == Operand_Immediate) {
+            
+            s32 immediate = 0;
+            if (i->flags & FLAG_IS_SIGNED) {
+                immediate = src_op.immediate_s16;
+            } else {
+                immediate = src_op.immediate_u16;
+            }
+
+            printf("%d -> %s(%d)\n", immediate, dest_reg_name, dest_current_data);
+
+            u8 mem_index = dest_reg[GET_REG_MEM_INDEX];
+            regmem.data[mem_index] = immediate;
+        }
+
+        printf("%s: %d\n", dest_reg_name, regmem.data[dest_reg[GET_REG_MEM_INDEX]]);
+
+    } else {
+        printf("!!!!\n");
+        assert(0);
+    }
+
+}
+
 void try_to_decode(Decoder_Context *ctx)
 {
     do {
@@ -457,7 +509,8 @@ void try_to_decode(Decoder_Context *ctx)
             break;
         }
 
-        print_instruction(ctx->instruction);
+        emulate(ctx->instruction);
+//        print_instruction(ctx->instruction);
 
         ctx->mem_index++;
 
@@ -472,11 +525,25 @@ int main(int argc, char **argv)
     if (argc < 2 || STR_LEN(argv[1]) == 0) {
         fprintf(stderr, "No binary file specified!\n");
     }
-    printf("binary filename: %s\n", argv[1]);
+    printf("\n\nbinary filename: %s\n", argv[1]);
 
     Decoder_Context ctx = {};
     ctx.memory.size = load_to_memory(&ctx, argv[1]);
+
+    printf("---------\n\nregmem before:\n");
+    for (u16 i = 0; i < 20; i++) {
+        printf("[%d]", regmem.data[i]);
+    }
+    printf("\n\n");
+    
     try_to_decode(&ctx);
+
+    printf("\n\nregmem after:\n");
+    for (u16 i = 0; i < 20; i++) {
+        printf("[%d]", regmem.data[i]);
+    }
+    printf("\n\n");
+
 
     return 0;
 }

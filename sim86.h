@@ -100,7 +100,7 @@ typedef struct {
     Operand_Type type;  
 
     union {
-        Register reg;
+        u8 reg;
         Effective_Address_Expression address;
         u16 immediate_u16;
         s16 immediate_s16;
