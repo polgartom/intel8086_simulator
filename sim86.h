@@ -108,24 +108,28 @@ typedef struct {
 
 } Instruction_Operand;
 
+// @Todo: Remove those!
 #define FLAG_IS_16BIT  0b00000001
-#define FLAG_REG_DIR   0b00000010
 #define FLAG_IS_SIGNED 0b00000100
+
+#define F_SIGNED (1 << 8)
+#define F_ZERO   (1 << 7)
 
 typedef struct {
     u16 byte_offset;
     u8  size;
     const char *opcode;
+    
+    Instruction_Operand operands[2];
 
     u32 flags;
-
-    Instruction_Operand operands[2];
 } Instruction;
 
 typedef struct {
     Memory memory;
     u32 mem_index;
     Instruction *instruction; // current
+    u16 flags;
 } Decoder_Context;
 
 ///////////////////////////////////////////////////
