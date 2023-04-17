@@ -429,10 +429,10 @@ void execute_instruction(Decoder_Context *ctx)
             new_flags |= F_SIGNED;
         }
 
-        printf(" ; %s: %#02x || %d ", dest_reg_name, result_value, result_value);
+        printf(" ; %s: %#02x", dest_reg_name, result_value);
 
         // current flags
-        printf("flags: (");
+        printf(" | flags: (");
         print_flags(ctx->flags);
         printf(") -> (");
         print_flags(new_flags);
