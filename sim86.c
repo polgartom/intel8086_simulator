@@ -7,9 +7,9 @@ u8 ASMD_NEXT_BYTE(Decoder_Context *_d) { return _d->memory.data[++_d->mem_index]
 
 #define ARITHMETIC_OPCODE_LOOKUP(__byte, __opcode) \
      switch ((__byte >> 3) & 7) { \
-        case 0: { __opcode = "add"; break; } \
-        case 5: { __opcode = "sub"; break; } \
-        case 7: { __opcode = "cmp"; break; } \
+        case 0: { __opcode = Opcode_add; break; } \
+        case 5: { __opcode = Opcode_sub; break; } \
+        case 7: { __opcode = Opcode_cmp; break; } \
         default: { \
             printf("[WARNING/%s:%d]: This arithmetic instruction is not handled yet!\n", __FUNCTION__, __LINE__); \
             goto _debug_parse_end; \
@@ -21,7 +21,7 @@ u8 ASMD_NEXT_BYTE(Decoder_Context *_d) { return _d->memory.data[++_d->mem_index]
 Memory regmem; // Remove!!
 
 #define REG_ACCUMULATOR 0
-Register_Info *get_register(u8 is_16bit, u8 reg)
+static Register_Info *get_register(u8 is_16bit, u8 reg)
 {
     // [byte/word][register_index_by_table][meta_data]
     static const u32 registers[2][8][3] = {
@@ -41,8 +41,48 @@ Register_Info *get_register(u8 is_16bit, u8 reg)
     return (Register_Info *)registers[is_16bit][reg];
 }
 
-const char *get_register_name(Register reg)
+static const char *get_opcode_name(Opcode opcode)
 {
+    assert(opcode < Opcode_count);
+
+    static const char* opcode_names[] = {
+        "none",
+
+        "mov",
+        "add",
+        "sub",
+        "cmp",
+
+        "jo",
+        "js",
+        "jb",
+        "je",
+        "jbe",
+        "jp",
+        "jnz",
+        "jl",
+        "jle",
+        "jnl",
+        "jg",
+        "jae",
+        "ja",
+        "jnp",
+        "jno",
+        "jns",
+
+        "loop",
+        "loopz",
+        "loopnz",
+        "jcxz"
+    };
+
+    return opcode_names[opcode];
+}
+
+static const char *get_register_name(Register reg)
+{
+    assert(reg < Register_count);
+
     static const char *register_names[] = {
         "al", "cl", "dl", "bl",
         "ah", "ch", "dh", "bh",
@@ -217,7 +257,7 @@ void print_instruction(Instruction *instruction, u8 with_end_line)
 {
     FILE *dest = stdout;
 
-    fprintf(dest, "[0x%02x]\t%s", instruction->mem_offset, instruction->opcode);
+    fprintf(dest, "[0x%02x]\t%s", instruction->mem_offset, get_opcode_name(instruction->opcode));
     
     const char *separator = " ";
     for (u8 j = 0; j < 2; j++) {
@@ -335,7 +375,7 @@ void execute_instruction(Decoder_Context *ctx)
     s32 result_value = dest_original_value;
     u32 ip_data_before = ctx->ip_data;
 
-    if (STR_EQUAL(i->opcode, "mov")) {
+    if (i->opcode == Opcode_mov) {
         Instruction_Operand src_op = i->operands[1];
 
         assert(dest_op.type == Operand_Register); // @Todo: Handle more!
@@ -361,7 +401,7 @@ void execute_instruction(Decoder_Context *ctx)
         ctx->ip_data = ctx->ip_data + i->size;
         printf(" ; %s: %#02x -> %#02x | ip: %#02x (%d) -> %#02x (%d)", dest_reg_name, dest_original_value, result_value, ip_data_before, ip_data_before, ctx->ip_data, ctx->ip_data);
     } 
-    else if (STR_EQUAL(i->opcode, "add") || STR_EQUAL(i->opcode, "sub") || STR_EQUAL(i->opcode, "cmp")) {
+    else if (i->opcode == Opcode_add || i->opcode == Opcode_sub || i->opcode == Opcode_cmp) {
         Instruction_Operand src_op = i->operands[1];
 
         Register_Info *dest_reg = get_register(i->flags & FLAG_IS_16BIT, dest_op.reg);
@@ -369,19 +409,19 @@ void execute_instruction(Decoder_Context *ctx)
         if (src_op.type == Operand_Register) {
             Register_Info *src_reg = get_register(i->flags & FLAG_IS_16BIT, src_op.reg);
 
-            if (STR_EQUAL(i->opcode, "add")) {
+            if (i->opcode == Opcode_add) {
                 s32 val = get_data_from_register(dest_reg) + get_data_from_register(src_reg);
                 set_data_to_register_from_immediate(dest_reg, val);
 
                 result_value = get_data_from_register(dest_reg);
             } 
-            else if (STR_EQUAL(i->opcode, "sub")) {
+            else if (i->opcode == Opcode_sub) {
                 s32 val = get_data_from_register(dest_reg) - get_data_from_register(src_reg);
                 set_data_to_register_from_immediate(dest_reg, val);
                 
                 result_value = get_data_from_register(dest_reg);
             }
-            else if (STR_EQUAL(i->opcode, "cmp")) {
+            else if (i->opcode == Opcode_cmp) {
                 // Here we set the flags by the result value?
                 result_value = get_data_from_register(dest_reg) - get_data_from_register(src_reg);
             }
@@ -394,19 +434,19 @@ void execute_instruction(Decoder_Context *ctx)
                 immediate = src_op.immediate_u16;
             }
 
-            if (STR_EQUAL(i->opcode, "add")) {
+            if (i->opcode == Opcode_add) {
                 s32 val = get_data_from_register(dest_reg) + immediate;
                 set_data_to_register_from_immediate(dest_reg, val);
 
                 result_value = get_data_from_register(dest_reg);
             } 
-            else if (STR_EQUAL(i->opcode, "sub")) {
+            else if (i->opcode == Opcode_sub) {
                 s32 val = get_data_from_register(dest_reg) - immediate;
                 set_data_to_register_from_immediate(dest_reg, val);
 
                 result_value = get_data_from_register(dest_reg);
             } 
-            else if (STR_EQUAL(i->opcode, "cmp")) {
+            else if (i->opcode == Opcode_cmp) {
                 // Here we set the flags by the result value?
                 result_value = get_data_from_register(dest_reg) - immediate; 
             }
@@ -440,7 +480,7 @@ void execute_instruction(Decoder_Context *ctx)
         printf(" ; %s: %#02x -> %#02x | ip: %#02x (%d) -> %#02x (%d)", dest_reg_name, dest_original_value, result_value, ip_data_before, ip_data_before, ctx->ip_data, ctx->ip_data);
 
     } 
-    else if (STR_EQUAL(i->opcode, "jnz")) {
+    else if (i->opcode == Opcode_jnz) {
         if (ctx->flags & F_ZERO) {
             ctx->ip_data += i->size;
         } else {
@@ -518,7 +558,7 @@ void try_to_decode(Decoder_Context *ctx)
         }
         // MOV
         else if (((byte >> 2) & 63) == 34) {
-            ctx->instruction->opcode = "mov";
+            ctx->instruction->opcode = Opcode_mov;
             
             reg_dir = (byte >> 1) & 1;
             is_16bit = byte & 1;
@@ -529,7 +569,7 @@ void try_to_decode(Decoder_Context *ctx)
             register_memory_to_from_decode(ctx, reg_dir);
         }
         else if (((byte >> 1) & 127) == 99) {
-            ctx->instruction->opcode = "mov";
+            ctx->instruction->opcode = Opcode_mov;
 
             char second_byte = ASMD_NEXT_BYTE_WITHOUT_STEP(ctx);
             assert(((second_byte >> 3) & 7) == 0);
@@ -543,7 +583,7 @@ void try_to_decode(Decoder_Context *ctx)
             immediate_to_register_memory_decode(ctx, 1, is_16bit, 0);
         }
         else if (((byte >> 4) & 0x0F) == 0x0B) {
-            ctx->instruction->opcode = "mov";
+            ctx->instruction->opcode = Opcode_mov;
 
             u8 reg = byte & 0x07;
 
@@ -559,7 +599,7 @@ void try_to_decode(Decoder_Context *ctx)
             immediate_to_operand(ctx, &ctx->instruction->operands[1], 1, is_16bit, 0);
         }
         else if (((byte >> 2) & 0x3F) == 0x28) {
-            ctx->instruction->opcode = "mov";
+            ctx->instruction->opcode = Opcode_mov;
 
             // Memory to/from accumulator
             is_16bit = byte & 1;
@@ -567,7 +607,7 @@ void try_to_decode(Decoder_Context *ctx)
                 ctx->instruction->flags |= FLAG_IS_16BIT;
             }
 
-            ctx->instruction->opcode = "mov";
+            ctx->instruction->opcode = Opcode_mov;
 
             Instruction_Operand a_operand;
             a_operand.type = Operand_Memory;
@@ -595,24 +635,24 @@ void try_to_decode(Decoder_Context *ctx)
         // Return from CALL (jumps)
         else if (((byte >> 4) & 15) == 0x07) {
             s8 ip_inc8 = ASMD_NEXT_BYTE(ctx); // 8 bit signed increment to instruction pointer
-            const char *opcode = NULL;
+            Opcode opcode = Opcode_none;
             switch (byte & 0x0F) {
-                case 0b0000: { opcode = "jo";  break;               }
-                case 0b1000: { opcode = "js";  break;               }
-                case 0b0010: { opcode = "jb";  break; /* or jnae */ }
-                case 0b0100: { opcode = "je";  break; /* or jz */   }
-                case 0b0110: { opcode = "jbe"; break; /* or jna */  }
-                case 0b1010: { opcode = "jp";  break; /* or jpe */  }
-                case 0b0101: { opcode = "jnz"; break; /* or jne */  }
-                case 0b1100: { opcode = "jl";  break; /* or jnge */ }
-                case 0b1110: { opcode = "jle"; break; /* or jng */  }
-                case 0b1101: { opcode = "jnl"; break; /* or jge */  }
-                case 0b1111: { opcode = "jg";  break; /* or jnle */ }
-                case 0b0011: { opcode = "jae"; break; /* or jnle */ }
-                case 0b0111: { opcode = "ja";  break; /* or jnbe */ }
-                case 0b1011: { opcode = "jnp"; break; /* or jpo */  }
-                case 0b0001: { opcode = "jno"; break;               }
-                case 0b1001: { opcode = "jns"; break;               }
+                case 0b0000: { opcode = Opcode_jo;  break;               }
+                case 0b1000: { opcode = Opcode_js;  break;               }
+                case 0b0010: { opcode = Opcode_jb;  break; /* or jnae */ }
+                case 0b0100: { opcode = Opcode_je;  break; /* or jz */   }
+                case 0b0110: { opcode = Opcode_jbe; break; /* or jna */  }
+                case 0b1010: { opcode = Opcode_jp;  break; /* or jpe */  }
+                case 0b0101: { opcode = Opcode_jnz; break; /* or jne */  }
+                case 0b1100: { opcode = Opcode_jl;  break; /* or jnge */ }
+                case 0b1110: { opcode = Opcode_jle; break; /* or jng */  }
+                case 0b1101: { opcode = Opcode_jnl; break; /* or jge */  }
+                case 0b1111: { opcode = Opcode_jg;  break; /* or jnle */ }
+                case 0b0011: { opcode = Opcode_jae; break; /* or jnle */ }
+                case 0b0111: { opcode = Opcode_ja;  break; /* or jnbe */ }
+                case 0b1011: { opcode = Opcode_jnp; break; /* or jpo */  }
+                case 0b0001: { opcode = Opcode_jno; break;               }
+                case 0b1001: { opcode = Opcode_jns; break;               }
                 default: {
                     fprintf(stderr, "[ERROR]: This invalid opcode\n");
                     assert(0);
@@ -628,12 +668,12 @@ void try_to_decode(Decoder_Context *ctx)
         }
         else if (((byte >> 4) & 0x0F) == 0b1110) {
             s8 ip_inc8 = ASMD_NEXT_BYTE(ctx);
-            const char *opcode = NULL;
+            Opcode opcode = Opcode_none;
             switch (byte & 0x0F) {
-                case 0b0010: { opcode = "loop"; break;                    }
-                case 0b0001: { opcode = "loopz"; break;  /* or loope */   }
-                case 0b0000: { opcode = "loopnz"; break; /* or loopne */  }
-                case 0b0011: { opcode = "jcxz"; break;                    }
+                case 0b0010: { opcode = Opcode_loop; break;                    }
+                case 0b0001: { opcode = Opcode_loopz; break;  /* or loope */   }
+                case 0b0000: { opcode = Opcode_loopnz; break; /* or loopne */  }
+                case 0b0011: { opcode = Opcode_jcxz; break;                    }
                 default: {
                     fprintf(stderr, "[ERROR]: This is invalid opcode\n");
                     assert(0);

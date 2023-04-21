@@ -66,6 +66,7 @@ typedef enum {
     Register_si,
     Register_di,
 
+    Register_count
 } Register;
 
 typedef struct {
@@ -74,6 +75,40 @@ typedef struct {
     u32 mem_size;
 
 } Register_Info;
+
+typedef enum {
+    Opcode_none,
+
+    Opcode_mov,
+    Opcode_add,
+    Opcode_sub,
+    Opcode_cmp,
+
+    Opcode_jo,
+    Opcode_js, 
+    Opcode_jb, 
+    Opcode_je, 
+    Opcode_jbe,
+    Opcode_jp, 
+    Opcode_jnz,
+    Opcode_jl, 
+    Opcode_jle,
+    Opcode_jnl,
+    Opcode_jg, 
+    Opcode_jae,
+    Opcode_ja, 
+    Opcode_jnp,
+    Opcode_jno,
+    Opcode_jns,
+
+    Opcode_loop,
+    Opcode_loopz,
+    Opcode_loopnz,
+    Opcode_jcxz,
+
+
+    Opcode_count
+} Opcode;
 
 typedef enum  {
     Operand_None,
@@ -128,7 +163,8 @@ typedef struct {
 typedef struct {
     u32 mem_offset;
     u8  size;
-    const char *opcode;
+
+    Opcode opcode;
     
     Instruction_Operand operands[2];
 
