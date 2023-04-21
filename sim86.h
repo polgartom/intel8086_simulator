@@ -30,12 +30,13 @@ typedef unsigned int   u32;
 
 ///////////////////////////////////////////////////
 
-#define MAX_MEMORY_SIZE 0xfffff
+#define MAX_MEMORY_SIZE 0xfffff // 1mb
 
 typedef struct {
-    u8 data[MAX_MEMORY_SIZE];
+    u8 data[1024];
     u32 size;
 } Memory;
+
 
 #define REG_IS_DEST 1
 #define REG_IS_SRC  0
@@ -64,6 +65,13 @@ typedef enum {
     Register_di,
 
 } Register;
+
+typedef struct {
+    Register reg;
+    u32 mem_offset;
+    u32 mem_size;
+
+} Register_Info;
 
 typedef enum  {
     Operand_None,

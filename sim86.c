@@ -18,20 +18,13 @@ u8 ASMD_NEXT_BYTE(Decoder_Context *_d) { return _d->memory.data[++_d->mem_index]
 
 ////////////////////////////////////////
 
-typedef const u8* Register_Meta;
-
-Memory regmem;
-
-#define GET_REG_ENUM      0
-#define GET_REG_MEM_INDEX 1
-#define GET_REG_MEM_SIZE  2
+Memory regmem; // Remove!!
 
 #define REG_ACCUMULATOR 0
-
-Register_Meta get_register(u8 is_16bit, u8 reg)
+Register_Info *get_register(u8 is_16bit, u8 reg)
 {
     // [byte/word][register_index_by_table][meta_data]
-    static const u8 registers[2][8][3] = {
+    static const u32 registers[2][8][3] = {
         // BYTE (8bit)
         { 
         //   Register_index, mem_offset (byte), mem_size (byte)
@@ -45,7 +38,7 @@ Register_Meta get_register(u8 is_16bit, u8 reg)
         }
     };
 
-    return registers[is_16bit][reg];
+    return (Register_Info *)registers[is_16bit][reg];
 }
 
 const char *get_register_name(Register reg)
@@ -60,7 +53,7 @@ const char *get_register_name(Register reg)
     return register_names[reg];
 }
 
-size_t load_to_memory(Decoder_Context *ctx, char *filename)
+size_t load_binary_file_to_memory(Decoder_Context *ctx, char *filename)
 {
     FILE *fp = fopen(filename, "rb");
     if (fp == NULL) {
@@ -212,11 +205,11 @@ void immediate_to_register_memory_decode(Decoder_Context *d, s8 is_signed, u8 is
 void print_flags(u16 flags)
 {
     if (flags & F_SIGNED) {
-        printf("SF");
+        printf("S");
     }
 
     if (flags & F_ZERO) {
-        printf("FZ");
+        printf("Z");
     }
 }
 
@@ -241,7 +234,8 @@ void print_instruction(Instruction *instruction, u8 with_end_line)
                 break;
             }
             case Operand_Register: {
-                fprintf(dest, "%s", get_register_name(get_register(instruction->flags & FLAG_IS_16BIT, op->reg)[GET_REG_ENUM]));
+                Register_Info *reg = get_register(instruction->flags & FLAG_IS_16BIT, op->reg);
+                fprintf(dest, "%s", get_register_name(reg->reg));
 
                 break;
             }
@@ -287,10 +281,10 @@ void print_instruction(Instruction *instruction, u8 with_end_line)
 
 }
 
-s32 get_data_from_register(Register_Meta reg)
+s32 get_data_from_register(Register_Info *reg)
 {
-    u16 lower_mem_index = reg[GET_REG_MEM_INDEX];
-    if (reg[GET_REG_MEM_SIZE] == 2) {
+    u16 lower_mem_index = reg->mem_offset;
+    if (reg->mem_size == 2) {
         s16 val_lo = regmem.data[lower_mem_index] << 0;
         s16 val_hi = regmem.data[lower_mem_index+1] << 8;
 
@@ -300,12 +294,12 @@ s32 get_data_from_register(Register_Meta reg)
     return regmem.data[lower_mem_index];
 }
 
-void set_data_to_from_register(Register_Meta dest, Register_Meta src) 
+void set_data_to_from_register(Register_Info *dest, Register_Info *src) 
 {
     s32 src_value = get_data_from_register(src);
 
-    u16 lower_mem_index = dest[GET_REG_MEM_INDEX];
-    if (dest[GET_REG_MEM_SIZE] == 2) {
+    u16 lower_mem_index = dest->mem_offset;
+    if (dest->mem_size == 2) {
         regmem.data[lower_mem_index] = ((src_value >> 0) & 0xFF);
         regmem.data[lower_mem_index+1] = ((src_value >> 8) & 0xFF);
 
@@ -315,11 +309,11 @@ void set_data_to_from_register(Register_Meta dest, Register_Meta src)
     regmem.data[lower_mem_index] = src_value;
 }
 
-void set_data_to_register_from_immediate(Register_Meta dest, s32 immediate) 
+void set_data_to_register_from_immediate(Register_Info *dest, s32 immediate) 
 {
-    u16 lower_mem_index = dest[GET_REG_MEM_INDEX];
+    u16 lower_mem_index = dest->mem_offset;
 
-    if (dest[GET_REG_MEM_SIZE] == 2) {
+    if (dest->mem_size == 2) {
         regmem.data[lower_mem_index] = ((immediate >> 0) & 0xFF);
         regmem.data[lower_mem_index+1] = ((immediate >> 8) & 0xFF);
 
@@ -334,8 +328,10 @@ void execute_instruction(Decoder_Context *ctx)
     Instruction *i = ctx->instruction;
 
     Instruction_Operand dest_op = i->operands[0];
-    Register_Meta dest_reg = get_register(i->flags & FLAG_IS_16BIT, dest_op.reg);
-    const char *dest_reg_name = get_register_name(dest_reg[GET_REG_ENUM]);
+    Register_Info *dest_reg = (Register_Info *)get_register(i->flags & FLAG_IS_16BIT, dest_op.reg);
+    const char *dest_reg_name = get_register_name(dest_reg->reg);
+
+    s32 dest_original_value = get_data_from_register(dest_reg);
 
     if (STR_EQUAL(i->opcode, "mov")) {
         Instruction_Operand src_op = i->operands[1];
@@ -343,7 +339,7 @@ void execute_instruction(Decoder_Context *ctx)
         assert(dest_op.type == Operand_Register); // @Todo: Handle more!
 
         if (src_op.type == Operand_Register) {
-            Register_Meta src_reg = get_register(i->flags & FLAG_IS_16BIT, src_op.reg);
+            Register_Info *src_reg = get_register(i->flags & FLAG_IS_16BIT, src_op.reg);
             set_data_to_from_register(dest_reg, src_reg);
 
         } else if (src_op.type == Operand_Immediate) {
@@ -358,18 +354,19 @@ void execute_instruction(Decoder_Context *ctx)
             set_data_to_register_from_immediate(dest_reg, immediate);
         }
 
-        printf(" ; %s: %#02x", dest_reg_name, get_data_from_register(dest_reg));
+        s32 result_value = get_data_from_register(dest_reg);
+        printf(" ; %s: %#02x -> %#02x", dest_reg_name, dest_original_value, result_value);
     } 
     else if (STR_EQUAL(i->opcode, "add") || STR_EQUAL(i->opcode, "sub") || STR_EQUAL(i->opcode, "cmp")) {
         Instruction_Operand src_op = i->operands[1];
 
-        Register_Meta dest_reg = get_register(i->flags & FLAG_IS_16BIT, dest_op.reg);
-        const char *dest_reg_name = get_register_name(dest_reg[GET_REG_ENUM]);
+        Register_Info *dest_reg = get_register(i->flags & FLAG_IS_16BIT, dest_op.reg);
+        const char *dest_reg_name = get_register_name(dest_reg->reg);
 
-        s32 result_value = get_data_from_register(dest_reg);
-
+        s32 result_value = dest_original_value;
+        
         if (src_op.type == Operand_Register) {
-            Register_Meta src_reg = get_register(i->flags & FLAG_IS_16BIT, src_op.reg);
+            Register_Info *src_reg = get_register(i->flags & FLAG_IS_16BIT, src_op.reg);
 
             if (STR_EQUAL(i->opcode, "add")) {
                 s32 val = get_data_from_register(dest_reg) + get_data_from_register(src_reg);
@@ -429,14 +426,14 @@ void execute_instruction(Decoder_Context *ctx)
             new_flags |= F_SIGNED;
         }
 
-        printf(" ; %s: %#02x", dest_reg_name, result_value);
+        printf(" ; %s: %#02x -> %#02x", dest_reg_name, dest_original_value, result_value);
 
         // current flags
-        printf(" | flags: (");
+        printf(" | flags: [");
         print_flags(ctx->flags);
-        printf(") -> (");
+        printf("] -> [");
         print_flags(new_flags);
-        printf(")");
+        printf("]");
 
         ctx->flags = new_flags;
     }
@@ -639,8 +636,12 @@ void try_to_decode(Decoder_Context *ctx)
             break;
         }
 
+#if 1
         print_instruction(ctx->instruction, 0);
         execute_instruction(ctx);
+#else
+        print_instruction(ctx->instruction, 1);
+#endif
 
         ctx->mem_index++;
 
@@ -658,22 +659,12 @@ int main(int argc, char **argv)
     printf("\n\nbinary filename: %s\n", argv[1]);
 
     Decoder_Context ctx = {};
-    ctx.memory.size = load_to_memory(&ctx, argv[1]);
+    ctx.memory.size = load_binary_file_to_memory(&ctx, argv[1]);
 
-    printf("---------\n\nregmem before:\n");
-    for (u16 i = 0; i < 20; i++) {
-        printf("[%d]", regmem.data[i]);
-    }
-    printf("\n\n");
-    
+    regmem.size = 20;
+    ZERO_MEMORY(regmem.data, regmem.size);
+
     try_to_decode(&ctx);
-
-    printf("\n\nregmem after:\n");
-    for (u16 i = 0; i < 20; i++) {
-        printf("[%d]", regmem.data[i]);
-    }
-    printf("\n\n");
-
 
     return 0;
 }
