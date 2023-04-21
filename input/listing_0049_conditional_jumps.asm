@@ -11,22 +11,14 @@
 ; ========================================================================
 
 ; ========================================================================
-; LISTING 44
+; LISTING 49
 ; ========================================================================
 
 bits 16
 
-mov ax, 1
-mov bx, 2
 mov cx, 3
-mov dx, 4
-
-mov sp, ax
-mov bp, bx
-mov si, cx
-mov di, dx
-
-mov dx, sp
-mov cx, bp
-mov bx, si
-mov ax, di
+mov bx, 1000
+loop_start:
+add bx, 10
+sub cx, 1
+jnz loop_start
