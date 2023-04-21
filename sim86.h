@@ -22,6 +22,8 @@ typedef unsigned int   u32;
 #define STR_LEN(x) (x != NULL ? strlen(x) : 0)
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr)[0])
 
+#define ALLOC_MEMORY(_type) (_type *)malloc(sizeof(_type));
+
 #define NOT_DEFINED -1
 
 // "Intel convention, if the displacement is two bytes, the most-significant 
@@ -124,7 +126,7 @@ typedef struct {
 #define F_ZERO   (1 << 7)
 
 typedef struct {
-    u16 byte_offset;
+    u32 mem_offset;
     u8  size;
     const char *opcode;
     
@@ -136,7 +138,12 @@ typedef struct {
 typedef struct {
     Memory memory;
     u32 mem_index;
+    
+    u32 ip_data; // current value of the instruction pointer register 
+
     Instruction *instruction; // current
+    Instruction *instructions[2048];
+
     u16 flags;
 } Decoder_Context;
 

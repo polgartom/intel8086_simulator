@@ -217,7 +217,7 @@ void print_instruction(Instruction *instruction, u8 with_end_line)
 {
     FILE *dest = stdout;
 
-    fprintf(dest, "%s", instruction->opcode);
+    fprintf(dest, "[0x%02x]\t%s", instruction->mem_offset, instruction->opcode);
     
     const char *separator = " ";
     for (u8 j = 0; j < 2; j++) {
@@ -332,6 +332,8 @@ void execute_instruction(Decoder_Context *ctx)
     const char *dest_reg_name = get_register_name(dest_reg->reg);
 
     s32 dest_original_value = get_data_from_register(dest_reg);
+    s32 result_value = dest_original_value;
+    u32 ip_data_before = ctx->ip_data;
 
     if (STR_EQUAL(i->opcode, "mov")) {
         Instruction_Operand src_op = i->operands[1];
@@ -354,17 +356,16 @@ void execute_instruction(Decoder_Context *ctx)
             set_data_to_register_from_immediate(dest_reg, immediate);
         }
 
-        s32 result_value = get_data_from_register(dest_reg);
-        printf(" ; %s: %#02x -> %#02x", dest_reg_name, dest_original_value, result_value);
+        result_value = get_data_from_register(dest_reg);
+
+        ctx->ip_data = ctx->ip_data + i->size;
+        printf(" ; %s: %#02x -> %#02x | ip: %#02x (%d) -> %#02x (%d)", dest_reg_name, dest_original_value, result_value, ip_data_before, ip_data_before, ctx->ip_data, ctx->ip_data);
     } 
     else if (STR_EQUAL(i->opcode, "add") || STR_EQUAL(i->opcode, "sub") || STR_EQUAL(i->opcode, "cmp")) {
         Instruction_Operand src_op = i->operands[1];
 
         Register_Info *dest_reg = get_register(i->flags & FLAG_IS_16BIT, dest_op.reg);
-        const char *dest_reg_name = get_register_name(dest_reg->reg);
 
-        s32 result_value = dest_original_value;
-        
         if (src_op.type == Operand_Register) {
             Register_Info *src_reg = get_register(i->flags & FLAG_IS_16BIT, src_op.reg);
 
@@ -426,8 +427,6 @@ void execute_instruction(Decoder_Context *ctx)
             new_flags |= F_SIGNED;
         }
 
-        printf(" ; %s: %#02x -> %#02x", dest_reg_name, dest_original_value, result_value);
-
         // current flags
         printf(" | flags: [");
         print_flags(ctx->flags);
@@ -436,6 +435,19 @@ void execute_instruction(Decoder_Context *ctx)
         printf("]");
 
         ctx->flags = new_flags;
+
+        ctx->ip_data = ctx->ip_data + i->size;
+        printf(" ; %s: %#02x -> %#02x | ip: %#02x (%d) -> %#02x (%d)", dest_reg_name, dest_original_value, result_value, ip_data_before, ip_data_before, ctx->ip_data, ctx->ip_data);
+
+    } 
+    else if (STR_EQUAL(i->opcode, "jnz")) {
+        if (ctx->flags & F_ZERO) {
+            ctx->ip_data += i->size;
+        } else {
+            ctx->ip_data += i->operands[0].immediate_s16;
+        }
+
+        printf(" ; ip: %#02x (%d) -> %#02x (%d)", ip_data_before, ip_data_before, ctx->ip_data, ctx->ip_data);
     }
     else {
         printf("!!!!\n");
@@ -452,8 +464,12 @@ void try_to_decode(Decoder_Context *ctx)
         u8 reg_dir = 0;
         u8 is_16bit = 0;
 
-        Instruction instruction = {};
-        ctx->instruction = &instruction;
+        u32 instruction_byte_start_offset = ctx->mem_index;
+
+        ctx->instruction = ALLOC_MEMORY(Instruction);
+        ctx->instruction->mem_offset = ctx->mem_index;
+
+        ctx->instructions[ctx->mem_index] = ctx->instruction;
         
         // ARITHMETIC
         if (((byte >> 6) & 7) == 0) {
@@ -636,14 +652,9 @@ void try_to_decode(Decoder_Context *ctx)
             break;
         }
 
-#if 1
-        print_instruction(ctx->instruction, 0);
-        execute_instruction(ctx);
-#else
-        print_instruction(ctx->instruction, 1);
-#endif
-
         ctx->mem_index++;
+
+        ctx->instruction->size = ctx->mem_index - instruction_byte_start_offset; 
 
     } while(ctx->memory.size != ctx->mem_index);
 
@@ -651,20 +662,35 @@ _debug_parse_end:;
 
 }
 
+void run(Decoder_Context *ctx)
+{
+    do {
+        Instruction *instruction = ctx->instructions[ctx->ip_data];
+        ctx->instruction = instruction;
+
+        print_instruction(instruction, 0);
+
+        execute_instruction(ctx);
+
+    } while (ctx->instructions[ctx->ip_data]);
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 2 || STR_LEN(argv[1]) == 0) {
         fprintf(stderr, "No binary file specified!\n");
     }
-    printf("\n\nbinary filename: %s\n", argv[1]);
+    printf("\nbinary: %s\n\n", argv[1]);
 
     Decoder_Context ctx = {};
+
     ctx.memory.size = load_binary_file_to_memory(&ctx, argv[1]);
 
     regmem.size = 20;
     ZERO_MEMORY(regmem.data, regmem.size);
 
     try_to_decode(&ctx);
+    run(&ctx);
 
     return 0;
 }
