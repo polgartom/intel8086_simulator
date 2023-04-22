@@ -124,7 +124,11 @@ s32 get_data_from_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit)
         src_data = get_data_from_register(reg);
     } 
     else if (op->type == Operand_Immediate) {
-        src_data = is_16bit ? op->immediate_s16 : op->immediate_u16;
+        if (ctx->instruction->flags & FLAG_IS_SIGNED) {
+            src_data = op->immediate_s16;
+        } else {
+            src_data = op->immediate_u16;
+        }
     } 
     else if (op->type == Operand_Memory) {
         u16 address = get_memory_address(&op->address, is_16bit);
@@ -171,7 +175,7 @@ void execute_instruction(Context *ctx)
         ip_data_after += i->size; 
     }
     else if (i->opcode == Opcode_add || i->opcode == Opcode_sub || i->opcode == Opcode_cmp) {
-        // @Cleanup: We can make an arithmetic flag to the instruction then we can use that to get to this branch
+        // @Cleanup: We can make an arithmetic flag for the instruction then we can use that to get to this branch
         Instruction_Operand src_op = i->operands[1];
         u16 src_data = get_data_from_operand(ctx, &src_op, is_16bit);
         s32 dest_data = get_data_from_operand(ctx, &dest_op, is_16bit);
@@ -213,6 +217,7 @@ void execute_instruction(Context *ctx)
         ip_data_after += i->size; 
     }
     else if (i->opcode == Opcode_jnz) {
+        // @Cleanup: We can make an jump flag for the instruction then we can use that to get to this branch
         if (ctx->flags & F_ZERO) {
             ip_data_after += i->size;
         } else {
@@ -220,6 +225,8 @@ void execute_instruction(Context *ctx)
         }
     }
 
+    // This instruction pointer data will provide us the next instruction location from the ctx->instructions array which indexed
+    // based on the instruction byte index at loaded binary file.
     ctx->ip_data = ip_data_after;
 
     printf(" | ip: %#02x -> %#02x\n", ip_data_before, ctx->ip_data);
@@ -231,6 +238,9 @@ void run(Context *ctx)
         Instruction *instruction = ctx->instructions[ctx->ip_data];
         ctx->instruction = instruction;
 
+        // @Todo: At this point we can't use the print out function here without calling the execute_instruction function
+        // which will set the ip_data to pointing to the next instruction of the ctx->instructions set. Right now, the only 
+        // place where we can call this is in the decode() function as the binary decoded.
         print_instruction(instruction, 0);
         execute_instruction(ctx);
 
