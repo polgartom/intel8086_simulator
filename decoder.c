@@ -17,28 +17,6 @@ u8 ASMD_NEXT_BYTE(Context *_d) { return _d->loaded_binary[++_d->byte_offset]; }
     } \
 
 
-size_t load_binary_file_to_memory(Context *ctx, char *filename)
-{
-    FILE *fp = fopen(filename, "rb");
-    if (fp == NULL) {
-        printf("[ERROR]: Failed to open %s file. Probably it is not exists.\n", filename);
-        assert(0);
-    }
-
-    fseek(fp, 0, SEEK_END);
-    u32 fsize = ftell(fp);
-    rewind(fp);
-
-    assert(fsize+1 <= MAX_BINARY_FILE_SIZE);
-
-    ZERO_MEMORY(ctx->loaded_binary, fsize+1);
-
-    fread(ctx->loaded_binary, fsize, 1, fp);
-    fclose(fp);
-
-    return fsize;
-}
-
 Effective_Address_Base get_address_base(u8 r_m, u8 mod) 
 {
     switch (r_m) {
@@ -164,85 +142,6 @@ void immediate_to_register_memory_decode(Context *d, s8 is_signed, u8 is_16bit, 
     }
 
     immediate_to_operand(d, &instruction->operands[1], is_signed, is_16bit, immediate_depends_from_signed);
-}
-
-void print_flags(u16 flags)
-{
-    if (flags & F_SIGNED) {
-        printf("S");
-    }
-
-    if (flags & F_ZERO) {
-        printf("Z");
-    }
-}
-
-void print_instruction(Instruction *instruction, u8 with_end_line)
-{
-    FILE *dest = stdout;
-
-    fprintf(dest, "[0x%02x]\t%s", instruction->mem_offset, get_opcode_name(instruction->opcode));
-    
-    const char *separator = " ";
-    for (u8 j = 0; j < 2; j++) {
-        Instruction_Operand *op = &instruction->operands[j];
-        if (op->type == Operand_None) {
-            continue;
-        }
-        
-        fprintf(dest, "%s", separator);
-        separator = ", ";
-
-        switch (op->type) {
-            case Operand_None: {
-                break;
-            }
-            case Operand_Register: {
-                Register_Info *reg = get_register(instruction->flags & FLAG_IS_16BIT, op->reg);
-                fprintf(dest, "%s", get_register_name(reg->reg));
-
-                break;
-            }
-            case Operand_Memory: {
-                if (instruction->operands[0].type != Operand_Register) {
-                    fprintf(dest, "%s ", (instruction->flags & FLAG_IS_16BIT) ? "word" : "byte");
-                }
-
-                char const *r_m_base[] = {"","bx+si","bx+di","bp+si","bp+di","si","di","bp","bx"};
-
-                fprintf(dest, "[%s", r_m_base[op->address.base]);
-                if (op->address.displacement) {
-                    fprintf(dest, "%+d", op->address.displacement);
-                }
-                fprintf(dest, "]");
-
-                break;
-            }
-            case Operand_Immediate: {
-                if ((instruction->flags & FLAG_IS_16BIT) && !(instruction->flags & FLAG_IS_SIGNED)) {
-                    fprintf(dest, "%d", op->immediate_u16);
-                } else {
-                    fprintf(dest, "%d", op->immediate_s16);
-                }
-
-                break;
-            }
-            case Operand_Relative_Immediate: {
-                fprintf(dest, "$%+d", op->immediate_s16);
-
-                break;
-            }
-            default: {
-                fprintf(stderr, "[WARNING]: I found a not operand at print out!\n");
-            }
-        }
-
-    }
-
-    if (with_end_line) {
-        fprintf(dest, "\n");
-    }
-
 }
 
 void decode(Context *ctx)
