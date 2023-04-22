@@ -1,9 +1,9 @@
 #include "sim86.h"
 
-#define ASMD_CURR_BYTE(_d) _d->memory.data[_d->mem_index]
-u8 ASMD_NEXT_BYTE(Decoder_Context *_d) { return _d->memory.data[++_d->mem_index]; }
-#define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) _d->memory.data[_d->mem_index+1]
-#define ASMD_CURR_BYTE_INDEX(_d) _d->mem_index
+#define ASMD_CURR_BYTE(_d) _d->loaded_binary[_d->byte_offset]
+u8 ASMD_NEXT_BYTE(Context *_d) { return _d->loaded_binary[++_d->byte_offset]; }
+#define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) _d->loaded_binary[_d->byte_offset+1]
+#define ASMD_CURR_BYTE_INDEX(_d) _d->byte_offset
 
 #define ARITHMETIC_OPCODE_LOOKUP(__byte, __opcode) \
      switch ((__byte >> 3) & 7) { \
@@ -93,7 +93,7 @@ static const char *get_register_name(Register reg)
     return register_names[reg];
 }
 
-size_t load_binary_file_to_memory(Decoder_Context *ctx, char *filename)
+size_t load_binary_file_to_memory(Context *ctx, char *filename)
 {
     FILE *fp = fopen(filename, "rb");
     if (fp == NULL) {
@@ -105,11 +105,11 @@ size_t load_binary_file_to_memory(Decoder_Context *ctx, char *filename)
     u32 fsize = ftell(fp);
     rewind(fp);
 
-    assert(fsize+1 <= MAX_MEMORY_SIZE);
+    assert(fsize+1 <= MAX_BINARY_FILE_SIZE);
 
-    ZERO_MEMORY(ctx->memory.data, fsize+1);
+    ZERO_MEMORY(ctx->loaded_binary, fsize+1);
 
-    fread(ctx->memory.data, fsize, 1, fp);
+    fread(ctx->loaded_binary, fsize, 1, fp);
     fclose(fp);
 
     return fsize;
@@ -138,7 +138,7 @@ Effective_Address_Base get_address_base(u8 r_m, u8 mod)
     }
 }
 
-void immediate_to_operand(Decoder_Context *ctx, Instruction_Operand *operand, u8 is_signed, u8 is_16bit, u8 immediate_depends_from_signed)
+void immediate_to_operand(Context *ctx, Instruction_Operand *operand, u8 is_signed, u8 is_16bit, u8 immediate_depends_from_signed)
 {
     operand->type = Operand_Immediate;
     s8 immediate8 = ASMD_NEXT_BYTE(ctx);
@@ -147,7 +147,7 @@ void immediate_to_operand(Decoder_Context *ctx, Instruction_Operand *operand, u8
     // that if it is wide and not signed immediate
     if (immediate_depends_from_signed) {
         if (is_16bit && !is_signed) {
-            operand->immediate_u16 = BYTE_SWAP_16BIT(immediate8, ASMD_NEXT_BYTE(ctx));
+            operand->immediate_u16 = BYTE_LOHI_TO_HILO(immediate8, ASMD_NEXT_BYTE(ctx));
         } else {
             operand->immediate_s16 = immediate8;
         }
@@ -156,30 +156,30 @@ void immediate_to_operand(Decoder_Context *ctx, Instruction_Operand *operand, u8
 
     if (is_16bit) {
         if (!is_signed) {
-            operand->immediate_u16 = BYTE_SWAP_16BIT(immediate8, ASMD_NEXT_BYTE(ctx));
+            operand->immediate_u16 = BYTE_LOHI_TO_HILO(immediate8, ASMD_NEXT_BYTE(ctx));
         } else {
-            operand->immediate_s16 = BYTE_SWAP_16BIT(immediate8, ASMD_NEXT_BYTE(ctx));
+            operand->immediate_s16 = BYTE_LOHI_TO_HILO(immediate8, ASMD_NEXT_BYTE(ctx));
         }
     } else {
         operand->immediate_s16 = immediate8;
     }
 }
 
-void displacement_to_operand(Decoder_Context *d, Instruction_Operand *operand, u8 mod, u8 r_m)
+void displacement_to_operand(Context *d, Instruction_Operand *operand, u8 mod, u8 r_m)
 {
     operand->type = Operand_Memory;
     operand->address.base = get_address_base(r_m, mod);
     operand->address.displacement = 0;
 
     if ((mod == 0x00 && r_m == 0x06) || mod == 0x02) { 
-        operand->address.displacement = (s16)(BYTE_SWAP_16BIT(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d)));
+        operand->address.displacement = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d)));
     } 
     else if (mod == 0x01) { 
         operand->address.displacement = (s8)ASMD_NEXT_BYTE(d);
     }
 }
 
-void register_memory_to_from_decode(Decoder_Context *d, u8 reg_dir)
+void register_memory_to_from_decode(Context *d, u8 reg_dir)
 {
     u8 byte = ASMD_NEXT_BYTE(d);
     Instruction *instruction = d->instruction;
@@ -223,7 +223,7 @@ void register_memory_to_from_decode(Decoder_Context *d, u8 reg_dir)
     }
 }
 
-void immediate_to_register_memory_decode(Decoder_Context *d, s8 is_signed, u8 is_16bit, u8 immediate_depends_from_signed)
+void immediate_to_register_memory_decode(Context *d, s8 is_signed, u8 is_16bit, u8 immediate_depends_from_signed)
 {
     char byte = ASMD_NEXT_BYTE(d);
     Instruction *instruction = d->instruction;
@@ -334,182 +334,183 @@ s32 get_data_from_register(Register_Info *reg)
     return regmem.data[lower_mem_index];
 }
 
-void set_data_to_from_register(Register_Info *dest, Register_Info *src) 
-{
-    s32 src_value = get_data_from_register(src);
 
-    u16 lower_mem_index = dest->mem_offset;
-    if (dest->mem_size == 2) {
-        regmem.data[lower_mem_index] = ((src_value >> 0) & 0xFF);
-        regmem.data[lower_mem_index+1] = ((src_value >> 8) & 0xFF);
-
-        return;
-    }
-
-    regmem.data[lower_mem_index] = src_value;
-}
-
-void set_data_to_register_from_immediate(Register_Info *dest, s32 immediate) 
+void set_data_to_register(Register_Info *dest, u16 data) 
 {
     u16 lower_mem_index = dest->mem_offset;
 
     if (dest->mem_size == 2) {
-        regmem.data[lower_mem_index] = ((immediate >> 0) & 0xFF);
-        regmem.data[lower_mem_index+1] = ((immediate >> 8) & 0xFF);
+        regmem.data[lower_mem_index] = ((data >> 0) & 0xFF);
+        regmem.data[lower_mem_index+1] = ((data >> 8) & 0xFF);
 
         return;
     }
 
-    regmem.data[lower_mem_index] = immediate;
+    regmem.data[lower_mem_index] = data;
 }
 
-void execute_instruction(Decoder_Context *ctx) 
+u16 get_memory_address(Effective_Address_Expression *expr, u8 is_16bit)
+{ 
+    Register_Info *reg = NULL;
+    u16 displacement = expr->displacement;
+    u16 address = 0; // @Todo: segment stuff
+
+    switch (expr->base) {
+        case Effective_Address_direct:
+            break;
+        case Effective_Address_bx:
+            reg = get_register(is_16bit, Register_bx);
+            displacement = get_data_from_register(reg);
+            break;
+        default:
+            printf("[%s]: This address calculation haven't handled yet!", __FUNCTION__);
+            assert(0);
+    }
+
+    return address + displacement;
+}
+
+s16 get_data_from_memory(u8 *memory, u32 address, u8 is_16bit)
+{
+    s16 data = (u8)memory[address];
+    if (is_16bit) {
+        data = BYTE_LOHI_TO_HILO(data, (u8)memory[address+1]);
+    }
+
+    return data;
+}
+
+void set_data_to_memory(u8 *memory, u32 address, u8 is_16bit, u16 data)
+{
+    memory[address] = (u8)(data & 0x00FF);
+    if (is_16bit) {
+        memory[address+1] = (u8)((data >> 8) & 0x00FF);
+    }
+}
+
+s32 get_data_from_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit)
+{
+    s32 src_data = 0;
+
+    if (op->type == Operand_Register) {
+        Register_Info *reg = get_register(is_16bit, op->reg);
+        src_data = get_data_from_register(reg);
+    } 
+    else if (op->type == Operand_Immediate) {
+        src_data = is_16bit ? op->immediate_s16 : op->immediate_u16;
+    } 
+    else if (op->type == Operand_Memory) {
+        u16 address = get_memory_address(&op->address, is_16bit);
+        src_data = get_data_from_memory(ctx->memory, address, is_16bit);
+    }
+
+    return src_data;
+}
+
+void set_data_to_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit, u16 data)
+{
+    s32 current_data = get_data_from_operand(ctx, op, is_16bit);
+
+    if (op->type == Operand_Register) {
+        Register_Info *reg = get_register(is_16bit, op->reg);
+        set_data_to_register(reg, data);
+
+        printf(" %s: ", get_register_name(reg->reg));
+    }
+    else if (op->type == Operand_Memory) {
+        u16 address = get_memory_address(&op->address, is_16bit);
+        set_data_to_memory(ctx->memory, address, is_16bit, data);
+    }
+
+    printf(" %#02x -> %#02x |", current_data, data);
+}
+
+void execute_instruction(Context *ctx)
 {
     Instruction *i = ctx->instruction;
-
     Instruction_Operand dest_op = i->operands[0];
-    Register_Info *dest_reg = (Register_Info *)get_register(i->flags & FLAG_IS_16BIT, dest_op.reg);
-    const char *dest_reg_name = get_register_name(dest_reg->reg);
+    u8 is_16bit = i->flags & FLAG_IS_16BIT;
 
-    s32 dest_original_value = get_data_from_register(dest_reg);
-    s32 result_value = dest_original_value;
-    u32 ip_data_before = ctx->ip_data;
+    u32 ip_data_before = ctx->ip_data; 
+    u32 ip_data_after  = ctx->ip_data;
+
+    printf(" ;");
 
     if (i->opcode == Opcode_mov) {
         Instruction_Operand src_op = i->operands[1];
-
-        assert(dest_op.type == Operand_Register); // @Todo: Handle more!
-
-        if (src_op.type == Operand_Register) {
-            Register_Info *src_reg = get_register(i->flags & FLAG_IS_16BIT, src_op.reg);
-            set_data_to_from_register(dest_reg, src_reg);
-
-        } else if (src_op.type == Operand_Immediate) {
-            
-            s32 immediate = 0;
-            if (i->flags & FLAG_IS_SIGNED) {
-                immediate = src_op.immediate_s16;
-            } else {
-                immediate = src_op.immediate_u16;
-            }
-
-            set_data_to_register_from_immediate(dest_reg, immediate);
-        }
-
-        result_value = get_data_from_register(dest_reg);
-
-        ctx->ip_data = ctx->ip_data + i->size;
-        printf(" ; %s: %#02x -> %#02x | ip: %#02x (%d) -> %#02x (%d)", dest_reg_name, dest_original_value, result_value, ip_data_before, ip_data_before, ctx->ip_data, ctx->ip_data);
-    } 
+        u16 src_data = get_data_from_operand(ctx, &src_op, is_16bit);
+        set_data_to_operand(ctx, &dest_op, is_16bit, src_data);
+        
+        ip_data_after += i->size; 
+    }
     else if (i->opcode == Opcode_add || i->opcode == Opcode_sub || i->opcode == Opcode_cmp) {
+        // @Cleanup: We can make an arithmetic flag to the instruction then we can use that to get to this branch
         Instruction_Operand src_op = i->operands[1];
+        u16 src_data = get_data_from_operand(ctx, &src_op, is_16bit);
+        s32 dest_data = get_data_from_operand(ctx, &dest_op, is_16bit);
 
-        Register_Info *dest_reg = get_register(i->flags & FLAG_IS_16BIT, dest_op.reg);
-
-        if (src_op.type == Operand_Register) {
-            Register_Info *src_reg = get_register(i->flags & FLAG_IS_16BIT, src_op.reg);
-
-            if (i->opcode == Opcode_add) {
-                s32 val = get_data_from_register(dest_reg) + get_data_from_register(src_reg);
-                set_data_to_register_from_immediate(dest_reg, val);
-
-                result_value = get_data_from_register(dest_reg);
-            } 
-            else if (i->opcode == Opcode_sub) {
-                s32 val = get_data_from_register(dest_reg) - get_data_from_register(src_reg);
-                set_data_to_register_from_immediate(dest_reg, val);
-                
-                result_value = get_data_from_register(dest_reg);
-            }
-            else if (i->opcode == Opcode_cmp) {
-                // Here we set the flags by the result value?
-                result_value = get_data_from_register(dest_reg) - get_data_from_register(src_reg);
-            }
-
-        } else if (src_op.type == Operand_Immediate) {
-            s32 immediate = 0;
-            if (i->flags & FLAG_IS_SIGNED) {
-                immediate = src_op.immediate_s16;
-            } else {
-                immediate = src_op.immediate_u16;
-            }
-
-            if (i->opcode == Opcode_add) {
-                s32 val = get_data_from_register(dest_reg) + immediate;
-                set_data_to_register_from_immediate(dest_reg, val);
-
-                result_value = get_data_from_register(dest_reg);
-            } 
-            else if (i->opcode == Opcode_sub) {
-                s32 val = get_data_from_register(dest_reg) - immediate;
-                set_data_to_register_from_immediate(dest_reg, val);
-
-                result_value = get_data_from_register(dest_reg);
-            } 
-            else if (i->opcode == Opcode_cmp) {
-                // Here we set the flags by the result value?
-                result_value = get_data_from_register(dest_reg) - immediate; 
-            }
-
-        } else {
-            printf("NOT HANDLED!\n");
-            assert(0);
+        switch (i->opcode) {
+            case Opcode_add: 
+                dest_data += src_data;
+                set_data_to_operand(ctx, &dest_op, is_16bit, dest_data);
+                break;
+            case Opcode_sub:
+                dest_data -= src_data;
+                set_data_to_operand(ctx, &dest_op, is_16bit, dest_data);
+                break;
+            case Opcode_cmp:
+                dest_data -= src_data;
+                break;
+            default:
+                assert(0);
         }
 
-        // Clear out flags
         u16 new_flags = ctx->flags;
-        new_flags &= (~(F_SIGNED|F_ZERO));
+        new_flags &= (~(F_SIGNED|F_ZERO)); // clear flags
 
-        if (result_value == 0) {
+        if (dest_data == 0) {
             new_flags |= F_ZERO;
-        } else if (result_value < 0) {
+        } 
+        else if (dest_data < 0) {
             // @Todo: check the highest bit
             new_flags |= F_SIGNED;
         }
 
-        // current flags
-        printf(" | flags: [");
+        printf(" flags: [");
         print_flags(ctx->flags);
         printf("] -> [");
         print_flags(new_flags);
         printf("]");
 
         ctx->flags = new_flags;
-
-        ctx->ip_data = ctx->ip_data + i->size;
-        printf(" ; %s: %#02x -> %#02x | ip: %#02x (%d) -> %#02x (%d)", dest_reg_name, dest_original_value, result_value, ip_data_before, ip_data_before, ctx->ip_data, ctx->ip_data);
-
-    } 
+        ip_data_after += i->size; 
+    }
     else if (i->opcode == Opcode_jnz) {
         if (ctx->flags & F_ZERO) {
-            ctx->ip_data += i->size;
+            ip_data_after += i->size;
         } else {
-            ctx->ip_data += i->operands[0].immediate_s16;
+            ip_data_after += i->operands[0].immediate_s16;
         }
-
-        printf(" ; ip: %#02x (%d) -> %#02x (%d)", ip_data_before, ip_data_before, ctx->ip_data, ctx->ip_data);
-    }
-    else {
-        printf("!!!!\n");
-        assert(0);
     }
 
-    printf("\n");
+    ctx->ip_data = ip_data_after;
+
+    printf(" | ip: %#02x (%d) -> %#02x (%d)\n", ip_data_before, ip_data_before, ctx->ip_data, ctx->ip_data);
 }
 
-void try_to_decode(Decoder_Context *ctx)
+void decode(Context *ctx)
 {
     do {
         u8 byte = ASMD_CURR_BYTE(ctx);
         u8 reg_dir = 0;
         u8 is_16bit = 0;
 
-        u32 instruction_byte_start_offset = ctx->mem_index;
+        u32 instruction_byte_start_offset = ctx->byte_offset;
 
         ctx->instruction = ALLOC_MEMORY(Instruction);
-        ctx->instruction->mem_offset = ctx->mem_index;
+        ctx->instruction->mem_offset = ctx->byte_offset;
 
-        ctx->instructions[ctx->mem_index] = ctx->instruction;
+        ctx->instructions[ctx->byte_offset] = ctx->instruction;
         
         // ARITHMETIC
         if (((byte >> 6) & 7) == 0) {
@@ -615,7 +616,7 @@ void try_to_decode(Decoder_Context *ctx)
 
             a_operand.address.displacement = (s8)ASMD_NEXT_BYTE(ctx);
             if (is_16bit) {
-                a_operand.address.displacement = (s16)BYTE_SWAP_16BIT(a_operand.address.displacement, ASMD_NEXT_BYTE(ctx));
+                a_operand.address.displacement = (s16)BYTE_LOHI_TO_HILO(a_operand.address.displacement, ASMD_NEXT_BYTE(ctx));
             }
 
             Instruction_Operand b_operand;
@@ -692,24 +693,23 @@ void try_to_decode(Decoder_Context *ctx)
             break;
         }
 
-        ctx->mem_index++;
+        ctx->byte_offset++;
 
-        ctx->instruction->size = ctx->mem_index - instruction_byte_start_offset; 
+        ctx->instruction->size = ctx->byte_offset - instruction_byte_start_offset; 
 
-    } while(ctx->memory.size != ctx->mem_index);
+    } while(ctx->loaded_binary_size != ctx->byte_offset);
 
 _debug_parse_end:;
 
 }
 
-void run(Decoder_Context *ctx)
+void run(Context *ctx)
 {
     do {
         Instruction *instruction = ctx->instructions[ctx->ip_data];
         ctx->instruction = instruction;
 
         print_instruction(instruction, 0);
-
         execute_instruction(ctx);
 
     } while (ctx->instructions[ctx->ip_data]);
@@ -722,14 +722,13 @@ int main(int argc, char **argv)
     }
     printf("\nbinary: %s\n\n", argv[1]);
 
-    Decoder_Context ctx = {};
-
-    ctx.memory.size = load_binary_file_to_memory(&ctx, argv[1]);
+    Context ctx = {};
+    ctx.loaded_binary_size = load_binary_file_to_memory(&ctx, argv[1]);
 
     regmem.size = 20;
     ZERO_MEMORY(regmem.data, regmem.size);
 
-    try_to_decode(&ctx);
+    decode(&ctx);
     run(&ctx);
 
     return 0;

@@ -28,17 +28,15 @@ typedef unsigned int   u32;
 
 // "Intel convention, if the displacement is two bytes, the most-significant 
 // byte is stored second in the instruction."
-#define BYTE_SWAP_16BIT(LO, HI) ((LO & 0x00FF) | ((HI << 8) & 0xFF00))
+#define BYTE_LOHI_TO_HILO(LO, HI) (((LO & 0x00FF) | ((HI << 8) & 0xFF00)))
+#define BYTE_SWAP(__val) (((__val >> 8) & 0x00FF) | ((__val << 8) & 0xFF00))
 
 ///////////////////////////////////////////////////
 
-#define MAX_MEMORY_SIZE 0xfffff // 1mb
-
 typedef struct {
-    u8 data[1024];
+    u8 data[1024*1024]; // 1MB
     u32 size;
 } Memory;
-
 
 #define REG_IS_DEST 1
 #define REG_IS_SRC  0
@@ -65,7 +63,6 @@ typedef enum {
     
     Register_si,
     Register_di,
-
 
     Register_count
 } Register;
@@ -107,8 +104,8 @@ typedef enum {
     Opcode_loopnz,
     Opcode_jcxz,
 
-
     Opcode_count
+
 } Opcode;
 
 typedef enum  {
@@ -154,7 +151,6 @@ typedef struct {
 
 } Instruction_Operand;
 
-// @Todo: Remove those!
 #define FLAG_IS_16BIT  0b00000001
 #define FLAG_IS_SIGNED 0b00000100
 
@@ -172,26 +168,22 @@ typedef struct {
     u32 flags;
 } Instruction;
 
+#define MAX_BINARY_FILE_SIZE 1024
+
 typedef struct {
-    Memory memory;
-    u32 mem_index;
-    
+    // @Todo: Merge the loaded_bin and the Memory sturct
+    u8 loaded_binary[1024]; // Loaded binary file
+    u16 loaded_binary_size;
+    u16 byte_offset;
+
+    u8 memory[1024*1024];
+
     u32 ip_data; // current value of the instruction pointer register 
 
     Instruction *instruction; // current
     Instruction *instructions[2048];
 
     u16 flags;
-} Decoder_Context;
-
-///////////////////////////////////////////////////
-
-// Mode (MOD) lookup table
-const char* const mode[4] = {
-    "Memory mode",  // Memory mode, no displacement follows
-    "8bit memory mode",  // Memory mode 8 bit
-    "16bit memory mode",  // Memory mode 16 bit
-    "Register to register",  // Register to (no displacement) 
-};
+} Context; // @Todo: Rename to CPU or what?
 
 #endif
