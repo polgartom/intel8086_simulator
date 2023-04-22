@@ -37,15 +37,60 @@ u16 get_memory_address(Effective_Address_Expression *expr, u8 is_16bit)
     u16 displacement = expr->displacement;
     u16 address = 0; // @Todo: segment stuff
 
+    // @Cleanup
     switch (expr->base) {
         case Effective_Address_direct:
+            // In this case the address will be equal to the displacement
+            break;
+        case Effective_Address_bx_si:
+            reg = get_register_info(is_16bit, Register_bx);
+            address = get_data_from_register(reg);
+            reg = get_register_info(is_16bit, Register_si);
+            address += get_data_from_register(reg);
+
+            break;
+        case Effective_Address_bx_di:
+            reg = get_register_info(is_16bit, Register_bx);
+            address = get_data_from_register(reg);
+            reg = get_register_info(is_16bit, Register_di);
+            address += get_data_from_register(reg);
+
+            break;
+        case Effective_Address_bp_si:
+            reg = get_register_info(is_16bit, Register_bp);
+            address = get_data_from_register(reg);
+            reg = get_register_info(is_16bit, Register_si);
+            address += get_data_from_register(reg);
+
+            break;
+        case Effective_Address_bp_di:
+            reg = get_register_info(is_16bit, Register_bp);
+            address = get_data_from_register(reg);
+            reg = get_register_info(is_16bit, Register_di);
+            address += get_data_from_register(reg);
+
+            break;
+        case Effective_Address_si:
+            reg = get_register_info(is_16bit, Register_si);
+            address = get_data_from_register(reg);
+
+            break;
+        case Effective_Address_di:
+            reg = get_register_info(is_16bit, Register_di);
+            address = get_data_from_register(reg);
+
+            break;
+        case Effective_Address_bp:
+            reg = get_register_info(is_16bit, Register_bp);
+            address = get_data_from_register(reg);
+
             break;
         case Effective_Address_bx:
             reg = get_register_info(is_16bit, Register_bx);
-            displacement = get_data_from_register(reg);
+            address = get_data_from_register(reg);
+
             break;
         default:
-            printf("[%s]: This address calculation haven't handled yet!", __FUNCTION__);
             assert(0);
     }
 
@@ -177,7 +222,7 @@ void execute_instruction(Context *ctx)
 
     ctx->ip_data = ip_data_after;
 
-    printf(" | ip: %#02x (%d) -> %#02x (%d)\n", ip_data_before, ip_data_before, ctx->ip_data, ctx->ip_data);
+    printf(" | ip: %#02x -> %#02x\n", ip_data_before, ctx->ip_data);
 }
 
 void run(Context *ctx)
