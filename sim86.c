@@ -1,42 +1,19 @@
 #include "sim86.h"
-#include "decoder.h"
-#include "printer.h"
-#include "simulator.h"
 
-size_t load_binary_file_to_memory(Context *ctx, char *filename)
+Register_Info *get_register_info(u8 is_16bit, u8 reg)
 {
-    FILE *fp = fopen(filename, "rb");
-    if (fp == NULL) {
-        printf("[ERROR]: Failed to open %s file. Probably it is not exists.\n", filename);
-        assert(0);
-    }
+    static const u32 registers[2][8][3] = {
+        // BYTE (8bit)
+        { 
+            {Register_al, 0, 1}, {Register_cl, 2, 1}, {Register_dl, 4, 1}, {Register_bl, 6, 1},
+            {Register_ah, 1, 2}, {Register_ch, 3, 1}, {Register_dh, 5, 1}, {Register_bh, 7, 1}
+        },
+        // WORD (16bit)
+        {
+            {Register_ax, 0, 2}, {Register_cx, 2,  2}, {Register_dx, 4,  2}, {Register_bx, 6,  2},
+            {Register_sp, 8, 2}, {Register_bp, 10, 2}, {Register_si, 12, 2}, {Register_di, 14, 2}
+        }
+    };
 
-    fseek(fp, 0, SEEK_END);
-    u32 fsize = ftell(fp);
-    rewind(fp);
-
-    assert(fsize+1 <= MAX_BINARY_FILE_SIZE);
-
-    ZERO_MEMORY(ctx->loaded_binary, fsize+1);
-
-    fread(ctx->loaded_binary, fsize, 1, fp);
-    fclose(fp);
-
-    return fsize;
-}
-
-int main(int argc, char **argv)
-{
-    if (argc < 2 || STR_LEN(argv[1]) == 0) {
-        fprintf(stderr, "No binary file specified!\n");
-    }
-    printf("\nbinary: %s\n\n", argv[1]);
-
-    Context ctx = {};
-    ctx.loaded_binary_size = load_binary_file_to_memory(&ctx, argv[1]);
-
-    decode(&ctx);
-    run(&ctx);
-
-    return 0;
+    return (Register_Info *)registers[is_16bit][reg];
 }

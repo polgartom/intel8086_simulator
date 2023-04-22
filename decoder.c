@@ -1,4 +1,5 @@
 #include "decoder.h"
+#include "printer.h"
 
 #define ASMD_CURR_BYTE(_d) _d->loaded_binary[_d->byte_offset]
 u8 ASMD_NEXT_BYTE(Context *_d) { return _d->loaded_binary[++_d->byte_offset]; }

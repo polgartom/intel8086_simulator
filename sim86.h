@@ -186,9 +186,7 @@ typedef struct {
     u16 flags;
 } Context; // @Todo: Rename to CPU or what?
 
-// @Cleanup: used for get_register_info
-#define REG_ACCUMULATOR 0 
-
+#define REG_ACCUMULATOR 0
 Register_Info *get_register_info(u8 is_16bit, u8 reg);
 
 #endif
