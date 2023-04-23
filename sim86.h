@@ -208,6 +208,6 @@ static const u32 registers[2][8][3] = {
 
 #define REG_ACCUMULATOR 0
 Register_Info *get_register_info(u8 is_16bit, u32 reg);
-Register_Info *get_register_info_by_enum(Register reg_enum, u8 is_16bit);
+Register_Info *get_register_info_by_enum(Register reg_enum);
 
 #endif
