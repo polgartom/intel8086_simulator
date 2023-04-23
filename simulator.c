@@ -31,7 +31,7 @@ void set_data_to_register(Register_Info *dest, u16 data)
     regmem[lower_mem_index] = data;
 }
 
-u16 get_memory_address(Effective_Address_Expression *expr, u8 is_16bit)
+u16 get_memory_address(Effective_Address_Expression *expr)
 { 
     Register_Info *reg = NULL;
     u16 displacement = expr->displacement;
@@ -131,7 +131,7 @@ s32 get_data_from_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit)
         }
     } 
     else if (op->type == Operand_Memory) {
-        u16 address = get_memory_address(&op->address, is_16bit);
+        u16 address = get_memory_address(&op->address);
         src_data = get_data_from_memory(ctx->memory, address, is_16bit);
     }
 
@@ -147,7 +147,7 @@ void set_data_to_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit, u16
         set_data_to_register(reg, data);
     }
     else if (op->type == Operand_Memory) {
-        u16 address = get_memory_address(&op->address, is_16bit);
+        u16 address = get_memory_address(&op->address);
         set_data_to_memory(ctx->memory, address, is_16bit, data);
     }
 
@@ -165,15 +165,14 @@ void execute_instruction(Context *ctx)
 
     //printf(" ;");
 
-    if (i->opcode == Opcode_mov) {
+    if (i->type == Instruction_Type_Move) {
         Instruction_Operand src_op = i->operands[1];
         u16 src_data = get_data_from_operand(ctx, &src_op, is_16bit);
         set_data_to_operand(ctx, &dest_op, is_16bit, src_data);
         
         ip_data_after += i->size; 
     }
-    else if (i->opcode == Opcode_add || i->opcode == Opcode_sub || i->opcode == Opcode_cmp) {
-        // @Cleanup: We can make an arithmetic flag for the instruction then we can use that to get to this branch
+    else if (i->type == Instruction_Type_Arithmetic) {
         Instruction_Operand src_op = i->operands[1];
         u16 src_data = get_data_from_operand(ctx, &src_op, is_16bit);
         s32 dest_data = get_data_from_operand(ctx, &dest_op, is_16bit);
@@ -191,6 +190,7 @@ void execute_instruction(Context *ctx)
                 dest_data -= src_data;
                 break;
             default:
+                printf("[ERROR]: This opcode: %s is have not handled yet!", get_opcode_name(i->opcode));
                 assert(0);
         }
 
@@ -200,8 +200,7 @@ void execute_instruction(Context *ctx)
         if (dest_data == 0) {
             new_flags |= F_ZERO;
         } 
-        else if (dest_data < 0) {
-            // @Todo: check the highest bit
+        else if (new_flags >>= 15) {
             new_flags |= F_SIGNED;
         }
 
@@ -214,12 +213,18 @@ void execute_instruction(Context *ctx)
         ctx->flags = new_flags;
         ip_data_after += i->size; 
     }
-    else if (i->opcode == Opcode_jnz) {
-        // @Cleanup: We can make an jump flag for the instruction then we can use that to get to this branch
-        if (ctx->flags & F_ZERO) {
-            ip_data_after += i->size;
-        } else {
-            ip_data_after += i->operands[0].immediate_s16;
+    else if (i->type == Instruction_Type_Jump) {
+        switch (i->opcode) {
+            case Opcode_jnz: 
+                if (ctx->flags & F_ZERO) {
+                    ip_data_after += i->size;
+                } else {
+                    ip_data_after += i->operands[0].immediate_s16;
+                }
+                break;
+            default:
+                printf("[ERROR]: This opcode: %s is have not handled yet!", get_opcode_name(i->opcode));
+                assert(0);
         }
     }
 

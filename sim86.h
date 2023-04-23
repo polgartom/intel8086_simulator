@@ -157,15 +157,26 @@ typedef struct {
 #define F_SIGNED (1 << 8)
 #define F_ZERO   (1 << 7)
 
+typedef enum {
+    Instruction_Type_None,
+
+    Instruction_Type_Move,
+    Instruction_Type_Arithmetic,
+    Instruction_Type_Jump,
+
+    Instruction_Type_Count,
+} Instruction_Type;
+
 typedef struct {
     u32 mem_offset;
     u8  size;
-
-    Opcode opcode;
     
+    Opcode opcode;
+    Instruction_Type type;
     Instruction_Operand operands[2];
 
     u32 flags;
+
 } Instruction;
 
 #define MAX_BINARY_FILE_SIZE 1024

@@ -161,6 +161,8 @@ void decode(Context *ctx)
         
         // ARITHMETIC
         if (((byte >> 6) & 7) == 0) {
+            ctx->instruction->type = Instruction_Type_Arithmetic;
+
             ARITHMETIC_OPCODE_LOOKUP(byte, ctx->instruction->opcode);
 
             if (((byte >> 1) & 3) == 2) {
@@ -190,6 +192,8 @@ void decode(Context *ctx)
             }
         }
         else if (((byte >> 2) & 63) == 32) {
+            ctx->instruction->type = Instruction_Type_Arithmetic;
+
             ARITHMETIC_OPCODE_LOOKUP(ASMD_NEXT_BYTE_WITHOUT_STEP(ctx), ctx->instruction->opcode);
 
             is_16bit = byte & 1;
@@ -206,6 +210,8 @@ void decode(Context *ctx)
         }
         // MOV
         else if (((byte >> 2) & 63) == 34) {
+            ctx->instruction->type = Instruction_Type_Move;
+
             ctx->instruction->opcode = Opcode_mov;
             
             reg_dir = (byte >> 1) & 1;
@@ -217,6 +223,8 @@ void decode(Context *ctx)
             register_memory_to_from_decode(ctx, reg_dir);
         }
         else if (((byte >> 1) & 127) == 99) {
+            ctx->instruction->type = Instruction_Type_Move;
+
             ctx->instruction->opcode = Opcode_mov;
 
             char second_byte = ASMD_NEXT_BYTE_WITHOUT_STEP(ctx);
@@ -231,6 +239,8 @@ void decode(Context *ctx)
             immediate_to_register_memory_decode(ctx, 1, is_16bit, 0);
         }
         else if (((byte >> 4) & 0x0F) == 0x0B) {
+            ctx->instruction->type = Instruction_Type_Move;
+
             ctx->instruction->opcode = Opcode_mov;
 
             u8 reg = byte & 0x07;
@@ -247,6 +257,8 @@ void decode(Context *ctx)
             immediate_to_operand(ctx, &ctx->instruction->operands[1], 1, is_16bit, 0);
         }
         else if (((byte >> 2) & 0x3F) == 0x28) {
+            ctx->instruction->type = Instruction_Type_Move;
+
             ctx->instruction->opcode = Opcode_mov;
 
             // Memory to/from accumulator
@@ -282,6 +294,8 @@ void decode(Context *ctx)
         }
         // Return from CALL (jumps)
         else if (((byte >> 4) & 15) == 0x07) {
+            ctx->instruction->type = Instruction_Type_Jump;
+
             s8 ip_inc8 = ASMD_NEXT_BYTE(ctx); // 8 bit signed increment to instruction pointer
             Opcode opcode = Opcode_none;
             switch (byte & 0x0F) {
@@ -315,6 +329,8 @@ void decode(Context *ctx)
             ctx->instruction->operands[0].immediate_u16 = ip_inc8+2;
         }
         else if (((byte >> 4) & 0x0F) == 0b1110) {
+            ctx->instruction->type = Instruction_Type_Jump;
+
             s8 ip_inc8 = ASMD_NEXT_BYTE(ctx);
             Opcode opcode = Opcode_none;
             switch (byte & 0x0F) {
