@@ -26,16 +26,39 @@ size_t load_binary_file_to_memory(Context *ctx, char *filename)
 
 int main(int argc, char **argv)
 {
-    if (argc < 2 || STR_LEN(argv[1]) == 0) {
-        fprintf(stderr, "No binary file specified!\n");
-    }
-    printf("\nbinary: %s\n\n", argv[1]);
+    assert(argc > 1);
 
     Context ctx = {};
-    ctx.loaded_binary_size = load_binary_file_to_memory(&ctx, argv[1]);
+    ZERO_MEMORY(ctx.memory, 1024*1024);
+    char *input_filename = NULL;
+
+    u8 dump_out = 0;
+
+    for (int i = 0; i < argc; i++) {
+        if (argv[i]) {
+            if (argv[i][0] == '-') {
+                if (STR_EQUAL(argv[i], "--dump")) {
+                    dump_out = 1;
+                }
+            } else {
+                input_filename = argv[i];
+                continue;
+            }
+        }
+    }
+
+    printf("\nbinary: %s\n\n", input_filename);
+
+    ctx.loaded_binary_size = load_binary_file_to_memory(&ctx, input_filename);
 
     decode(&ctx);
     run(&ctx);
+
+    if (dump_out) {
+        FILE *fp = fopen("memory_dump.data", "w");
+        assert(fp != NULL);    
+        fwrite(ctx.memory, 1, 65556, fp);
+    }
 
     return 0;
 }

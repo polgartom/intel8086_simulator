@@ -43,50 +43,50 @@ u16 get_memory_address(Effective_Address_Expression *expr, u8 is_16bit)
             // In this case the address will be equal to the displacement
             break;
         case Effective_Address_bx_si:
-            reg = get_register_info(is_16bit, Register_bx);
+            reg = get_register_info_by_enum(Register_bx, is_16bit);
             address = get_data_from_register(reg);
-            reg = get_register_info(is_16bit, Register_si);
+            reg = get_register_info_by_enum(Register_si, is_16bit);
             address += get_data_from_register(reg);
 
             break;
         case Effective_Address_bx_di:
-            reg = get_register_info(is_16bit, Register_bx);
+            reg = get_register_info_by_enum(Register_bx, is_16bit);
             address = get_data_from_register(reg);
-            reg = get_register_info(is_16bit, Register_di);
+            reg = get_register_info_by_enum(Register_di, is_16bit);
             address += get_data_from_register(reg);
 
             break;
         case Effective_Address_bp_si:
-            reg = get_register_info(is_16bit, Register_bp);
+            reg = get_register_info_by_enum(Register_bp, is_16bit);
             address = get_data_from_register(reg);
-            reg = get_register_info(is_16bit, Register_si);
+            reg = get_register_info_by_enum(Register_si, is_16bit);
             address += get_data_from_register(reg);
 
             break;
         case Effective_Address_bp_di:
-            reg = get_register_info(is_16bit, Register_bp);
+            reg = get_register_info_by_enum(Register_bp, is_16bit);
             address = get_data_from_register(reg);
-            reg = get_register_info(is_16bit, Register_di);
+            reg = get_register_info_by_enum(Register_di, is_16bit);
             address += get_data_from_register(reg);
 
             break;
         case Effective_Address_si:
-            reg = get_register_info(is_16bit, Register_si);
+            reg = get_register_info_by_enum(Register_si, is_16bit);
             address = get_data_from_register(reg);
 
             break;
         case Effective_Address_di:
-            reg = get_register_info(is_16bit, Register_di);
+            reg = get_register_info_by_enum(Register_di, is_16bit);
             address = get_data_from_register(reg);
 
             break;
         case Effective_Address_bp:
-            reg = get_register_info(is_16bit, Register_bp);
+            reg = get_register_info_by_enum(Register_bp, is_16bit);
             address = get_data_from_register(reg);
 
             break;
         case Effective_Address_bx:
-            reg = get_register_info(is_16bit, Register_bx);
+            reg = get_register_info_by_enum(Register_bx, is_16bit);
             address = get_data_from_register(reg);
 
             break;
@@ -145,15 +145,15 @@ void set_data_to_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit, u16
     if (op->type == Operand_Register) {
         Register_Info *reg = get_register_info(is_16bit, op->reg);
         set_data_to_register(reg, data);
-
-        printf(" %s: ", get_register_name(reg->reg));
     }
     else if (op->type == Operand_Memory) {
         u16 address = get_memory_address(&op->address, is_16bit);
         set_data_to_memory(ctx->memory, address, is_16bit, data);
     }
 
+/*
     printf(" %#02x -> %#02x |", current_data, data);
+*/
 }
 
 void execute_instruction(Context *ctx)
@@ -165,7 +165,7 @@ void execute_instruction(Context *ctx)
     u32 ip_data_before = ctx->ip_data; 
     u32 ip_data_after  = ctx->ip_data;
 
-    printf(" ;");
+    //printf(" ;");
 
     if (i->opcode == Opcode_mov) {
         Instruction_Operand src_op = i->operands[1];
@@ -207,12 +207,13 @@ void execute_instruction(Context *ctx)
             new_flags |= F_SIGNED;
         }
 
+/*
         printf(" flags: [");
         print_flags(ctx->flags);
         printf("] -> [");
         print_flags(new_flags);
         printf("]");
-
+*/
         ctx->flags = new_flags;
         ip_data_after += i->size; 
     }
@@ -229,8 +230,17 @@ void execute_instruction(Context *ctx)
     // based on the instruction byte index at loaded binary file.
     ctx->ip_data = ip_data_after;
 
+/*
     printf(" | ip: %#02x -> %#02x\n", ip_data_before, ctx->ip_data);
+*/
 }
+
+/*
+void load_file(Context *ctx, char *filename)
+{
+
+}
+*/
 
 void run(Context *ctx)
 {
@@ -241,7 +251,7 @@ void run(Context *ctx)
         // @Todo: At this point we can't use the print out function here without calling the execute_instruction function
         // which will set the ip_data to pointing to the next instruction of the ctx->instructions set. Right now, the only 
         // place where we can call this is in the decode() function as the binary decoded.
-        print_instruction(instruction, 0);
+        //print_instruction(instruction, 1);
         execute_instruction(ctx);
 
     } while (ctx->instructions[ctx->ip_data]);

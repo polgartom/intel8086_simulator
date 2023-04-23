@@ -178,12 +178,16 @@ typedef struct {
 
     u8 memory[1024*1024];
 
-    u32 ip_data; // current value of the instruction pointer register 
+    u16 ip_data; // current value of the instruction pointer register 
 
     Instruction *instruction; // current
     Instruction *instructions[2048];
 
     u16 flags;
+
+    // Options 
+    u8 dump_out;
+
 } Context; // @Todo: Rename to CPU or what?
 
 // @CleanUp:
@@ -204,5 +208,6 @@ static const u32 registers[2][8][3] = {
 
 #define REG_ACCUMULATOR 0
 Register_Info *get_register_info(u8 is_16bit, u32 reg);
+Register_Info *get_register_info_by_enum(Register reg_enum, u8 is_16bit);
 
 #endif

@@ -44,27 +44,27 @@ Effective_Address_Base get_address_base(u8 r_m, u8 mod)
 void immediate_to_operand(Context *ctx, Instruction_Operand *operand, u8 is_signed, u8 is_16bit, u8 immediate_depends_from_signed)
 {
     operand->type = Operand_Immediate;
-    s8 immediate8 = ASMD_NEXT_BYTE(ctx);
+    s16 immediate = ASMD_NEXT_BYTE(ctx);
 
     // If this an arithmetic operation then only can be an u16 or a s8 data type based on
     // that if it is wide and not signed immediate
     if (immediate_depends_from_signed) {
         if (is_16bit && !is_signed) {
-            operand->immediate_u16 = BYTE_LOHI_TO_HILO(immediate8, ASMD_NEXT_BYTE(ctx));
+            operand->immediate_u16 = BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(ctx));
         } else {
-            operand->immediate_s16 = immediate8;
+            operand->immediate_s16 = immediate;
         }
         return;
     }
 
     if (is_16bit) {
         if (!is_signed) {
-            operand->immediate_u16 = BYTE_LOHI_TO_HILO(immediate8, ASMD_NEXT_BYTE(ctx));
+            operand->immediate_u16 = BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(ctx));
         } else {
-            operand->immediate_s16 = BYTE_LOHI_TO_HILO(immediate8, ASMD_NEXT_BYTE(ctx));
+            operand->immediate_s16 = BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(ctx));
         }
     } else {
-        operand->immediate_s16 = immediate8;
+        operand->immediate_s16 = immediate;
     }
 }
 
