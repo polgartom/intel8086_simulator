@@ -1,5 +1,7 @@
 #include "simulator.h"
+#include "decoder.h"
 #include "printer.h"
+#include <stdio.h>
 
 // @Todo: Collective memory as like in the real hardware 
 u8 regmem[64] = {0}; 
@@ -124,7 +126,7 @@ s32 get_data_from_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit)
         src_data = get_data_from_register(reg);
     } 
     else if (op->type == Operand_Immediate) {
-        if (ctx->instruction->flags & FLAG_IS_SIGNED) {
+        if (ctx->instruction.flags & FLAG_IS_SIGNED) {
             src_data = op->immediate_s16;
         } else {
             src_data = op->immediate_u16;
@@ -150,20 +152,24 @@ void set_data_to_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit, u16
         u16 address = get_memory_address(&op->address);
         set_data_to_memory(ctx->memory, address, is_16bit, data);
     }
+    else {
+        printf("[ERROR]: How do you wannna put value in the immediate?\n");
+        assert(0);
+    }
 
     printf(" %#02x -> %#02x |", current_data, data);
 }
 
 void execute_instruction(Context *ctx)
 {
-    Instruction *i = ctx->instruction;
+    Instruction *i = &ctx->instruction;
     Instruction_Operand dest_op = i->operands[0];
     u8 is_16bit = i->flags & FLAG_IS_16BIT;
 
     u32 ip_data_before = ctx->ip_data; 
     u32 ip_data_after  = ctx->ip_data;
 
-    //printf(" ;");
+    printf(" ;");
 
     if (i->type == Instruction_Type_Move) {
         Instruction_Operand src_op = i->operands[1];
@@ -190,7 +196,7 @@ void execute_instruction(Context *ctx)
                 dest_data -= src_data;
                 break;
             default:
-                printf("[ERROR]: This opcode: %s is have not handled yet!", get_opcode_name(i->opcode));
+                printf("[WARNING]: This opcode: %s is have not handled yet!", get_opcode_name(i->opcode));
                 assert(0);
         }
 
@@ -200,7 +206,7 @@ void execute_instruction(Context *ctx)
         if (dest_data == 0) {
             new_flags |= F_ZERO;
         } 
-        else if (new_flags >>= 15) {
+        else if (dest_data >> 15) {
             new_flags |= F_SIGNED;
         }
 
@@ -223,7 +229,7 @@ void execute_instruction(Context *ctx)
                 }
                 break;
             default:
-                printf("[ERROR]: This opcode: %s is have not handled yet!", get_opcode_name(i->opcode));
+                printf("\n[ERROR]: This opcode: '%s' is have not handled yet!\n", get_opcode_name(i->opcode));
                 assert(0);
         }
     }
@@ -236,24 +242,64 @@ void execute_instruction(Context *ctx)
 }
 
 /*
-void load_file(Context *ctx, char *filename)
+void *allocate_memory(u16 size)
 {
-
+    
 }
 */
 
-void run(Context *ctx)
+void load_executable(Context *ctx, char *filename)
 {
-    do {
-        Instruction *instruction = ctx->instructions[ctx->ip_data];
-        ctx->instruction = instruction;
+    FILE *fp = fopen(filename, "rb");
+    if (fp == NULL) {
+        printf("[ERROR]: Failed to open %s file. Probably it is not exists.\n", filename);
+        assert(0);
+    }
 
-        // @Todo: At this point we can't use the print out function here without calling the execute_instruction function
-        // which will set the ip_data to pointing to the next instruction of the ctx->instructions set. Right now, the only 
-        // place where we can call this is in the decode() function as the binary decoded.
-        print_instruction(instruction, 0);
-        execute_instruction(ctx);
+    fseek(fp, 0, SEEK_END);
+    u32 fsize = ftell(fp);
+    rewind(fp);
 
-    } while (ctx->instructions[ctx->ip_data]);
+    assert(fsize+1 <= MAX_BINARY_FILE_SIZE);
+
+    // @Todo: Dynamic memory allocation  
+    fread(&ctx->memory[0], fsize, 1, fp);
+    fclose(fp);
+
+    ctx->loaded_executable_size = fsize;
+    ctx->ip_data = 0; // ctx->memory[0] memory index
 }
 
+void run(Context *ctx)
+{
+    // @Todo: Check the loaded executable memory address, but now we always put the executable to beginning of the memory
+    ctx->ip_data = 0;
+
+    char input[128] = {0};
+
+    printf(">> Press enter to the next instruction\n");
+    do {
+        decode_next_instruction(ctx);
+
+//        if (ctx->decode_only) {
+//            print_instruction(ctx, 1);
+//            
+//            We have to update this "manually", because here we only printing and not executing, so the ip_data won't update! 
+//            ctx->ip_data = ctx->decoder_cursor;
+//         }
+
+        // @Todo: The i8086/88 contains the debug flag so later we simulate this too
+        if (0) {
+__de:;
+            fgets(input, sizeof(input), stdin);
+            if (input[0] != '\n') {
+                goto __de;
+            }
+        }
+
+        print_instruction(ctx, 0);
+        execute_instruction(ctx);
+
+    // @Todo: Another option to check end of the executable?
+    } while (ctx->ip_data != ctx->loaded_executable_size);
+}

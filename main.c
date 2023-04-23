@@ -2,28 +2,6 @@
 #include "decoder.h"
 #include "simulator.h"
 
-size_t load_binary_file_to_memory(Context *ctx, char *filename)
-{
-    FILE *fp = fopen(filename, "rb");
-    if (fp == NULL) {
-        printf("[ERROR]: Failed to open %s file. Probably it is not exists.\n", filename);
-        assert(0);
-    }
-
-    fseek(fp, 0, SEEK_END);
-    u32 fsize = ftell(fp);
-    rewind(fp);
-
-    assert(fsize+1 <= MAX_BINARY_FILE_SIZE);
-
-    ZERO_MEMORY(ctx->loaded_binary, fsize+1);
-
-    fread(ctx->loaded_binary, fsize, 1, fp);
-    fclose(fp);
-
-    return fsize;
-}
-
 int main(int argc, char **argv)
 {
     assert(argc > 1);
@@ -49,9 +27,7 @@ int main(int argc, char **argv)
 
     printf("\nbinary: %s\n\n", input_filename);
 
-    ctx.loaded_binary_size = load_binary_file_to_memory(&ctx, input_filename);
-
-    decode(&ctx);
+    load_executable(&ctx, input_filename);
     run(&ctx);
 
     if (dump_out) {

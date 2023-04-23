@@ -168,7 +168,7 @@ typedef enum {
 } Instruction_Type;
 
 typedef struct {
-    u32 mem_offset;
+    u32 mem_address;
     u8  size;
     
     Opcode opcode;
@@ -182,17 +182,14 @@ typedef struct {
 #define MAX_BINARY_FILE_SIZE 1024
 
 typedef struct {
-    // @Todo: Merge the loaded_bin and the Memory sturct
-    u8 loaded_binary[1024]; // Loaded binary file
-    u16 loaded_binary_size;
-    u16 byte_offset;
+    u16 loaded_executable_size; // @Todo: Remove
+    u16 decoder_cursor; 
 
     u8 memory[1024*1024];
 
     u16 ip_data; // current value of the instruction pointer register 
 
-    Instruction *instruction; // current
-    Instruction *instructions[2048];
+    Instruction instruction; // current instruction 
 
     u16 flags;
 

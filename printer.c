@@ -63,11 +63,13 @@ void print_flags(u16 flags)
     }
 }
 
-void print_instruction(Instruction *instruction, u8 with_end_line)
+void print_instruction(Context *ctx, u8 with_end_line)
 {
     FILE *dest = stdout;
 
-    fprintf(dest, "[0x%02x]\t%s", instruction->mem_offset, get_opcode_name(instruction->opcode));
+    Instruction *instruction = &ctx->instruction;
+
+    fprintf(dest, "[0x%02x]\t%s", instruction->mem_address, get_opcode_name(instruction->opcode));
     
     const char *separator = " ";
     for (u8 j = 0; j < 2; j++) {
