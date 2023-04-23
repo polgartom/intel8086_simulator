@@ -228,6 +228,21 @@ void execute_instruction(Context *ctx)
                     ip_data_after += i->operands[0].immediate_s16;
                 }
                 break;
+
+            case Opcode_loop:
+                Register_Info *cx = get_register_info_by_enum(Register_cx);
+                s16 cx_data = (s16)get_data_from_register(cx);
+                cx_data -= 1;
+                set_data_to_register(cx, cx_data);
+                
+                if (cx_data != 0) {
+                    ip_data_after += i->operands[0].immediate_s16;
+                } else {
+                    ip_data_after += i->size;
+                }
+
+                break;
+
             default:
                 printf("\n[ERROR]: This opcode: '%s' is have not handled yet!\n", get_opcode_name(i->opcode));
                 assert(0);

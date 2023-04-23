@@ -13,7 +13,7 @@ u8 ASMD_NEXT_BYTE(Context *_d) { return _d->memory[++_d->decoder_cursor]; }
         case 7: { __opcode = Opcode_cmp; break; } \
         default: { \
             printf("[WARNING/%s:%d]: This arithmetic instruction is not handled yet!\n", __FUNCTION__, __LINE__); \
-            goto _debug_parse_end; \
+            assert(0); \
         } \
     } \
 
@@ -357,10 +357,5 @@ void decode_next_instruction(Context *ctx)
     ctx->decoder_cursor++;
 
     ctx->instruction.size = ctx->decoder_cursor - instruction_byte_start_offset; 
-
-    ctx->decoder_cursor--;
-
-_debug_parse_end:;
-
 }
 
