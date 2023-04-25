@@ -63,11 +63,11 @@ void print_flags(u16 flags)
     }
 }
 
-void print_instruction(Context *ctx, u8 with_end_line)
+void print_instruction(CPU *cpu, u8 with_end_line)
 {
     FILE *dest = stdout;
 
-    Instruction *instruction = &ctx->instruction;
+    Instruction *instruction = &cpu->instruction;
 
     fprintf(dest, "[0x%02x]\t%s", instruction->mem_address, get_opcode_name(instruction->opcode));
     

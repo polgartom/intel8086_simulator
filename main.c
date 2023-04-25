@@ -6,8 +6,8 @@ int main(int argc, char **argv)
 {
     assert(argc > 1);
 
-    Context ctx = {};
-    ZERO_MEMORY(ctx.memory, 1024*1024);
+    CPU cpu = {};
+    ZERO_MEMORY(cpu.memory, 1024*1024);
     char *input_filename = NULL;
 
     u8 dump_out = 0;
@@ -27,13 +27,13 @@ int main(int argc, char **argv)
 
     printf("\nbinary: %s\n\n", input_filename);
 
-    load_executable(&ctx, input_filename);
-    run(&ctx);
+    load_executable(&cpu, input_filename);
+    run(&cpu);
 
     if (dump_out) {
         FILE *fp = fopen("memory_dump.data", "w");
         assert(fp != NULL);    
-        fwrite(ctx.memory, 1, 65556, fp);
+        fwrite(cpu.memory, 1, 65556, fp);
     }
 
     return 0;

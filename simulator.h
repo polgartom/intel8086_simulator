@@ -3,7 +3,7 @@
 
 #include "sim86.h"
 
-void load_executable(Context *ctx, char *filename);
-void run(Context *ctx);
+void load_executable(CPU *cpu, char *filename);
+void run(CPU *cpu);
 
 #endif

@@ -33,10 +33,13 @@ typedef unsigned int   u32;
 
 ///////////////////////////////////////////////////
 
-typedef struct {
-    u8 data[1024*1024]; // 1MB
-    u32 size;
-} Memory;
+#define MAX_MEMORY (1024*1024)
+
+#define FLAG_IS_16BIT  0b00000001
+#define FLAG_IS_SIGNED 0b00000100
+
+#define F_SIGNED (1 << 8)
+#define F_ZERO   (1 << 7)
 
 #define REG_IS_DEST 1
 #define REG_IS_SRC  0
@@ -151,12 +154,6 @@ typedef struct {
 
 } Instruction_Operand;
 
-#define FLAG_IS_16BIT  0b00000001
-#define FLAG_IS_SIGNED 0b00000100
-
-#define F_SIGNED (1 << 8)
-#define F_ZERO   (1 << 7)
-
 typedef enum {
     Instruction_Type_None,
 
@@ -179,13 +176,11 @@ typedef struct {
 
 } Instruction;
 
-#define MAX_BINARY_FILE_SIZE 1024
-
 typedef struct {
     u16 loaded_executable_size; // @Todo: Remove
-    u16 decoder_cursor; 
+    u16 decoder_cursor;
 
-    u8 memory[1024*1024];
+    u8 memory[MAX_MEMORY];
 
     u16 ip_data; // current value of the instruction pointer register 
 
@@ -196,7 +191,7 @@ typedef struct {
     // Options 
     u8 dump_out;
 
-} Context; // @Todo: Rename to CPU or what?
+} CPU;
 
 // @CleanUp:
 static const u32 registers[2][8][3] = {

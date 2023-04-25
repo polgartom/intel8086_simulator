@@ -1,7 +1,7 @@
 #include "simulator.h"
 #include "decoder.h"
 #include "printer.h"
-#include <stdio.h>
+
 
 // @Todo: Collective memory as like in the real hardware 
 u8 regmem[64] = {0}; 
@@ -117,7 +117,7 @@ void set_data_to_memory(u8 *memory, u32 address, u8 is_16bit, u16 data)
     }
 }
 
-s32 get_data_from_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit)
+s32 get_data_from_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit)
 {
     s32 src_data = 0;
 
@@ -126,7 +126,7 @@ s32 get_data_from_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit)
         src_data = get_data_from_register(reg);
     } 
     else if (op->type == Operand_Immediate) {
-        if (ctx->instruction.flags & FLAG_IS_SIGNED) {
+        if (cpu->instruction.flags & FLAG_IS_SIGNED) {
             src_data = op->immediate_s16;
         } else {
             src_data = op->immediate_u16;
@@ -134,15 +134,15 @@ s32 get_data_from_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit)
     } 
     else if (op->type == Operand_Memory) {
         u16 address = get_memory_address(&op->address);
-        src_data = get_data_from_memory(ctx->memory, address, is_16bit);
+        src_data = get_data_from_memory(cpu->memory, address, is_16bit);
     }
 
     return src_data;
 }
 
-void set_data_to_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit, u16 data)
+void set_data_to_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit, u16 data)
 {
-    s32 current_data = get_data_from_operand(ctx, op, is_16bit);
+    s32 current_data = get_data_from_operand(cpu, op, is_16bit);
 
     if (op->type == Operand_Register) {
         Register_Info *reg = get_register_info(is_16bit, op->reg);
@@ -150,7 +150,7 @@ void set_data_to_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit, u16
     }
     else if (op->type == Operand_Memory) {
         u16 address = get_memory_address(&op->address);
-        set_data_to_memory(ctx->memory, address, is_16bit, data);
+        set_data_to_memory(cpu->memory, address, is_16bit, data);
     }
     else {
         printf("[ERROR]: How do you wannna put value in the immediate?\n");
@@ -160,37 +160,37 @@ void set_data_to_operand(Context *ctx, Instruction_Operand *op, u8 is_16bit, u16
     printf(" %#02x -> %#02x |", current_data, data);
 }
 
-void execute_instruction(Context *ctx)
+void execute_instruction(CPU *cpu)
 {
-    Instruction *i = &ctx->instruction;
+    Instruction *i = &cpu->instruction;
     Instruction_Operand dest_op = i->operands[0];
     u8 is_16bit = i->flags & FLAG_IS_16BIT;
 
-    u32 ip_data_before = ctx->ip_data; 
-    u32 ip_data_after  = ctx->ip_data;
+    u32 ip_data_before = cpu->ip_data; 
+    u32 ip_data_after  = cpu->ip_data;
 
     printf(" ;");
 
     if (i->type == Instruction_Type_Move) {
         Instruction_Operand src_op = i->operands[1];
-        u16 src_data = get_data_from_operand(ctx, &src_op, is_16bit);
-        set_data_to_operand(ctx, &dest_op, is_16bit, src_data);
+        u16 src_data = get_data_from_operand(cpu, &src_op, is_16bit);
+        set_data_to_operand(cpu, &dest_op, is_16bit, src_data);
         
         ip_data_after += i->size; 
     }
     else if (i->type == Instruction_Type_Arithmetic) {
         Instruction_Operand src_op = i->operands[1];
-        u16 src_data = get_data_from_operand(ctx, &src_op, is_16bit);
-        s32 dest_data = get_data_from_operand(ctx, &dest_op, is_16bit);
+        u16 src_data = get_data_from_operand(cpu, &src_op, is_16bit);
+        s32 dest_data = get_data_from_operand(cpu, &dest_op, is_16bit);
 
         switch (i->opcode) {
             case Opcode_add: 
                 dest_data += src_data;
-                set_data_to_operand(ctx, &dest_op, is_16bit, dest_data);
+                set_data_to_operand(cpu, &dest_op, is_16bit, dest_data);
                 break;
             case Opcode_sub:
                 dest_data -= src_data;
-                set_data_to_operand(ctx, &dest_op, is_16bit, dest_data);
+                set_data_to_operand(cpu, &dest_op, is_16bit, dest_data);
                 break;
             case Opcode_cmp:
                 dest_data -= src_data;
@@ -200,7 +200,7 @@ void execute_instruction(Context *ctx)
                 assert(0);
         }
 
-        u16 new_flags = ctx->flags;
+        u16 new_flags = cpu->flags;
         new_flags &= (~(F_SIGNED|F_ZERO)); // clear flags
 
         if (dest_data == 0) {
@@ -211,25 +211,25 @@ void execute_instruction(Context *ctx)
         }
 
         printf(" flags: [");
-        print_flags(ctx->flags);
+        print_flags(cpu->flags);
         printf("] -> [");
         print_flags(new_flags);
         printf("]");
 
-        ctx->flags = new_flags;
+        cpu->flags = new_flags;
         ip_data_after += i->size; 
     }
     else if (i->type == Instruction_Type_Jump) {
         switch (i->opcode) {
-            case Opcode_jnz: 
-                if (ctx->flags & F_ZERO) {
+            case Opcode_jnz: {
+                if (cpu->flags & F_ZERO) {
                     ip_data_after += i->size;
                 } else {
                     ip_data_after += i->operands[0].immediate_s16;
                 }
                 break;
-
-            case Opcode_loop:
+            }
+            case Opcode_loop: {
                 Register_Info *cx = get_register_info_by_enum(Register_cx);
                 s16 cx_data = (s16)get_data_from_register(cx);
                 cx_data -= 1;
@@ -242,6 +242,7 @@ void execute_instruction(Context *ctx)
                 }
 
                 break;
+            }
 
             default:
                 printf("\n[ERROR]: This opcode: '%s' is have not handled yet!\n", get_opcode_name(i->opcode));
@@ -249,11 +250,11 @@ void execute_instruction(Context *ctx)
         }
     }
 
-    // This instruction pointer data will provide us the next instruction location from the ctx->instructions array which indexed
+    // This instruction pointer data will provide us the next instruction location from the cpu->instructions array which indexed
     // based on the instruction byte index at loaded binary file.
-    ctx->ip_data = ip_data_after;
+    cpu->ip_data = ip_data_after;
 
-    printf(" | ip: %#02x -> %#02x\n", ip_data_before, ctx->ip_data);
+    printf(" | ip: %#02x -> %#02x\n", ip_data_before, cpu->ip_data);
 }
 
 /*
@@ -263,7 +264,7 @@ void *allocate_memory(u16 size)
 }
 */
 
-void load_executable(Context *ctx, char *filename)
+void load_executable(CPU *cpu, char *filename)
 {
     FILE *fp = fopen(filename, "rb");
     if (fp == NULL) {
@@ -278,29 +279,29 @@ void load_executable(Context *ctx, char *filename)
     assert(fsize+1 <= MAX_BINARY_FILE_SIZE);
 
     // @Todo: Dynamic memory allocation  
-    fread(&ctx->memory[0], fsize, 1, fp);
+    fread(&cpu->memory[0], fsize, 1, fp);
     fclose(fp);
 
-    ctx->loaded_executable_size = fsize;
-    ctx->ip_data = 0; // ctx->memory[0] memory index
+    cpu->loaded_executable_size = fsize;
+    cpu->ip_data = 0; // cpu->memory[0] memory index
 }
 
-void run(Context *ctx)
+void run(CPU *cpu)
 {
     // @Todo: Check the loaded executable memory address, but now we always put the executable to beginning of the memory
-    ctx->ip_data = 0;
+    cpu->ip_data = 0;
 
     char input[128] = {0};
 
     printf(">> Press enter to the next instruction\n");
     do {
-        decode_next_instruction(ctx);
+        decode_next_instruction(cpu);
 
-//        if (ctx->decode_only) {
-//            print_instruction(ctx, 1);
+//        if (cpu->decode_only) {
+//            print_instruction(cpu, 1);
 //            
 //            We have to update this "manually", because here we only printing and not executing, so the ip_data won't update! 
-//            ctx->ip_data = ctx->decoder_cursor;
+//            cpu->ip_data = cpu->decoder_cursor;
 //         }
 
         // @Todo: The i8086/88 contains the debug flag so later we simulate this too
@@ -312,9 +313,9 @@ __de:;
             }
         }
 
-        print_instruction(ctx, 0);
-        execute_instruction(ctx);
+        print_instruction(cpu, 0);
+        execute_instruction(cpu);
 
     // @Todo: Another option to check end of the executable?
-    } while (ctx->ip_data != ctx->loaded_executable_size);
+    } while (cpu->ip_data != cpu->loaded_executable_size);
 }

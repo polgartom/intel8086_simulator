@@ -3,6 +3,6 @@
 
 #include "sim86.h"
 
-void decode_next_instruction(Context *ctx);
+void decode_next_instruction(CPU *cpu);
 
 #endif
