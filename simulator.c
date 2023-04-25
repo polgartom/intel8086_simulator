@@ -276,7 +276,7 @@ void load_executable(CPU *cpu, char *filename)
     u32 fsize = ftell(fp);
     rewind(fp);
 
-    assert(fsize+1 <= MAX_BINARY_FILE_SIZE);
+    assert(fsize+1 <= MAX_MEMORY);
 
     // @Todo: Dynamic memory allocation  
     fread(&cpu->memory[0], fsize, 1, fp);
