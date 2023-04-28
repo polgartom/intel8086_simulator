@@ -2,11 +2,10 @@
 #include "decoder.h"
 #include "printer.h"
 
-
-// @Todo: Collective memory as like in the real hardware 
+// @Todo: Put this into the CPU struct 
 u8 regmem[64] = {0}; 
 
-s32 get_data_from_register(Register_Info *reg)
+s32 get_data_from_register(Register_Access *reg)
 {
     u16 lower_mem_index = reg->mem_offset;
     if (reg->mem_size == 2) {
@@ -19,7 +18,7 @@ s32 get_data_from_register(Register_Info *reg)
     return regmem[lower_mem_index];
 }
 
-void set_data_to_register(Register_Info *dest, u16 data) 
+void set_data_to_register(Register_Access *dest, u16 data) 
 {
     u16 lower_mem_index = dest->mem_offset;
 
@@ -33,9 +32,9 @@ void set_data_to_register(Register_Info *dest, u16 data)
     regmem[lower_mem_index] = data;
 }
 
-u16 get_memory_address(Effective_Address_Expression *expr)
+u32 get_memory_address(Effective_Address_Expression *expr)
 { 
-    Register_Info *reg = NULL;
+    Register_Access *reg = NULL;
     u16 displacement = expr->displacement;
     u16 address = 0; // @Todo: segment stuff
 
@@ -45,50 +44,50 @@ u16 get_memory_address(Effective_Address_Expression *expr)
             // In this case the address will be equal to the displacement
             break;
         case Effective_Address_bx_si:
-            reg = get_register_info_by_enum(Register_bx);
+            reg = register_access_by_enum(Register_bx);
             address = get_data_from_register(reg);
-            reg = get_register_info_by_enum(Register_si);
+            reg = register_access_by_enum(Register_si);
             address += get_data_from_register(reg);
 
             break;
         case Effective_Address_bx_di:
-            reg = get_register_info_by_enum(Register_bx);
+            reg = register_access_by_enum(Register_bx);
             address = get_data_from_register(reg);
-            reg = get_register_info_by_enum(Register_di);
+            reg = register_access_by_enum(Register_di);
             address += get_data_from_register(reg);
 
             break;
         case Effective_Address_bp_si:
-            reg = get_register_info_by_enum(Register_bp);
+            reg = register_access_by_enum(Register_bp);
             address = get_data_from_register(reg);
-            reg = get_register_info_by_enum(Register_si);
+            reg = register_access_by_enum(Register_si);
             address += get_data_from_register(reg);
 
             break;
         case Effective_Address_bp_di:
-            reg = get_register_info_by_enum(Register_bp);
+            reg = register_access_by_enum(Register_bp);
             address = get_data_from_register(reg);
-            reg = get_register_info_by_enum(Register_di);
+            reg = register_access_by_enum(Register_di);
             address += get_data_from_register(reg);
 
             break;
         case Effective_Address_si:
-            reg = get_register_info_by_enum(Register_si);
+            reg = register_access_by_enum(Register_si);
             address = get_data_from_register(reg);
 
             break;
         case Effective_Address_di:
-            reg = get_register_info_by_enum(Register_di);
+            reg = register_access_by_enum(Register_di);
             address = get_data_from_register(reg);
 
             break;
         case Effective_Address_bp:
-            reg = get_register_info_by_enum(Register_bp);
+            reg = register_access_by_enum(Register_bp);
             address = get_data_from_register(reg);
 
             break;
         case Effective_Address_bx:
-            reg = get_register_info_by_enum(Register_bx);
+            reg = register_access_by_enum(Register_bx);
             address = get_data_from_register(reg);
 
             break;
@@ -99,7 +98,7 @@ u16 get_memory_address(Effective_Address_Expression *expr)
     return address + displacement;
 }
 
-s16 get_data_from_memory(u8 *memory, u32 address, u8 is_16bit)
+s32 get_data_from_memory(u8 *memory, u32 address, u8 is_16bit)
 {
     s16 data = (u8)memory[address];
     if (is_16bit) {
@@ -122,15 +121,11 @@ s32 get_data_from_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit)
     s32 src_data = 0;
 
     if (op->type == Operand_Register) {
-        Register_Info *reg = get_register_info(is_16bit, op->reg);
+        Register_Access *reg = register_access(op->reg, is_16bit);
         src_data = get_data_from_register(reg);
     } 
     else if (op->type == Operand_Immediate) {
-        if (cpu->instruction.flags & FLAG_IS_SIGNED) {
-            src_data = op->immediate_s16;
-        } else {
-            src_data = op->immediate_u16;
-        }
+        src_data = op->immediate;
     } 
     else if (op->type == Operand_Memory) {
         u16 address = get_memory_address(&op->address);
@@ -145,7 +140,7 @@ void set_data_to_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit, u16 dat
     s32 current_data = get_data_from_operand(cpu, op, is_16bit);
 
     if (op->type == Operand_Register) {
-        Register_Info *reg = get_register_info(is_16bit, op->reg);
+        Register_Access *reg = register_access(op->reg, is_16bit);
         set_data_to_register(reg, data);
     }
     else if (op->type == Operand_Memory) {
@@ -164,10 +159,10 @@ void execute_instruction(CPU *cpu)
 {
     Instruction *i = &cpu->instruction;
     Instruction_Operand dest_op = i->operands[0];
-    u8 is_16bit = i->flags & FLAG_IS_16BIT;
+    u8 is_16bit = !!(i->flags & Inst_Wide);
 
-    u32 ip_data_before = cpu->ip_data; 
-    u32 ip_data_after  = cpu->ip_data;
+    u32 ip_before = cpu->ip; 
+    u32 ip_after  = cpu->ip;
 
     printf(" ;");
 
@@ -176,7 +171,7 @@ void execute_instruction(CPU *cpu)
         u16 src_data = get_data_from_operand(cpu, &src_op, is_16bit);
         set_data_to_operand(cpu, &dest_op, is_16bit, src_data);
         
-        ip_data_after += i->size; 
+        ip_after += i->size; 
     }
     else if (i->type == Instruction_Type_Arithmetic) {
         Instruction_Operand src_op = i->operands[1];
@@ -217,28 +212,28 @@ void execute_instruction(CPU *cpu)
         printf("]");
 
         cpu->flags = new_flags;
-        ip_data_after += i->size; 
+        ip_after += i->size; 
     }
     else if (i->type == Instruction_Type_Jump) {
         switch (i->opcode) {
             case Opcode_jnz: {
                 if (cpu->flags & F_ZERO) {
-                    ip_data_after += i->size;
+                    ip_after += i->size;
                 } else {
-                    ip_data_after += i->operands[0].immediate_s16;
+                    ip_after += i->operands[0].immediate;
                 }
                 break;
             }
             case Opcode_loop: {
-                Register_Info *cx = get_register_info_by_enum(Register_cx);
+                Register_Access *cx = register_access_by_enum(Register_cx);
                 s16 cx_data = (s16)get_data_from_register(cx);
                 cx_data -= 1;
                 set_data_to_register(cx, cx_data);
                 
                 if (cx_data != 0) {
-                    ip_data_after += i->operands[0].immediate_s16;
+                    ip_after += i->operands[0].immediate;
                 } else {
-                    ip_data_after += i->size;
+                    ip_after += i->size;
                 }
 
                 break;
@@ -252,9 +247,9 @@ void execute_instruction(CPU *cpu)
 
     // This instruction pointer data will provide us the next instruction location from the cpu->instructions array which indexed
     // based on the instruction byte index at loaded binary file.
-    cpu->ip_data = ip_data_after;
+    cpu->ip = ip_after;
 
-    printf(" | ip: %#02x -> %#02x\n", ip_data_before, cpu->ip_data);
+    printf(" | ip: %#02x -> %#02x\n", ip_before, cpu->ip);
 }
 
 /*
@@ -283,26 +278,27 @@ void load_executable(CPU *cpu, char *filename)
     fclose(fp);
 
     cpu->loaded_executable_size = fsize;
-    cpu->ip_data = 0; // cpu->memory[0] memory index
+    cpu->ip = 0; // cpu->memory[0] memory index
+}
+
+void boot(CPU *cpu)
+{
+    ZERO_MEMORY(cpu->memory, 1024*1024);
+
+    // @Todo: Check the loaded executable memory address, but now we always put the executable to beginning of the memory
+    cpu->ip = 0;
+    
+    // @Todo: Specify the max stack size
+    cpu->ss = 65535; // The stack ends at this memory address
 }
 
 void run(CPU *cpu)
 {
-    // @Todo: Check the loaded executable memory address, but now we always put the executable to beginning of the memory
-    cpu->ip_data = 0;
-
     char input[128] = {0};
 
     printf(">> Press enter to the next instruction\n");
     do {
         decode_next_instruction(cpu);
-
-//        if (cpu->decode_only) {
-//            print_instruction(cpu, 1);
-//            
-//            We have to update this "manually", because here we only printing and not executing, so the ip_data won't update! 
-//            cpu->ip_data = cpu->decoder_cursor;
-//         }
 
         // @Todo: The i8086/88 contains the debug flag so later we simulate this too
         if (0) {
@@ -313,9 +309,16 @@ __de:;
             }
         }
 
-        print_instruction(cpu, 0);
-        execute_instruction(cpu);
+        if (1) {
+            print_instruction(cpu, 1);
+
+            //We have to update this "manually", because here we only printing and not executing, so the ip won't update! 
+            cpu->ip = cpu->decoder_cursor;
+        }
+
+       // print_instruction(cpu, 0);
+       // execute_instruction(cpu);
 
     // @Todo: Another option to check end of the executable?
-    } while (cpu->ip_data != cpu->loaded_executable_size);
+    } while (cpu->ip != cpu->loaded_executable_size);
 }

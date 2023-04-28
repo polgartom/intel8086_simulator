@@ -1,4 +1,4 @@
-#include "sim86.h"
+#include "printer.h"
 
 const char *get_opcode_name(Opcode opcode)
 {
@@ -11,6 +11,9 @@ const char *get_opcode_name(Opcode opcode)
         "add",
         "sub",
         "cmp",
+
+        "push",
+        "pop",
 
         "jo",
         "js",
@@ -38,7 +41,7 @@ const char *get_opcode_name(Opcode opcode)
     return opcode_names[opcode];
 }
 
-const char *get_register_name(Register reg)
+const char *register_name(Register reg)
 {
     assert(reg < Register_count);
 
@@ -46,7 +49,9 @@ const char *get_register_name(Register reg)
         "al", "cl", "dl", "bl",
         "ah", "ch", "dh", "bh",
         "ax", "cx", "dx", "bx",
-        "sp", "bp", "si", "di"
+        "sp", "bp", "si", "di",
+        "cs", "ds", "ss", "es",
+        "ip"
     };
 
     return register_names[reg];
@@ -86,14 +91,30 @@ void print_instruction(CPU *cpu, u8 with_end_line)
                 break;
             }
             case Operand_Register: {
-                Register_Info *reg = get_register_info(instruction->flags & FLAG_IS_16BIT, op->reg);
-                fprintf(dest, "%s", get_register_name(reg->reg));
+                Register reg; 
+
+                // @Hacky
+                static const u32 segment_registers[] = {
+                    Register_es,
+                    Register_cs,
+                    Register_ss,
+                    Register_ds
+                };
+
+                if (instruction->flags & Inst_Segment) {
+                    reg = segment_registers[op->reg];
+                } else {
+                    Register_Access *reg_access = register_access(op->reg, !!(instruction->flags & Inst_Wide));
+                    reg = reg_access->reg; 
+                }
+
+                fprintf(dest, "%s", register_name(reg));
 
                 break;
             }
             case Operand_Memory: {
                 if (instruction->operands[0].type != Operand_Register) {
-                    fprintf(dest, "%s ", (instruction->flags & FLAG_IS_16BIT) ? "word" : "byte");
+                    fprintf(dest, "%s ", (instruction->flags & Inst_Wide) ? "word" : "byte");
                 }
 
                 char const *r_m_base[] = {"","bx+si","bx+di","bp+si","bp+di","si","di","bp","bx"};
@@ -107,16 +128,12 @@ void print_instruction(CPU *cpu, u8 with_end_line)
                 break;
             }
             case Operand_Immediate: {
-                if ((instruction->flags & FLAG_IS_16BIT) && !(instruction->flags & FLAG_IS_SIGNED)) {
-                    fprintf(dest, "%d", op->immediate_u16);
-                } else {
-                    fprintf(dest, "%d", op->immediate_s16);
-                }
+                fprintf(dest, "%d", op->immediate);
 
                 break;
             }
             case Operand_Relative_Immediate: {
-                fprintf(dest, "$%+d", op->immediate_s16);
+                fprintf(dest, "$%+d", op->immediate);
 
                 break;
             }

@@ -7,11 +7,12 @@ int main(int argc, char **argv)
     assert(argc > 1);
 
     CPU cpu = {};
-    ZERO_MEMORY(cpu.memory, 1024*1024);
-    char *input_filename = NULL;
+    boot(&cpu);
 
     u8 dump_out = 0;
 
+    char *input_filename = NULL;
+    
     for (int i = 0; i < argc; i++) {
         if (argv[i]) {
             if (argv[i][0] == '-') {

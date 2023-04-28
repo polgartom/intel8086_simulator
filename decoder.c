@@ -41,6 +41,7 @@ Effective_Address_Base get_address_base(u8 r_m, u8 mod)
     }
 }
 
+// @Todo: Rename to *_memory_operand
 void immediate_to_operand(CPU *cpu, Instruction_Operand *operand, u8 is_signed, u8 is_16bit, u8 immediate_depends_from_signed)
 {
     operand->type = Operand_Immediate;
@@ -50,35 +51,37 @@ void immediate_to_operand(CPU *cpu, Instruction_Operand *operand, u8 is_signed, 
     // that if it is wide and not signed immediate
     if (immediate_depends_from_signed) {
         if (is_16bit && !is_signed) {
-            operand->immediate_u16 = BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(cpu));
+            operand->immediate = BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(cpu));
         } else {
-            operand->immediate_s16 = immediate;
+            operand->immediate = immediate;
         }
         return;
     }
 
     if (is_16bit) {
         if (!is_signed) {
-            operand->immediate_u16 = BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(cpu));
+            operand->immediate = BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(cpu));
         } else {
-            operand->immediate_s16 = BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(cpu));
+            operand->immediate = BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(cpu));
         }
     } else {
-        operand->immediate_s16 = immediate;
+        operand->immediate = immediate;
     }
 }
 
-void displacement_to_operand(CPU *d, Instruction_Operand *operand, u8 mod, u8 r_m)
+// @Todo: Rename to *_memory_operand
+void displacement_to_operand(CPU *cpu, Instruction_Operand *operand, u8 mod, u8 r_m)
 {
     operand->type = Operand_Memory;
     operand->address.base = get_address_base(r_m, mod);
     operand->address.displacement = 0;
 
     if ((mod == 0x00 && r_m == 0x06) || mod == 0x02) { 
-        operand->address.displacement = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(d), ASMD_NEXT_BYTE(d)));
+        cpu->instruction.flags |= Inst_Wide;
+        operand->address.displacement = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
     } 
     else if (mod == 0x01) { 
-        operand->address.displacement = (s8)ASMD_NEXT_BYTE(d);
+        operand->address.displacement = (s8)ASMD_NEXT_BYTE(cpu);
     }
 }
 
@@ -94,7 +97,7 @@ void register_memory_to_from_decode(CPU *d, u8 reg_dir)
     Register src;
     Register dest;
 
-    if (mod == 0x03) { 
+    if (mod == MOD_REGISTER) { 
         dest = r_m;
         src = reg;
         if (reg_dir == REG_IS_DEST) {
@@ -134,7 +137,7 @@ void immediate_to_register_memory_decode(CPU *d, s8 is_signed, u8 is_16bit, u8 i
     u8 mod = (byte >> 6) & 0x03;
     u8 r_m = byte & 0x07;
 
-    if (mod == 0x03) {
+    if (mod == MOD_REGISTER) {
         instruction->operands[0].type = Operand_Register;
         instruction->operands[0].reg  = r_m;
     } 
@@ -145,9 +148,11 @@ void immediate_to_register_memory_decode(CPU *d, s8 is_signed, u8 is_16bit, u8 i
     immediate_to_operand(d, &instruction->operands[1], is_signed, is_16bit, immediate_depends_from_signed);
 }
 
+
+
 void decode_next_instruction(CPU *cpu)
 {
-    cpu->decoder_cursor = cpu->ip_data;
+    cpu->decoder_cursor = cpu->ip;
     ZERO_MEMORY(&cpu->instruction, sizeof(Instruction)); 
     cpu->instruction.mem_address = cpu->decoder_cursor;
 
@@ -156,9 +161,71 @@ void decode_next_instruction(CPU *cpu)
     u8 byte = ASMD_CURR_BYTE(cpu);
     u8 reg_dir = 0;
     u8 is_16bit = 0;
- 
+
+    // DATA TRANSFER
+    if (((byte >> 5) & 0b111) == 0) {
+        // Segment
+        if ((byte & 0b111) == 0b110) {
+            cpu->instruction.opcode = Opcode_push;
+        } else if ((byte & 0b111) == 0b110) {
+            cpu->instruction.opcode = Opcode_pop;
+        } else {
+            printf("[ERROR]: Unknown opcode!\n");
+            assert(0);
+        }
+
+        cpu->instruction.operands[0].type = Operand_Register;
+        cpu->instruction.operands[0].reg  = (byte >> 3) & 0b11;
+        cpu->instruction.flags |= Inst_Wide;
+        cpu->instruction.flags |= Inst_Segment;
+    }
+    else if (((byte >> 4) & 0b11111) == 0b0101) {
+        // Register
+        if (!(byte & 0b1000)) {
+            cpu->instruction.opcode = Opcode_push;
+        } else if (byte & 0b1000) {
+            cpu->instruction.opcode = Opcode_pop;
+        } else {
+            printf("[ERROR]: Unknown opcode!\n");
+            assert(0);
+        }
+        
+        cpu->instruction.operands[0].type = Operand_Register;
+        cpu->instruction.operands[0].reg  = byte & 0b111;
+        cpu->instruction.flags |= Inst_Wide;
+    }
+    else if ((byte >> 7) && (byte & 0b1111) == 0b1111) {
+        // Register/Memory
+        u8 opcode = (byte >> 4) & 0b111;
+
+        u8 second_byte = ASMD_NEXT_BYTE(cpu);
+        u8 opcode_signature = ((second_byte >> 3) & 0b111);
+
+        if (opcode == 0b111 && opcode_signature == 0b110) {
+            cpu->instruction.opcode = Opcode_push;
+        } else if (opcode == 0b000 && opcode_signature == 0b000) {
+            cpu->instruction.opcode = Opcode_pop;
+        } else {
+            printf("[ERROR]: Unknown opcode (%d)!\n", opcode);
+            assert(0);
+        }
+
+        u8 mod = (second_byte >> 6) & 0b11;
+        u8 r_m = (second_byte & 0b111);
+
+        if (mod == MOD_REGISTER) {
+            cpu->instruction.operands[0].type = Operand_Register;
+            cpu->instruction.operands[0].reg  = r_m;
+        } else {
+            cpu->instruction.operands[0].type = Operand_Memory;
+            
+            displacement_to_operand(cpu, &cpu->instruction.operands[0], mod, r_m);
+        }
+
+        cpu->instruction.flags |= Inst_Wide;
+    }
     // ARITHMETIC
-    if (((byte >> 6) & 7) == 0) {
+    else if (((byte >> 6) & 7) == 0) {
         cpu->instruction.type = Instruction_Type_Arithmetic;
 
         ARITHMETIC_OPCODE_LOOKUP(byte, cpu->instruction.opcode);
@@ -167,7 +234,7 @@ void decode_next_instruction(CPU *cpu)
             // Immediate to accumulator                
             is_16bit = byte & 1;
             if (is_16bit) {
-                cpu->instruction.flags |= FLAG_IS_16BIT;
+                cpu->instruction.flags |= Inst_Wide;
             }
 
             cpu->instruction.operands[0].type = Operand_Register;
@@ -180,7 +247,7 @@ void decode_next_instruction(CPU *cpu)
 
             is_16bit = byte & 1;
             if (is_16bit) {
-                cpu->instruction.flags |= FLAG_IS_16BIT;
+                cpu->instruction.flags |= Inst_Wide;
             }
 
             register_memory_to_from_decode(cpu, reg_dir);
@@ -196,12 +263,12 @@ void decode_next_instruction(CPU *cpu)
 
         is_16bit = byte & 1;
         if (is_16bit) {
-            cpu->instruction.flags |= FLAG_IS_16BIT;
+            cpu->instruction.flags |= Inst_Wide;
         }
 
         u8 is_signed = (byte >> 1) & 1;
         if (is_signed) {
-            cpu->instruction.flags |= FLAG_IS_SIGNED;
+            cpu->instruction.flags |= Inst_Sign;
         }
 
         immediate_to_register_memory_decode(cpu, is_signed, is_16bit, 1);
@@ -215,7 +282,7 @@ void decode_next_instruction(CPU *cpu)
         reg_dir = (byte >> 1) & 1;
         is_16bit = byte & 1;
         if (is_16bit) {
-            cpu->instruction.flags |= FLAG_IS_16BIT;
+            cpu->instruction.flags |= Inst_Wide;
         }
 
         register_memory_to_from_decode(cpu, reg_dir);
@@ -230,9 +297,9 @@ void decode_next_instruction(CPU *cpu)
 
         is_16bit = byte & 1;
         if (is_16bit) {
-            cpu->instruction.flags |= FLAG_IS_16BIT;
+            cpu->instruction.flags |= Inst_Wide;
         }
-        cpu->instruction.flags |= FLAG_IS_SIGNED;
+        cpu->instruction.flags |= Inst_Sign;
 
         immediate_to_register_memory_decode(cpu, 1, is_16bit, 0);
     }
@@ -245,9 +312,9 @@ void decode_next_instruction(CPU *cpu)
 
         is_16bit = (byte >> 3) & 1;
         if (is_16bit) {
-            cpu->instruction.flags |= FLAG_IS_16BIT;
+            cpu->instruction.flags |= Inst_Wide;
         }
-        cpu->instruction.flags |= FLAG_IS_SIGNED;
+        cpu->instruction.flags |= Inst_Sign;
 
         cpu->instruction.operands[0].type = Operand_Register;
         cpu->instruction.operands[0].reg = reg;
@@ -262,7 +329,7 @@ void decode_next_instruction(CPU *cpu)
         // Memory to/from accumulator
         is_16bit = byte & 1;
         if (is_16bit) {
-            cpu->instruction.flags |= FLAG_IS_16BIT;
+            cpu->instruction.flags |= Inst_Wide;
         }
 
         cpu->instruction.opcode = Opcode_mov;
@@ -324,7 +391,7 @@ void decode_next_instruction(CPU *cpu)
         // We have to add +2, because the relative displacement (offset) start from the second byte (ip_inc8)
         //  of instruction. 
         cpu->instruction.operands[0].type = Operand_Relative_Immediate;
-        cpu->instruction.operands[0].immediate_s16 = ip_inc8+2;
+        cpu->instruction.operands[0].immediate = ip_inc8+2;
     }
     else if (((byte >> 4) & 0x0F) == 0b1110) {
         cpu->instruction.type = Instruction_Type_Jump;
@@ -347,7 +414,7 @@ void decode_next_instruction(CPU *cpu)
         // We have to add +2, because the relative displacement (offset) start from the second byte (ip_inc8)
         //  of instruction. 
         cpu->instruction.operands[0].type = Operand_Relative_Immediate;
-        cpu->instruction.operands[0].immediate_s16 = ip_inc8+2;
+        cpu->instruction.operands[0].immediate = ip_inc8+2;
     }
     else {
         fprintf(stderr, "[WARNING]: Instruction is not handled!\n");
