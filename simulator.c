@@ -2,39 +2,38 @@
 #include "decoder.h"
 #include "printer.h"
 
-// @Todo: Put this into the CPU struct 
-u8 regmem[64] = {0}; 
-
-s32 get_data_from_register(Register_Access *reg)
+s32 get_data_from_register(CPU *cpu, Register_Access *src_reg)
 {
-    u16 lower_mem_index = reg->mem_offset;
-    if (reg->mem_size == 2) {
-        s16 val_lo = regmem[lower_mem_index] << 0;
-        s16 val_hi = regmem[lower_mem_index+1] << 8;
+    u16 lower_mem_index = src_reg->index;
+    if (src_reg->size == 2) {
+        s16 val_lo = cpu->regmem[lower_mem_index] << 0;
+        s16 val_hi = cpu->regmem[lower_mem_index+1] << 8;
 
         return (val_hi | val_lo);
     }
  
-    return regmem[lower_mem_index];
+    return cpu->regmem[lower_mem_index];
 }
 
-void set_data_to_register(Register_Access *dest, u16 data) 
+void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data) 
 {
-    u16 lower_mem_index = dest->mem_offset;
-
-    if (dest->mem_size == 2) {
-        regmem[lower_mem_index] = ((data >> 0) & 0xFF);
-        regmem[lower_mem_index+1] = ((data >> 8) & 0xFF);
+    u16 lower_mem_index = dest_reg->index;
+    if (dest_reg->size == 2) {
+        cpu->regmem[lower_mem_index] = ((data >> 0) & 0xFF);
+        cpu->regmem[lower_mem_index+1] = ((data >> 8) & 0xFF);
 
         return;
     }
 
-    regmem[lower_mem_index] = data;
+    cpu->regmem[lower_mem_index] = data;
 }
 
-u32 get_memory_address(Effective_Address_Expression *expr)
+#define get_data_from_register_by_enum(_cpu, _src_reg_enum) get_data_from_register(_cpu, register_access_by_enum(_src_reg_enum))
+#define set_data_to_register_by_enum(_cpu, _dest_reg_enum, _data) set_data_to_register(_cpu, register_access_by_enum(_src_reg_enum, _data))
+
+
+u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
 { 
-    Register_Access *reg_access = NULL;
     u16 displacement = expr->displacement;
     u16 address = 0; // @Todo: segment stuff
 
@@ -44,51 +43,39 @@ u32 get_memory_address(Effective_Address_Expression *expr)
             // In this case the address will be equal to the displacement
             break;
         case Effective_Address_bx_si:
-            reg_access = register_access_by_enum(Register_bx);
-            address = get_data_from_register(reg_access);
-            reg_access = register_access_by_enum(Register_si);
-            address += get_data_from_register(reg_access);
+            address = get_data_from_register_by_enum(cpu, Register_bx); 
+            address += get_data_from_register_by_enum(cpu, Register_si);
 
             break;
         case Effective_Address_bx_di:
-            reg_access = register_access_by_enum(Register_bx);
-            address = get_data_from_register(reg_access);
-            reg_access = register_access_by_enum(Register_di);
-            address += get_data_from_register(reg_access);
+            address = get_data_from_register_by_enum(cpu, Register_bx); 
+            address += get_data_from_register_by_enum(cpu, Register_di); 
 
             break;
         case Effective_Address_bp_si:
-            reg_access = register_access_by_enum(Register_bp);
-            address = get_data_from_register(reg_access);
-            reg_access = register_access_by_enum(Register_si);
-            address += get_data_from_register(reg_access);
+            address = get_data_from_register_by_enum(cpu, Register_bp); 
+            address += get_data_from_register_by_enum(cpu, Register_si); 
 
             break;
         case Effective_Address_bp_di:
-            reg_access = register_access_by_enum(Register_bp);
-            address = get_data_from_register(reg_access);
-            reg_access = register_access_by_enum(Register_di);
-            address += get_data_from_register(reg_access);
+            address = get_data_from_register_by_enum(cpu, Register_bp); 
+            address += get_data_from_register_by_enum(cpu, Register_di); 
 
             break;
         case Effective_Address_si:
-            reg_access = register_access_by_enum(Register_si);
-            address = get_data_from_register(reg_access);
+            address = get_data_from_register_by_enum(cpu, Register_si);
 
             break;
         case Effective_Address_di:
-            reg_access = register_access_by_enum(Register_di);
-            address = get_data_from_register(reg_access);
+            address = get_data_from_register_by_enum(cpu, Register_di);
 
             break;
         case Effective_Address_bp:
-            reg_access = register_access_by_enum(Register_bp);
-            address = get_data_from_register(reg_access);
+            address = get_data_from_register_by_enum(cpu, Register_bp);
 
             break;
         case Effective_Address_bx:
-            reg_access = register_access_by_enum(Register_bx);
-            address = get_data_from_register(reg_access);
+            address = get_data_from_register_by_enum(cpu, Register_bx);
 
             break;
         default:
@@ -121,14 +108,14 @@ s32 get_data_from_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit)
     s32 src_data = 0;
 
     if (op->type == Operand_Register) {
-        Register_Access *reg_access = register_access(op->reg, is_16bit);
-        src_data = get_data_from_register(reg_access );
+        Register_Access *src_reg = register_access(op->reg, is_16bit);
+        src_data = get_data_from_register(cpu, src_reg);
     } 
     else if (op->type == Operand_Immediate) {
         src_data = op->immediate;
     } 
     else if (op->type == Operand_Memory) {
-        u16 address = get_memory_address(&op->address);
+        u16 address = calc_absolute_memory_address(cpu, &op->address);
         src_data = get_data_from_memory(cpu->memory, address, is_16bit);
     }
 
@@ -140,11 +127,11 @@ void set_data_to_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit, u16 dat
     s32 current_data = get_data_from_operand(cpu, op, is_16bit);
 
     if (op->type == Operand_Register) {
-        Register_Access *reg_access = register_access(op->reg, is_16bit);
-        set_data_to_register(reg_access, data);
+        Register_Access *dest_reg = register_access(op->reg, is_16bit);
+        set_data_to_register(cpu, dest_reg, data);
     }
     else if (op->type == Operand_Memory) {
-        u16 address = get_memory_address(&op->address);
+        u16 address = calc_absolute_memory_address(cpu, &op->address);
         set_data_to_memory(cpu->memory, address, is_16bit, data);
     }
     else {
@@ -225,11 +212,15 @@ void execute_instruction(CPU *cpu)
                 break;
             }
             case Opcode_loop: {
-                Register_Access *cx = register_access_by_enum(Register_cx);
-                s16 cx_data = (s16)get_data_from_register(cx);
+                // loop instruction is always using the cx register value which will be decremented by one
+                // every time when loop instruction are called
+                Register_Access *reg_access = register_access_by_enum(Register_cx);
+                s16 cx_data = get_data_from_register(cpu, reg_access);
                 cx_data -= 1;
-                set_data_to_register(cx, cx_data);
+                set_data_to_register(cpu, reg_access, cx_data);
                 
+                printf("> loop[cx]: %d -> %d\n",  cx_data+1, cx_data);
+
                 if (cx_data != 0) {
                     ip_after += i->operands[0].immediate;
                 } else {
@@ -284,6 +275,7 @@ void load_executable(CPU *cpu, char *filename)
 void boot(CPU *cpu)
 {
     ZERO_MEMORY(cpu->memory, 1024*1024);
+    ZERO_MEMORY(cpu->regmem, 64);
 
     // @Todo: Check the loaded executable memory address, but now we always put the executable to beginning of the memory
     cpu->ip = 0;
@@ -296,12 +288,13 @@ void run(CPU *cpu)
 {
     char input[128] = {0};
 
-    printf(">> Press enter to the next instruction\n");
     do {
         decode_next_instruction(cpu);
 
         // @Todo: The i8086/88 contains the debug flag so later we simulate this too
-        if (0) {
+        // instead of this boolean
+        if (cpu->debug_mode) {
+            printf(">> Press enter to the next instruction\n");
 __de:;
             fgets(input, sizeof(input), stdin);
             if (input[0] != '\n') {
@@ -309,7 +302,7 @@ __de:;
             }
         }
 
-        if (0) {
+        if (cpu->decode_only) {
             print_instruction(cpu, 1);
 
             //We have to update this "manually", because here we only printing and not executing, so the ip won't update! 

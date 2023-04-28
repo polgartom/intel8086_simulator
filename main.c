@@ -19,6 +19,16 @@ int main(int argc, char **argv)
                 if (STR_EQUAL(argv[i], "--dump")) {
                     dump_out = 1;
                 }
+
+                if (STR_EQUAL(argv[i], "--decode")) {
+                    cpu.decode_only = 1;
+                }
+
+                if (STR_EQUAL(argv[i], "--debug")) {
+                    // @Todo: The i8086/88 contains the debug flag so later we simulate this too
+                    // instead of this boolean
+                    cpu.debug_mode = 1;
+                }
             } else {
                 input_filename = argv[i];
                 continue;

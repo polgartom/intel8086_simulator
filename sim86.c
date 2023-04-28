@@ -2,6 +2,9 @@
 
 Register_Access *register_access(u32 reg, u8 is_wide)
 {
+    assert(is_wide <= 1);
+    assert(reg < 8);
+
     static u32 registers[2][8][3] = {
         // BYTE (8bit)
         { 
@@ -17,6 +20,7 @@ Register_Access *register_access(u32 reg, u8 is_wide)
         }
     };
 
+
     return (Register_Access *)registers[is_wide][reg];
 }
 
@@ -28,5 +32,8 @@ Register_Access *register_access_by_enum(Register reg)
         reg_index -= 8;
     }
 
-    return register_access(reg_index, is_wide);
+    Register_Access *result = register_access(reg_index, is_wide); 
+    assert(result->reg == reg);
+
+    return result;
 }

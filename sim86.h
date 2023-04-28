@@ -77,8 +77,10 @@ typedef enum {
 
 typedef struct {
   Register reg;
-  u32 mem_offset;
-  u32 mem_size;
+  
+  // They have to be u32 because we're using that number at register_acces() lookup table
+  u32 index; // register memory index in the cpu regmem array
+  u32 size;  // register memory size in the cpu regmem array
 } Register_Access;
 
 typedef enum {
@@ -202,12 +204,16 @@ typedef struct {
   u16 ss;
   u16 es;
 
+  u8 regmem[64]; // The "accessible" register values are stored here
+
   Instruction instruction; // current instruction
 
   u16 flags;
 
   // Options
   u8 dump_out;
+  u8 decode_only;
+  u8 debug_mode;
 
 } CPU;
 
