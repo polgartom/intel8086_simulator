@@ -28,5 +28,5 @@ Register_Access *register_access_by_enum(Register reg)
         reg_index -= 8;
     }
 
-    return register_access((u32)reg, (u32)reg > 7);
+    return register_access(reg_index, is_wide);
 }

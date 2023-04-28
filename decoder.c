@@ -148,8 +148,6 @@ void immediate_to_register_memory_decode(CPU *d, s8 is_signed, u8 is_16bit, u8 i
     immediate_to_operand(d, &instruction->operands[1], is_signed, is_16bit, immediate_depends_from_signed);
 }
 
-
-
 void decode_next_instruction(CPU *cpu)
 {
     cpu->decoder_cursor = cpu->ip;
@@ -162,7 +160,8 @@ void decode_next_instruction(CPU *cpu)
     u8 reg_dir = 0;
     u8 is_16bit = 0;
 
-    // DATA TRANSFER
+    // @Rewrite
+    /*
     if (((byte >> 5) & 0b111) == 0) {
         // Segment
         if ((byte & 0b111) == 0b110) {
@@ -206,7 +205,7 @@ void decode_next_instruction(CPU *cpu)
         } else if (opcode == 0b000 && opcode_signature == 0b000) {
             cpu->instruction.opcode = Opcode_pop;
         } else {
-            printf("[ERROR]: Unknown opcode (%d)!\n", opcode);
+            printf("[ERROR]: Unknown opcode (%d) (%d)!\n", byte, opcode);
             assert(0);
         }
 
@@ -224,8 +223,12 @@ void decode_next_instruction(CPU *cpu)
 
         cpu->instruction.flags |= Inst_Wide;
     }
+    // DATA TRANSFER
+    //else if ((byte >> 7) && (byte >> 1) == 0b1000011) {
+    //}
     // ARITHMETIC
-    else if (((byte >> 6) & 7) == 0) {
+    else*/ 
+    if (((byte >> 6) & 7) == 0) {
         cpu->instruction.type = Instruction_Type_Arithmetic;
 
         ARITHMETIC_OPCODE_LOOKUP(byte, cpu->instruction.opcode);
