@@ -246,7 +246,6 @@ void execute_instruction(CPU *cpu)
 /*
 void *allocate_memory(u16 size)
 {
-    
 }
 */
 
@@ -274,7 +273,9 @@ void load_executable(CPU *cpu, char *filename)
 
 void boot(CPU *cpu)
 {
-    ZERO_MEMORY(cpu->memory, 1024*1024);
+    cpu->memory = (u8*)malloc(MAX_MEMORY);
+    
+    ZERO_MEMORY(cpu->memory, MAX_MEMORY);
     ZERO_MEMORY(cpu->regmem, 64);
 
     // @Todo: Check the loaded executable memory address, but now we always put the executable to beginning of the memory

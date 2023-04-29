@@ -33,12 +33,12 @@ Effective_Address_Base get_address_base(u8 r_m, u8 mod)
             }
             return Effective_Address_bp;
         }
-        case 0x07: {return Effective_Address_bx;}
-        default: {
-            fprintf(stderr, "[ERROR]: Invalid effective address expression!\n");
-            assert(0);
-        } 
+        case 0x07: {return Effective_Address_bx;} 
     }
+
+    fprintf(stderr, "[ERROR]: Invalid effective address expression!\n");
+    assert(0);
+    return Effective_Address_direct;
 }
 
 // @Todo: Rename to *_memory_operand

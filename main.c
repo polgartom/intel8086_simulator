@@ -6,7 +6,7 @@ int main(int argc, char **argv)
 {
     assert(argc > 1);
 
-    CPU cpu = {};
+    CPU cpu = {0};
     boot(&cpu);
 
     u8 dump_out = 0;

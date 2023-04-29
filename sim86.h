@@ -196,15 +196,14 @@ typedef struct {
   u16 loaded_executable_size; // @Todo: Remove
   u16 decoder_cursor;
 
-  u8 memory[MAX_MEMORY];
+  u8 regmem[64]; // The "accessible" register values are stored here
+  u8* memory;
 
   u16 ip;
   u16 cs;
   u16 ds;
   u16 ss;
   u16 es;
-
-  u8 regmem[64]; // The "accessible" register values are stored here
 
   Instruction instruction; // current instruction
 
