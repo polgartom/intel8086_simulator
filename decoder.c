@@ -69,22 +69,6 @@ void immediate_to_operand(CPU *cpu, Instruction_Operand *operand, u8 is_signed, 
     }
 }
 
-void decode_memory_address_displacement(CPU *cpu, Instruction_Operand *operand)
-{
-    Instruction *inst = &cpu->instruction;
-
-    operand->type = Operand_Memory;
-    operand->address.base = get_address_base(inst->r_m, inst->mod);
-    operand->address.displacement = 0;
-
-    if ((inst->mod == 0x00 && inst->r_m == 0x06) || inst->mod == 0x02) { 
-        operand->address.displacement = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
-    } 
-    else if (inst->mod == 0x01) { 
-        operand->address.displacement = (s8)ASMD_NEXT_BYTE(cpu);
-    }
-}
-
 void register_memory_to_from_decode(CPU *d, u8 reg_dir)
 {
     u8 byte = ASMD_NEXT_BYTE(d);
@@ -148,14 +132,36 @@ void immediate_to_register_memory_decode(CPU *d, s8 is_signed, u8 is_16bit, u8 i
     immediate_to_operand(d, &instruction->operands[1], is_signed, is_16bit, immediate_depends_from_signed);
 }
 
+
+////////////////////////////////////////
+
+
+void decode_memory_address_displacement(CPU *cpu, Instruction_Operand *operand)
+{
+    Instruction *inst = &cpu->instruction;
+
+    operand->type = Operand_Memory;
+    operand->address.base = get_address_base(inst->r_m, inst->mod);
+    operand->address.displacement = 0;
+
+    if ((inst->mod == 0x00 && inst->r_m == 0x06) || inst->mod == 0x02) { 
+        operand->address.displacement = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
+    } 
+    else if (inst->mod == 0x01) { 
+        operand->address.displacement = (s8)ASMD_NEXT_BYTE(cpu);
+    }
+}
+
 void mod_reg_rm(CPU *cpu, Instruction *inst) 
 {
-    if (inst->mod == 0 && inst->reg == 0 && inst->r_m == 0) {
+    if (inst->mod_reg_rm_decoded == 0) {
         u8 byte = ASMD_NEXT_BYTE(cpu);
 
-        inst->mod = (byte >> 6) & 0x03;
-        inst->reg = (byte >> 3) & 0x07;
-        inst->r_m = byte & 0x07;
+        inst->mod = (byte >> 6) & 0b11;
+        inst->reg = (byte >> 3) & 0b111;
+        inst->r_m = byte & 0b111;
+
+        inst->mod_reg_rm_decoded = 1;
     }
 }
 
@@ -173,19 +179,19 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
         op->type = Operand_Register;
         op->reg  = 1; 
         return;
-    } else if (STR_EQUAL("AH", arg)) {
+    } else if (STR_EQUAL("AH", arg) || STR_EQUAL("eSP", arg)) {
         op->type = Operand_Register;
         op->reg  = 4;
         return;    
-    } else if (STR_EQUAL("CH", arg)) {
+    } else if (STR_EQUAL("CH", arg) || STR_EQUAL("eBP", arg)) {
         op->type = Operand_Register;
         op->reg  = 5;
         return;    
-    } else if (STR_EQUAL("eDX", arg)) {
+    } else if (STR_EQUAL("DL", arg) || STR_EQUAL("eDX", arg)) {
         op->type = Operand_Register;
         op->reg  = 2;
         return;    
-    } else if (STR_EQUAL("eBX", arg)) {
+    } else if (STR_EQUAL("BL", arg) || STR_EQUAL("eBX", arg)) {
         op->type = Operand_Register;
         op->reg  = 3;
         return;    
@@ -226,7 +232,15 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
             } else {
                 op->immediate = immediate;
             } 
-            
+
+        } else if (arg[i] == 'O') {
+            // The instruction has no ModR/M byte; the offset of the operand is encoded as a WORD in the instruction. 
+            // Applicable, e.g., to certain MOVs (opcodes A0 through A3).
+
+            op->type = Operand_Memory;
+            op->address.base = Effective_Address_direct;
+            op->address.displacement = (s32)BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu));
+
         } else if (arg[i] == 'v' || arg[i] == 'w') {
             // Word argument. (The 'v' code has a more complex meaning in later x86 opcode maps, 
             // from which this was derived, but here it's just a synonym for the 'w' code.)

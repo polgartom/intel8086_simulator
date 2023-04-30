@@ -201,7 +201,7 @@ typedef struct {
   u8 mod;
   u8 reg;
   u8 r_m;
-  u8 swap_operand;
+  u8 mod_reg_rm_decoded;
 
 } Instruction;
 
