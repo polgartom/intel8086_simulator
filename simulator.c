@@ -289,6 +289,10 @@ void run(CPU *cpu)
 {
     char input[128] = {0};
 
+    if (cpu->decode_only) {
+        printf("bits 16\n\n");
+    }
+
     do {
         decode_next_instruction(cpu);
 

@@ -1,5 +1,6 @@
 #include "printer.h"
 
+
 const char *get_opcode_name(Opcode opcode)
 {
     assert(opcode < Opcode_count);
@@ -41,6 +42,15 @@ const char *get_opcode_name(Opcode opcode)
     return opcode_names[opcode];
 }
 
+const char *mnemonic_name(Mneumonic m)
+{
+    static const char *mnemonic_name_lookup[] = {
+        [Mneumonic_mov] = "mov",
+    };
+
+    return mnemonic_name_lookup[m];
+}
+
 const char *register_name(Register reg)
 {
     assert(reg < Register_count);
@@ -74,7 +84,7 @@ void print_instruction(CPU *cpu, u8 with_end_line)
 
     Instruction *instruction = &cpu->instruction;
 
-    fprintf(dest, "[0x%02x]\t%s", instruction->mem_address, get_opcode_name(instruction->opcode));
+    fprintf(dest, "[0x%02x]\t%s", instruction->mem_address, mnemonic_name(instruction->mnemonic));
     
     const char *separator = " ";
     for (u8 j = 0; j < 2; j++) {

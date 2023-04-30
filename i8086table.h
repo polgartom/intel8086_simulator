@@ -1,5 +1,5 @@
 #ifndef _H_i8086_TABLE
-#define _H_i8086_TABLE
+#define _H_i8086_TABLE 1
 
 typedef enum { 
     Mneumonic_none,
@@ -107,10 +107,11 @@ typedef struct i8086_Inst_Table i8086_Inst_Table;
 struct i8086_Inst_Table {
     u8 opcode;
     Mneumonic mnemonic;
-    const char* operands;
+    const char* arg1;
+    const char* arg2;
 };
 
-const i8086_Inst_Table i8086_inst_table[256] = {
+static const i8086_Inst_Table i8086_inst_table[] = {
     { 0x00, Mneumonic_add, "Eb", "Gb" },
     { 0x01, Mneumonic_add, "Ev", "Gv" },
     { 0x02, Mneumonic_add, "Gb", "Eb" },
@@ -368,6 +369,5 @@ const i8086_Inst_Table i8086_inst_table[256] = {
     { 0xFE, Mneumonic_grp4, "Eb", NULL },
     { 0xFF, Mneumonic_grp5, "Ev", NULL },
 };
-
 
 #endif

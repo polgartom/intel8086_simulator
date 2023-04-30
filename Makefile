@@ -1,6 +1,8 @@
 CC = gcc 
 CCFLAGS = -Wall -g -W
 
+.PHONY: build release
+
 release: CCFLAGS += -O3
 release: build
 

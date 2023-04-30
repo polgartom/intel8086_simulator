@@ -1,5 +1,5 @@
 #ifndef _H_SIM86
-#define _H_SIM86
+#define _H_SIM86 1
 
 #include <assert.h>
 #include <stdarg.h>
@@ -15,6 +15,7 @@ typedef long s64;
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
+typedef unsigned long u64;
 
 #define ZERO_MEMORY(dest, len) memset(((u8 *)dest), 0, (len))
 #define STR_EQUAL(str1, str2) (strcmp(str1, str2) == 0)
@@ -30,7 +31,12 @@ typedef unsigned int u32;
 #define BYTE_LOHI_TO_HILO(LO, HI) (((LO & 0x00FF) | ((HI << 8) & 0xFF00)))
 #define BYTE_SWAP(__val) (((__val >> 8) & 0x00FF) | ((__val << 8) & 0xFF00))
 
+#define XSTR(x) #x
+
 ///////////////////////////////////////////////////
+
+#include "i8086table.h"
+
 
 #define MAX_MEMORY (1024 * 1024)
 
@@ -186,9 +192,16 @@ typedef struct {
   u8 size;
 
   Opcode opcode;
+
+  Mneumonic mnemonic;
   Instruction_Type type;
   Instruction_Flag flags;
   Instruction_Operand operands[2];
+
+  u8 mod;
+  u8 reg;
+  u8 r_m;
+  u8 swap_operand;
 
 } Instruction;
 
@@ -219,5 +232,6 @@ typedef struct {
 #define REG_ACCUMULATOR 0
 Register_Access *register_access(u32 reg, u8 is_wide);
 Register_Access *register_access_by_enum(Register reg);
+
 
 #endif
