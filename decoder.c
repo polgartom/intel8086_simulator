@@ -1,6 +1,7 @@
 #include "decoder.h"
 #include "printer.h"
 
+
 #define ASMD_CURR_BYTE(_d) _d->memory[_d->decoder_cursor]
 u8 ASMD_NEXT_BYTE(CPU *_d) { return _d->memory[++_d->decoder_cursor]; }
 #define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) _d->memory[_d->decoder_cursor+1]
