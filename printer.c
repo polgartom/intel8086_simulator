@@ -60,8 +60,71 @@ const char *mnemonic_name(Mneumonic m, u8 reg)
     static const char *mnemonic_name_lookup[] = {
         [Mneumonic_mov]     = "mov",
         [Mneumonic_add]     = "add",
+        [Mneumonic_adc]     = "adc",
+        [Mneumonic_inc]     = "inc",
+        [Mneumonic_dec]     = "dec",
         [Mneumonic_sub]     = "sub",
         [Mneumonic_cmp]     = "cmp",
+        [Mneumonic_and]     = "and",
+        [Mneumonic_aaa]     = "aaa",
+        [Mneumonic_aad]     = "aad",
+        [Mneumonic_aas]     = "aas",
+        [Mneumonic_das]     = "das",
+        [Mneumonic_daa]     = "daa",
+        [Mneumonic_aam]     = "aam",
+        [Mneumonic_sbb]     = "sbb",
+
+        [Mneumonic_test]    = "test",
+        [Mneumonic_or]      = "or",
+        [Mneumonic_xor]     = "xor",
+
+        [Mneumonic_repz]    = "repz",
+        [Mneumonic_repnz]   = "repnz",
+        [Mneumonic_movsw]   = "movsw",
+        [Mneumonic_movsb]   = "movsb",
+        [Mneumonic_cmpsb]   = "cmpsb",
+        [Mneumonic_scasb]   = "scasb",
+        [Mneumonic_lodsb]   = "lodsb",
+        [Mneumonic_cmpsw]   = "cmpsw",
+        [Mneumonic_scasw]   = "scasw",
+        [Mneumonic_lodsw]   = "lodsw",
+        [Mneumonic_stosb]   = "stosb",
+        [Mneumonic_stosw]   = "stosw",
+
+        [Mneumonic_int]     = "int",
+        [Mneumonic_into]    = "into",
+        [Mneumonic_iret]    = "iret",
+        [Mneumonic_clc]     = "clc",
+        [Mneumonic_cmc]     = "cmc",
+        [Mneumonic_stc]     = "stc",
+        [Mneumonic_cld]     = "cld",
+        [Mneumonic_std]     = "std",
+        [Mneumonic_cli]     = "cli",
+        [Mneumonic_sti]     = "sti",
+        [Mneumonic_hlt]     = "hlt",
+        [Mneumonic_wait]    = "wait",
+        [Mneumonic_lock]    = "lock",
+
+        [Mneumonic_cs]    = "cs",
+
+        [Mneumonic_cbw]     = "cbw",
+        [Mneumonic_cwd]     = "cwd",
+        [Mneumonic_ret]     = "ret",
+        [Mneumonic_call]    = "call",
+        [Mneumonic_push]    = "push",
+        [Mneumonic_pop]     = "pop",
+        [Mneumonic_popf]    = "popf",
+        [Mneumonic_lahf]    = "lahf",
+        [Mneumonic_sahf]    = "sahf",
+        [Mneumonic_pushf]   = "pushf",
+        [Mneumonic_xchg]    = "xchg",
+        [Mneumonic_nop]     = "nop",
+        [Mneumonic_xlat]    = "xlat",
+        [Mneumonic_in]      = "in",
+        [Mneumonic_out]     = "out",
+        [Mneumonic_lea]     = "lea",
+        [Mneumonic_lds]     = "lds",
+        [Mneumonic_les]     = "les",
         [Mneumonic_jz]      = "jz",
         [Mneumonic_jnz]     = "jnz",
         [Mneumonic_jl]      = "jl",
@@ -90,6 +153,11 @@ const char *mnemonic_name(Mneumonic m, u8 reg)
         [Mneumonic_grp4]  = "grp4",
         [Mneumonic_grp5]  = "grp5"
     };
+
+    if (mnemonic_name_lookup[m] == NULL) {
+        printf("m: %d | %d \n", m, Mneumonic_grp1);
+        assert(0);
+    }
 
     return mnemonic_name_lookup[m];
 }

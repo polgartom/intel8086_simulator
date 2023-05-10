@@ -29,37 +29,6 @@ Effective_Address_Base get_address_base(u8 r_m, u8 mod)
     return Effective_Address_direct;
 }
 
-// @Todo: Rename to *_memory_operand
-void immediate_to_operand(CPU *cpu, Instruction_Operand *operand, u8 is_signed, u8 is_16bit, u8 immediate_depends_from_signed)
-{
-    operand->type = Operand_Immediate;
-    s16 immediate = ASMD_NEXT_BYTE(cpu);
-
-    // If this an arithmetic operation then only can be an u16 or a s8 data type based on
-    // that if it is wide and not signed immediate
-    if (immediate_depends_from_signed) {
-        if (is_16bit && !is_signed) {
-            operand->immediate = BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(cpu));
-        } else {
-            operand->immediate = immediate;
-        }
-        return;
-    }
-
-    if (is_16bit) {
-        if (!is_signed) {
-            operand->immediate = BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(cpu));
-        } else {
-            operand->immediate = BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(cpu));
-        }
-    } else {
-        operand->immediate = immediate;
-    }
-}
-
-
-////////////////////////////////////////
-
 
 void decode_memory_address_displacement(CPU *cpu, Instruction_Operand *operand)
 {
@@ -70,10 +39,10 @@ void decode_memory_address_displacement(CPU *cpu, Instruction_Operand *operand)
     operand->address.displacement = 0;
 
     if ((inst->mod == 0x00 && inst->r_m == 0x06) || inst->mod == 0x02) { 
-        operand->address.displacement = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
+        operand->address.displacement = (s32)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
     } 
     else if (inst->mod == 0x01) { 
-        operand->address.displacement = (s8)ASMD_NEXT_BYTE(cpu);
+        operand->address.displacement = (s32)ASMD_NEXT_BYTE(cpu);
     }
 }
 
@@ -92,11 +61,16 @@ void mod_reg_rm(CPU *cpu, Instruction *inst)
 
 void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
 {
-    if (arg == NULL) return;
     Instruction *inst = &cpu->instruction;
 
+    if (arg == NULL) {
+        // @Todo: Maybe this will valid at some point, at some isntructions
+//        assert(&inst->operands[0] != op);
+        return;
+    }
+
     // Will this cause a problem?
-    if (arg[0] == 'e') {
+    if (arg[0] == 'e' || arg[strlen(arg)-1] == 'X') {
         inst->flags |= Inst_Wide;
     }
 
@@ -117,7 +91,7 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
         op->type = Operand_Register;
         op->reg  = 5;
         return;    
-    } else if (STR_EQUAL("DL", arg) || STR_EQUAL("eDX", arg)) {
+    } else if (STR_EQUAL("DL", arg) || STR_EQUAL("eDX", arg) || STR_EQUAL("DX", arg)) {
         op->type = Operand_Register;
         op->reg  = 2;
         return;
@@ -137,7 +111,16 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
         op->type = Operand_Register;
         op->reg = 1;
 
-        assert(op->reg == ((ASMD_CURR_BYTE(cpu) >> 3) & 0b11));
+        inst->flags |= Inst_Segment | Inst_Wide;
+
+        return;
+    } else if (STR_EQUAL("DS", arg)) {
+        op->type = Operand_Register;
+        op->reg = 3;
+
+        inst->flags |= Inst_Segment | Inst_Wide;
+
+        return;
     }
 
     for (u64 i = 0; i < STR_LEN(arg); i++) {
@@ -145,7 +128,9 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
             // Direct address. The instruction has no ModR/M byte; the address of the operand 
             // is encoded in the instruction. Applicable, e.g., to far JMP (opcode EA).
             
-            assert(0);
+            // @Todo:
+
+            decode_memory_address_displacement(cpu, op);
 
         } else if (arg[i] == 'J') {
             // The instruction contains a relative offset to be added to the address of the 
@@ -153,8 +138,8 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
 
             op->type = Operand_Relative_Immediate;
             op->immediate = (s8)(ASMD_NEXT_BYTE(cpu)+2);
-        }
-         else if (arg[i] == 'E') {
+        
+        } else if (arg[i] == 'E') {
             // A ModR/M byte follows the opcode and specifies the operand. The operand is either a general-
             // purpose register or a memory address. If it is a memory address, the address is computed from a 
             // segment register and any of the following values: a base register, an index register, a displacement.
@@ -179,10 +164,11 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
         } else if (arg[i] == 'I') {
             // Immediate data. The operand value is encoded in subsequent bytes of the instruction.
 
-            s8 immediate = ASMD_NEXT_BYTE(cpu);
+            s16 immediate = ASMD_NEXT_BYTE(cpu);
             op->type = Operand_Immediate;
 
-            if (arg[++i] == 'v') {
+            char next_char = arg[++i];
+            if (next_char == 'v' || next_char == 'w') {
                 inst->flags |= Inst_Wide;
                 op->immediate = (s16)BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(cpu));
             } else {
@@ -205,6 +191,11 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
             op->type |= (Inst_Segment | Inst_Wide);
             op->reg   = inst->reg;
 
+        } else if (arg[i] == 'M') {
+            // The ModR/M byte may refer only to memory. Applicable, e.g., to LES and LDS.
+
+            decode_memory_address_displacement(cpu, op);
+
         } else if (arg[i] == 'v' || arg[i] == 'w') {
             // Word argument. (The 'v' code has a more complex meaning in later x86 opcode maps, 
             // from which this was derived, but here it's just a synonym for the 'w' code.)
@@ -213,9 +204,26 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
         
         } else if (arg[i] == 'b') {
             // Byte argument. This is the default value so we don't need to change here the flags.
-        }
-        else {
-           assert(0);
+
+        } else if (arg[i] == 'p') {
+            // 32-bit segment:offset pointer.
+
+            // @Todo: Handle
+
+        } else if (arg[i] == '1') {
+            // @Todo: This is ok?
+            op->type = Operand_Immediate;
+            op->reg = 1;
+            
+        } else if (arg[i] == '3') {
+            // @Todo: This is ok?
+            op->type = Operand_Immediate;
+            op->reg = 3;
+
+        } else {
+            printf(">> %s\n", arg);
+
+            assert(0);
         }
     }
 
@@ -243,7 +251,7 @@ void decode_next_instruction(CPU *cpu)
 
     i8086_Inst_Table x = i8086_inst_table[byte];
 
-    printf("%#02x ; %d ; %s ; %s\n", x.opcode, x.mnemonic, x.arg1, x.arg2);
+    printf("\n%#02x ; %d ; %s ; %s -> \t|", x.opcode, x.mnemonic, x.arg1, x.arg2);
 
     cpu->instruction.mnemonic = x.mnemonic;
 
@@ -264,6 +272,19 @@ void decode_next_instruction(CPU *cpu)
 
     decode_arg(cpu, &inst->operands[0], x.arg1);
     decode_arg(cpu, &inst->operands[1], x.arg2);
+
+    // These is just an exception?
+    if (inst->mnemonic == Mneumonic_xchg) {
+        // The opcode is: 0b10010_reg | Register with accumulator
+        if (STR_EQUAL("eAX", x.arg2)) {
+            Instruction_Operand temp = inst->operands[0];
+            inst->operands[0] = inst->operands[1];
+            inst->operands[1] = temp;
+        } else if (STR_EQUAL("eAX", x.arg1)) {
+            printf("[ERROR]: Not expected AX as arg1 in the xchg instruction!");
+            assert(0);
+        } 
+    }
 
     cpu->decoder_cursor++;
     cpu->instruction.size = cpu->decoder_cursor - instruction_byte_start_offset; 
