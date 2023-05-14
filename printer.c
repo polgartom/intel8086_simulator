@@ -77,9 +77,7 @@ const char *mnemonic_name(Mneumonic m, u8 reg)
         [Mneumonic_test]    = "test",
         [Mneumonic_or]      = "or",
         [Mneumonic_xor]     = "xor",
-
-        [Mneumonic_repz]    = "repz",
-        [Mneumonic_repnz]   = "repnz",
+        
         [Mneumonic_movsw]   = "movsw",
         [Mneumonic_movsb]   = "movsb",
         [Mneumonic_cmpsb]   = "cmpsb",
@@ -90,7 +88,6 @@ const char *mnemonic_name(Mneumonic m, u8 reg)
         [Mneumonic_lodsw]   = "lodsw",
         [Mneumonic_stosb]   = "stosb",
         [Mneumonic_stosw]   = "stosw",
-
         [Mneumonic_int]     = "int",
         [Mneumonic_into]    = "into",
         [Mneumonic_iret]    = "iret",
@@ -102,14 +99,11 @@ const char *mnemonic_name(Mneumonic m, u8 reg)
         [Mneumonic_cli]     = "cli",
         [Mneumonic_sti]     = "sti",
         [Mneumonic_hlt]     = "hlt",
-        [Mneumonic_wait]    = "wait",
-        [Mneumonic_lock]    = "lock",
-
-        [Mneumonic_cs]    = "cs",
-
+        [Mneumonic_wait]    = "wait",        
         [Mneumonic_cbw]     = "cbw",
         [Mneumonic_cwd]     = "cwd",
         [Mneumonic_ret]     = "ret",
+        [Mneumonic_retf]    = "retf",
         [Mneumonic_call]    = "call",
         [Mneumonic_push]    = "push",
         [Mneumonic_pop]     = "pop",
@@ -125,6 +119,7 @@ const char *mnemonic_name(Mneumonic m, u8 reg)
         [Mneumonic_lea]     = "lea",
         [Mneumonic_lds]     = "lds",
         [Mneumonic_les]     = "les",
+        [Mneumonic_jmp]     = "jmp",
         [Mneumonic_jz]      = "jz",
         [Mneumonic_jnz]     = "jnz",
         [Mneumonic_jl]      = "jl",
@@ -145,6 +140,15 @@ const char *mnemonic_name(Mneumonic m, u8 reg)
         [Mneumonic_loopz]   = "loopz",
         [Mneumonic_loopnz]  = "loopnz",
         [Mneumonic_jcxz]    = "jcxz",
+
+        // Prefixes
+        [Mneumonic_repz]    = "repz",
+        [Mneumonic_repnz]   = "repnz",
+        [Mneumonic_lock]    = "lock",
+        [Mneumonic_cs]      = "cs", // segment register
+        [Mneumonic_ds]      = "ds", // segment register
+        [Mneumonic_es]      = "es", // segment register
+        [Mneumonic_ss]      = "ss", // segment register
         
         [Mneumonic_grp1]  = "grp1",
         [Mneumonic_grp2]  = "grp2",
@@ -175,6 +179,8 @@ const char *register_name(Register reg)
         "ip"
     };
 
+    assert(reg < ARRAY_SIZE(register_names));
+
     return register_names[reg];
 }
 
@@ -195,7 +201,13 @@ void print_instruction(CPU *cpu, u8 with_end_line)
 
     Instruction *instruction = &cpu->instruction;
 
-    fprintf(dest, "[0x%02x]\t%s", instruction->mem_address, mnemonic_name(instruction->mnemonic, instruction->reg));
+    //fprintf(dest, "[0000:%04x] ", instruction->mem_address);
+    
+    if (instruction->flags & Inst_Lock) {
+        fprintf(dest, "lock ");
+    }
+    
+    fprintf(dest, "%s", mnemonic_name(instruction->mnemonic, instruction->reg));
     
     const char *separator = " ";
     for (u8 j = 0; j < 2; j++) {
@@ -214,7 +226,7 @@ void print_instruction(CPU *cpu, u8 with_end_line)
             case Operand_Register: {
                 Register reg; 
 
-                // @Hacky
+                // @Hacky @Todo: move this to somewhere else
                 static const u32 segment_registers[] = {
                     Register_es,
                     Register_cs,
@@ -222,10 +234,14 @@ void print_instruction(CPU *cpu, u8 with_end_line)
                     Register_ds
                 };
 
-                if (instruction->flags & Inst_Segment) {
+                if (op->is_segment_reg) {
                     reg = segment_registers[op->reg];
                 } else {
-                    Register_Access *reg_access = register_access(op->reg, !!(instruction->flags & Inst_Wide));
+                    u8 is_wide = (instruction->flags & Inst_Wide) ? 1 : 0;
+                    // @Cleanup: This is a temp solution for the exceptions of SAL/SHL && SAR && SHR && ROL && ROR && RCL && RCR instructions
+                    if (op->use_lower_reg) is_wide = 0;
+                
+                    Register_Access *reg_access = register_access(op->reg, is_wide);
                     reg = reg_access->reg; 
                 }
 
@@ -234,12 +250,30 @@ void print_instruction(CPU *cpu, u8 with_end_line)
                 break;
             }
             case Operand_Memory: {
-                if (instruction->operands[0].type != Operand_Register) {
+                // @Cleanup:
+                if (&instruction->operands[0] == op && !(instruction->flags & Inst_Far)) {
                     fprintf(dest, "%s ", (instruction->flags & Inst_Wide) ? "word" : "byte");
+                }
+                
+                if ((instruction->flags & Inst_Segment) && instruction->operands[0].is_segment_reg == 0 && instruction->operands[1].is_segment_reg == 0) {
+                    if (instruction->extend_with_this_segment) {
+                        // segment prefix
+                        fprintf(dest, instruction->extend_with_this_segment);
+                        fprintf(dest, ":");
+                    } else {
+                        // segment at direct address
+                        u16 segment = op->address.segment; 
+                        u16 offset = op->address.displacement;
+                        fprintf(dest, "%d:%d", segment, offset);
+                        break;
+                    }
+                }
+                
+                if (&instruction->operands[0] == op && instruction->flags & Inst_Far) {
+                    fprintf(dest, "far ");
                 }
 
                 char const *r_m_base[] = {"","bx+si","bx+di","bp+si","bp+di","si","di","bp","bx"};
-
                 fprintf(dest, "[%s", r_m_base[op->address.base]);
                 if (op->address.displacement) {
                     fprintf(dest, "%+d", op->address.displacement);

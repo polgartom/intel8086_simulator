@@ -39,10 +39,18 @@ void decode_memory_address_displacement(CPU *cpu, Instruction_Operand *operand)
     operand->address.displacement = 0;
 
     if ((inst->mod == 0x00 && inst->r_m == 0x06) || inst->mod == 0x02) { 
-        operand->address.displacement = (s32)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
+        if (operand->address.base == Effective_Address_direct) {
+            operand->address.displacement = (u16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
+        } else {
+            operand->address.displacement = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
+        }
     } 
     else if (inst->mod == 0x01) { 
-        operand->address.displacement = (s32)ASMD_NEXT_BYTE(cpu);
+        if (operand->address.base == Effective_Address_direct) {
+            operand->address.displacement = (u8)ASMD_NEXT_BYTE(cpu);
+        } else {
+            operand->address.displacement = (s8)ASMD_NEXT_BYTE(cpu);
+        }
     }
 }
 
@@ -62,14 +70,13 @@ void mod_reg_rm(CPU *cpu, Instruction *inst)
 void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
 {
     Instruction *inst = &cpu->instruction;
-
+    
     if (arg == NULL) {
         // @Todo: Maybe this will valid at some point, at some isntructions
 //        assert(&inst->operands[0] != op);
         return;
     }
 
-    // Will this cause a problem?
     if (arg[0] == 'e' || arg[strlen(arg)-1] == 'X') {
         inst->flags |= Inst_Wide;
     }
@@ -80,6 +87,11 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
         op->reg  = 0; // encoded binary value of the reg
         return;
     } else if (STR_EQUAL("CL", arg) || STR_EQUAL("eCX", arg)) {
+        if (STR_EQUAL("CL", arg)) {
+            // @Cleanup: Temp solution 
+            // This one of the exceptions. SAL/SHL && SAR && SHR && ROL && ROR && RCL && RCR instructions are using it.
+            op->use_lower_reg = 1;
+        }
         op->type = Operand_Register;
         op->reg  = 1; 
         return;
@@ -107,37 +119,58 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
         op->type = Operand_Register;
         op->reg  = 7;
         return;
+    } else if (STR_EQUAL("ES", arg)) {
+        op->type = Operand_Register;
+        op->is_segment_reg = 1;
+        op->reg = 0; // @Incomplete @Cleanup: Lookup for the static const u32 segment_registers[] in printer.c
+        return;
     } else if (STR_EQUAL("CS", arg)) {
         op->type = Operand_Register;
-        op->reg = 1;
-
-        inst->flags |= Inst_Segment | Inst_Wide;
-
+        op->is_segment_reg = 1;
+        op->reg = 1; // @Incomplete @Cleanup: Lookup for the static const u32 segment_registers[] in printer.c
+        return;
+    } else if (STR_EQUAL("SS", arg)) {
+        op->type = Operand_Register;
+        op->is_segment_reg = 1;
+        op->reg = 2; // @Incomplete @Cleanup: Lookup for the static const u32 segment_registers[] in printer.c
         return;
     } else if (STR_EQUAL("DS", arg)) {
         op->type = Operand_Register;
-        op->reg = 3;
-
-        inst->flags |= Inst_Segment | Inst_Wide;
-
+        op->is_segment_reg = 1;
+        op->reg = 3; // @Incomplete @Cleanup: Lookup for the static const u32 segment_registers[] in printer.c
         return;
     }
 
-    for (u64 i = 0; i < STR_LEN(arg); i++) {
+    u8 arg_strlen = STR_LEN(arg);
+    for (u64 i = 0; i < arg_strlen; i++) {
         if (arg[i] == 'A') {
             // Direct address. The instruction has no ModR/M byte; the address of the operand 
             // is encoded in the instruction. Applicable, e.g., to far JMP (opcode EA).
+            assert(arg[++i] == 'p');
+
+            inst->flags |= Inst_Segment | Inst_Far;
+
+            op->type = Operand_Memory;
+            op->address.base = Effective_Address_direct;        
+            // this is the offset
+            op->address.displacement = (u16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
+            // segment are encoded next to the offset
+            op->address.segment = (u16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
             
-            // @Todo:
-
-            decode_memory_address_displacement(cpu, op);
-
+            // the result will be segment:offset
+            
         } else if (arg[i] == 'J') {
             // The instruction contains a relative offset to be added to the address of the 
             // subsequent instruction. Applicable, e.g., to short JMP (opcode EB), or LOOP.
 
             op->type = Operand_Relative_Immediate;
-            op->immediate = (s8)(ASMD_NEXT_BYTE(cpu)+2);
+            if (arg[++i] == 'v') {
+                // @Todo: Remove this 3. This is the isntruction size btw
+                op->immediate = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu))+3);
+            } else {
+                // @Todo: Remove this 2. This is the isntruction size btw
+                op->immediate = (s8)(ASMD_NEXT_BYTE(cpu)+2); 
+            }
         
         } else if (arg[i] == 'E') {
             // A ModR/M byte follows the opcode and specifies the operand. The operand is either a general-
@@ -167,13 +200,23 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
             s16 immediate = ASMD_NEXT_BYTE(cpu);
             op->type = Operand_Immediate;
 
+            assert(arg[i+1] != '\0');
+
             char next_char = arg[++i];
             if (next_char == 'v' || next_char == 'w') {
                 inst->flags |= Inst_Wide;
                 op->immediate = (s16)BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(cpu));
-            } else {
+            } else if (next_char == '0') {
+                // @Todo: This is ok?
+                op->type = Operand_Immediate;
+                s16 immediate = ASMD_NEXT_BYTE(cpu);
+                if (immediate == 0xa) continue;
                 op->immediate = immediate;
-            } 
+            } else if (next_char == 'b') {
+                op->immediate = immediate;
+            } else {
+                assert(0);
+            }
 
         } else if (arg[i] == 'O') {
             // The instruction has no ModR/M byte; the offset of the operand is encoded as a WORD in the instruction. 
@@ -188,12 +231,14 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
 
             mod_reg_rm(cpu, inst);
 
-            op->type |= (Inst_Segment | Inst_Wide);
-            op->reg   = inst->reg;
+            inst->flags |= Inst_Segment;
+            op->is_segment_reg = 1;
+            op->type = Operand_Register;
+            op->reg  = inst->reg;
 
         } else if (arg[i] == 'M') {
             // The ModR/M byte may refer only to memory. Applicable, e.g., to LES and LDS.
-
+            mod_reg_rm(cpu, inst);
             decode_memory_address_displacement(cpu, op);
 
         } else if (arg[i] == 'v' || arg[i] == 'w') {
@@ -207,16 +252,15 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
 
         } else if (arg[i] == 'p') {
             // 32-bit segment:offset pointer.
-
-            // @Todo: Handle
+            inst->flags |= Inst_Far;
 
         } else if (arg[i] == '1') {
-            // @Todo: This is ok?
+            // @Todo: This is ok? Maybe we should create a new opcode type like Operand_Constant?
             op->type = Operand_Immediate;
             op->reg = 1;
             
         } else if (arg[i] == '3') {
-            // @Todo: This is ok?
+            // @Todo: This is ok? Maybe we should create a new opcode type like Operand_Constant?
             op->type = Operand_Immediate;
             op->reg = 3;
 
@@ -234,16 +278,22 @@ static const char *i8086_inst_ext_table[][8][2] = {
     [Mneumonic_grp2]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
     [Mneumonic_grp3a] = {{"Eb", "Ib"}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
     [Mneumonic_grp3b] = {{"Ev", "Iv"}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
-    [Mneumonic_grp4]  = {{"Ev", "Iv"}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
-    [Mneumonic_grp5]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {"Mb", NULL}, {NULL, NULL}, {NULL, "Mb"}, {NULL, NULL}, {NULL, NULL}},
+    [Mneumonic_grp4]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
+    [Mneumonic_grp5]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {"Mp", NULL}, {NULL, NULL}, {"Mp", NULL}, {NULL, NULL}, {NULL, NULL}},
 };
 
 void decode_next_instruction(CPU *cpu)
 {
+    Instruction *inst = &cpu->instruction;
+
     cpu->decoder_cursor = cpu->ip;
 
-    ZERO_MEMORY(&cpu->instruction, sizeof(Instruction)); 
-    cpu->instruction.mem_address = cpu->decoder_cursor;
+    if (!inst->is_prefix) {
+        ZERO_MEMORY(inst, sizeof(Instruction));
+        inst->mem_address = cpu->decoder_cursor;
+    }
+    
+    inst->is_prefix = 0;
 
     u32 instruction_byte_start_offset = cpu->decoder_cursor;
 
@@ -251,41 +301,62 @@ void decode_next_instruction(CPU *cpu)
 
     i8086_Inst_Table x = i8086_inst_table[byte];
 
-    printf("\n%#02x ; %d ; %s ; %s -> \t|", x.opcode, x.mnemonic, x.arg1, x.arg2);
+    inst->mnemonic = x.mnemonic;
 
-    cpu->instruction.mnemonic = x.mnemonic;
-
-    // @Todo: Replace the grouped mnemonic after this extension lookup
-    // Override the opcode argument desciptors if arguments is defined in that table
+    // Overwrite the arguments if the extenstion table lookup is find something
     if (x.mnemonic >= Mneumonic_grp1) {
-        mod_reg_rm(cpu, &cpu->instruction);
+        mod_reg_rm(cpu, inst);
 
-        const char *ext_arg1 = i8086_inst_ext_table[x.mnemonic][cpu->instruction.reg][0]; 
-        const char *ext_arg2 = i8086_inst_ext_table[x.mnemonic][cpu->instruction.reg][1];
+        const char *ext_arg1 = i8086_inst_ext_table[x.mnemonic][inst->reg][0]; 
+        const char *ext_arg2 = i8086_inst_ext_table[x.mnemonic][inst->reg][1];
         if (ext_arg1 || ext_arg2) {
             x.arg1 = ext_arg1;
             x.arg2 = ext_arg2;
         }
     }
 
-    Instruction *inst = &cpu->instruction;
+    //printf("\n%#02x ; %d ; %s ; %s -> \t|", x.opcode, x.mnemonic, x.arg1, x.arg2);
 
     decode_arg(cpu, &inst->operands[0], x.arg1);
     decode_arg(cpu, &inst->operands[1], x.arg2);
 
-    // These is just an exception?
-    if (inst->mnemonic == Mneumonic_xchg) {
-        // The opcode is: 0b10010_reg | Register with accumulator
-        if (STR_EQUAL("eAX", x.arg2)) {
+    // Set prefixes
+    // @Todo: Handle prefixes
+    if (inst->mnemonic == Mneumonic_lock) {
+        inst->is_prefix = 1;
+        inst->flags |= Inst_Lock;
+    } 
+    // @Incomplete: Here we have to get the current segment registers value or later?
+    else if (inst->mnemonic == Mneumonic_cs) {
+        inst->is_prefix = 1;
+        inst->flags |= Inst_Segment;
+        inst->extend_with_this_segment = "cs";
+    }
+    else if (inst->mnemonic == Mneumonic_ds) {
+        inst->is_prefix = 1;
+        inst->flags |= Inst_Segment;
+        inst->extend_with_this_segment = "ds";
+    }
+    else if (inst->mnemonic == Mneumonic_es) {
+        inst->is_prefix = 1;
+        inst->flags |= Inst_Segment;
+        inst->extend_with_this_segment = "es";
+    }
+    else if (inst->mnemonic == Mneumonic_ss) {
+        inst->is_prefix = 1;
+        inst->flags |= Inst_Segment;
+        inst->extend_with_this_segment = "ss";
+    }
+    
+    if ((inst->flags & Inst_Lock) && inst->is_prefix == 0) {
+        if (inst->operands[0].type != Operand_Memory) {
+            assert(inst->operands[1].type == Operand_Memory);
             Instruction_Operand temp = inst->operands[0];
             inst->operands[0] = inst->operands[1];
             inst->operands[1] = temp;
-        } else if (STR_EQUAL("eAX", x.arg1)) {
-            printf("[ERROR]: Not expected AX as arg1 in the xchg instruction!");
-            assert(0);
-        } 
+        }
     }
-
+    
     cpu->decoder_cursor++;
     cpu->instruction.size = cpu->decoder_cursor - instruction_byte_start_offset; 
 }

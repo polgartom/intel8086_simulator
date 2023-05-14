@@ -20,7 +20,6 @@ Register_Access *register_access(u32 reg, u8 is_wide)
         }
     };
 
-
     return (Register_Access *)registers[is_wide][reg];
 }
 

@@ -34,13 +34,17 @@ void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data)
 
 u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
 { 
-    u16 displacement = expr->displacement;
-    u16 address = 0; // @Todo: segment stuff
+    u16 address = 0;
+    u16 segment = expr->segment;
+    
+    // @Todo: Remove this from here @Todo: Get value the segment registers
+    if (cpu->instruction.flags & Inst_Segment && cpu->instruction.extend_with_this_segment) {
+        printf("[WARNING]: Not handled!\n");
+        assert(0);
+    }
 
-    // @Cleanup
     switch (expr->base) {
         case Effective_Address_direct:
-            // In this case the address will be equal to the displacement
             break;
         case Effective_Address_bx_si:
             address = get_data_from_register_by_enum(cpu, Register_bx); 
@@ -82,7 +86,7 @@ u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
             assert(0);
     }
 
-    return address + displacement;
+    return (segment << 4) + address + expr->displacement;
 }
 
 s32 get_data_from_memory(u8 *memory, u32 address, u8 is_16bit)
@@ -146,7 +150,7 @@ void execute_instruction(CPU *cpu)
 {
     Instruction *i = &cpu->instruction;
     Instruction_Operand dest_op = i->operands[0];
-    u8 is_16bit = !!(i->flags & Inst_Wide);
+    u8 is_16bit = (i->flags & Inst_Wide) ? 1 : 0;
 
     u32 ip_before = cpu->ip; 
     u32 ip_after  = cpu->ip;
@@ -243,12 +247,6 @@ void execute_instruction(CPU *cpu)
     printf(" | ip: %#02x -> %#02x\n", ip_before, cpu->ip);
 }
 
-/*
-void *allocate_memory(u16 size)
-{
-}
-*/
-
 void load_executable(CPU *cpu, char *filename)
 {
     FILE *fp = fopen(filename, "rb");
@@ -282,7 +280,7 @@ void boot(CPU *cpu)
     cpu->ip = 0;
     
     // @Todo: Specify the max stack size
-    cpu->ss = 65535; // The stack ends at this memory address
+    //cpu->ss = 65535; // The stack ends at this memory address
 }
 
 void run(CPU *cpu)
@@ -294,9 +292,10 @@ void run(CPU *cpu)
     }
 
     do {
+decode_next:;
         decode_next_instruction(cpu);
 
-        // @Todo: The i8086/88 contains the debug flag so later we simulate this too
+        // @Todo: The i8086 contains the debug flag so later we simulate this too
         // instead of this boolean
         if (cpu->debug_mode) {
             printf(">> Press enter to the next instruction\n");
@@ -305,6 +304,13 @@ __de:;
             if (input[0] != '\n') {
                 goto __de;
             }
+        }
+
+        if (cpu->instruction.is_prefix) {
+            // If we have a prefix, then we don't want to run or print it. We will print at at the next
+            // instruction decode, because we're using the nasm syntax. 
+            cpu->ip = cpu->decoder_cursor;
+            goto decode_next;
         }
 
         if (cpu->decode_only) {

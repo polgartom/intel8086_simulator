@@ -32,6 +32,7 @@ typedef unsigned long u64;
 #define BYTE_SWAP(__val) (((__val >> 8) & 0x00FF) | ((__val << 8) & 0xFF00))
 
 #define XSTR(x) #x
+#define _DEBUG_BREAK(text) {char _dummy_input[12]; printf(#text"\n"); fgets(_dummy_input, sizeof(_dummy_input), stdin);}
 
 ///////////////////////////////////////////////////
 
@@ -153,7 +154,9 @@ typedef enum {
 typedef struct {
 
   Effective_Address_Base base;
-  s32 displacement;
+
+  u16 segment;
+  s32 displacement; // used as offset too.
 
 } Effective_Address_Expression;
 
@@ -168,7 +171,9 @@ typedef enum {
 
 typedef struct {
   Operand_Type type;
-
+  u8 is_segment_reg;
+  u8 use_lower_reg; // @Cleanup: temp solution
+  
   union {
       u8 reg;
       Effective_Address_Expression address;
@@ -188,6 +193,8 @@ typedef enum {
 } Instruction_Type;
 
 typedef struct {
+  u8 is_prefix;
+
   u32 mem_address;
   u8 size;
 
@@ -197,6 +204,8 @@ typedef struct {
   Instruction_Type type;
   Instruction_Flag flags;
   Instruction_Operand operands[2];
+
+  const char *extend_with_this_segment;
 
   u8 mod;
   u8 reg;
@@ -212,6 +221,7 @@ typedef struct {
   u8 regmem[64]; // The "accessible" register values are stored here
   u8* memory;
 
+  // @Todo: Move this the regmem stuff too?
   u16 ip;
   u16 cs;
   u16 ds;
@@ -219,9 +229,8 @@ typedef struct {
   u16 es;
 
   Instruction instruction; // current instruction
-
   u16 flags;
-
+  
   // Options
   u8 dump_out;
   u8 decode_only;
