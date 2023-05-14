@@ -1,47 +1,5 @@
 #include "printer.h"
 
-
-const char *get_opcode_name(Opcode opcode)
-{
-    assert(opcode < Opcode_count);
-
-    static const char* opcode_names[] = {
-        "none",
-
-        "mov",
-        "add",
-        "sub",
-        "cmp",
-
-        "push",
-        "pop",
-
-        "jo",
-        "js",
-        "jb",
-        "je",
-        "jbe",
-        "jp",
-        "jnz",
-        "jl",
-        "jle",
-        "jnl",
-        "jg",
-        "jae",
-        "ja",
-        "jnp",
-        "jno",
-        "jns",
-
-        "loop",
-        "loopz",
-        "loopnz",
-        "jcxz"
-    };
-
-    return opcode_names[opcode];
-}
-
 const char *mnemonic_name(Mneumonic m, u8 reg)
 {
     static const char *mnemonic_name_lookup[] = {
@@ -232,16 +190,9 @@ void print_instruction(CPU *cpu, u8 with_end_line)
             case Operand_Register: {
                 Register reg; 
 
-                // @Hacky @Todo: move this to somewhere else
-                static const u32 segment_registers[] = {
-                    Register_es,
-                    Register_cs,
-                    Register_ss,
-                    Register_ds
-                };
-
                 if (op->is_segment_reg) {
-                    reg = segment_registers[op->reg];
+                    Register_Access *reg_access = register_access(op->reg, Inst_Segment);
+                    reg = reg_access->reg;
                 } else {
                     u8 is_wide = (instruction->flags & Inst_Wide) ? 1 : 0;
                     // @Cleanup: This is a temp solution for the exceptions of SAL/SHL && SAR && SHR && ROL && ROR && RCL && RCR instructions
@@ -264,7 +215,6 @@ void print_instruction(CPU *cpu, u8 with_end_line)
                 if ((instruction->flags & Inst_Segment) && instruction->operands[0].is_segment_reg == 0 && instruction->operands[1].is_segment_reg == 0) {
                     if (instruction->extend_with_this_segment) {
                         // segment prefix
-                        fprintf(dest, instruction->extend_with_this_segment);
                         fprintf(dest, ":");
                     } else {
                         // segment at direct address

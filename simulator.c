@@ -38,7 +38,7 @@ u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
     u16 segment = expr->segment;
     
     // @Todo: Remove this from here @Todo: Get value the segment registers
-    if (cpu->instruction.flags & Inst_Segment && cpu->instruction.extend_with_this_segment) {
+    if (cpu->instruction.flags & Inst_Segment) {
         printf("[WARNING]: Not handled!\n");
         assert(0);
     }
@@ -112,7 +112,9 @@ s32 get_data_from_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit)
     s32 src_data = 0;
 
     if (op->type == Operand_Register) {
-        Register_Access *src_reg = register_access(op->reg, is_16bit);
+        u32 flags = cpu->instruction.flags & Inst_Wide;
+        if (op->is_segment_reg) flags |= Inst_Segment;
+        Register_Access *src_reg = register_access(op->reg, flags);
         src_data = get_data_from_register(cpu, src_reg);
     } 
     else if (op->type == Operand_Immediate) {
@@ -131,7 +133,9 @@ void set_data_to_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit, u16 dat
     s32 current_data = get_data_from_operand(cpu, op, is_16bit);
 
     if (op->type == Operand_Register) {
-        Register_Access *dest_reg = register_access(op->reg, is_16bit);
+        u32 flags = cpu->instruction.flags & Inst_Wide;
+        if (op->is_segment_reg) flags |= Inst_Segment;
+        Register_Access *dest_reg = register_access(op->reg, flags);
         set_data_to_register(cpu, dest_reg, data);
     }
     else if (op->type == Operand_Memory) {
@@ -157,32 +161,35 @@ void execute_instruction(CPU *cpu)
 
     printf(" ;");
 
-    if (i->type == Instruction_Type_Move) {
+    if (i->type == Instruction_Type_move) {
+        if (i->mnemonic != Mneumonic_mov) {
+            printf("[WARNING]: Has another move type instruction which are not handled yet!\n");
+        }
         Instruction_Operand src_op = i->operands[1];
         u16 src_data = get_data_from_operand(cpu, &src_op, is_16bit);
         set_data_to_operand(cpu, &dest_op, is_16bit, src_data);
         
         ip_after += i->size; 
     }
-    else if (i->type == Instruction_Type_Arithmetic) {
+    else if (i->type == Instruction_Type_arithmetic) {
         Instruction_Operand src_op = i->operands[1];
         u16 src_data = get_data_from_operand(cpu, &src_op, is_16bit);
         s32 dest_data = get_data_from_operand(cpu, &dest_op, is_16bit);
 
-        switch (i->opcode) {
-            case Opcode_add: 
+        switch (i->mnemonic) {
+            case Mneumonic_add: 
                 dest_data += src_data;
                 set_data_to_operand(cpu, &dest_op, is_16bit, dest_data);
                 break;
-            case Opcode_sub:
+            case Mneumonic_sub:
                 dest_data -= src_data;
                 set_data_to_operand(cpu, &dest_op, is_16bit, dest_data);
                 break;
-            case Opcode_cmp:
+            case Mneumonic_cmp:
                 dest_data -= src_data;
                 break;
             default:
-                printf("[WARNING]: This opcode: %s is have not handled yet!", get_opcode_name(i->opcode));
+                printf("[WARNING]: This instruction: %s is have not handled yet!\n", mnemonic_name(i->mnemonic, i->reg));
                 assert(0);
         }
 
@@ -205,9 +212,13 @@ void execute_instruction(CPU *cpu)
         cpu->flags = new_flags;
         ip_after += i->size; 
     }
-    else if (i->type == Instruction_Type_Jump) {
-        switch (i->opcode) {
-            case Opcode_jnz: {
+    else if (i->type == Instruction_Type_jump) {
+        switch (i->mnemonic) {
+            case Mneumonic_jmp: {
+                ip_after += i->operands[0].immediate;
+                break;
+            }
+            case Mneumonic_jnz: {
                 if (cpu->flags & F_ZERO) {
                     ip_after += i->size;
                 } else {
@@ -215,7 +226,7 @@ void execute_instruction(CPU *cpu)
                 }
                 break;
             }
-            case Opcode_loop: {
+            case Mneumonic_loop: {
                 // loop instruction is always using the cx register value which will be decremented by one
                 // every time when loop instruction are called
                 Register_Access *reg_access = register_access_by_enum(Register_cx);
@@ -233,11 +244,24 @@ void execute_instruction(CPU *cpu)
 
                 break;
             }
-
             default:
-                printf("\n[ERROR]: This opcode: '%s' is have not handled yet!\n", get_opcode_name(i->opcode));
+                printf("\n[ERROR]: This instruction: '%s' is have not handled yet!\n", mnemonic_name(i->mnemonic, i->reg));
                 assert(0);
         }
+    } else if (i->type == Instruction_Type_stack) {
+        
+        switch (i->mnemonic) {
+            case Mneumonic_push: {
+                
+                
+                assert(0);
+                break;
+            }
+        }
+        
+    } else {
+        printf("[WARNING]: This type of instruction is not handled yet!\n");
+        assert(0);
     }
 
     // This instruction pointer data will provide us the next instruction location from the cpu->instructions array which indexed
@@ -272,15 +296,11 @@ void load_executable(CPU *cpu, char *filename)
 void boot(CPU *cpu)
 {
     cpu->memory = (u8*)malloc(MAX_MEMORY);
-    
     ZERO_MEMORY(cpu->memory, MAX_MEMORY);
     ZERO_MEMORY(cpu->regmem, 64);
 
     // @Todo: Check the loaded executable memory address, but now we always put the executable to beginning of the memory
     cpu->ip = 0;
-    
-    // @Todo: Specify the max stack size
-    //cpu->ss = 65535; // The stack ends at this memory address
 }
 
 void run(CPU *cpu)

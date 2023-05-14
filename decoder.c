@@ -298,6 +298,7 @@ void decode_next_instruction(CPU *cpu)
 
     if (!inst->is_prefix) {
         ZERO_MEMORY(inst, sizeof(Instruction));
+        inst->extend_with_this_segment = Register_none;
     }
     inst->is_prefix = 0;
 
@@ -307,12 +308,22 @@ void decode_next_instruction(CPU *cpu)
 
     i8086_Inst_Table x = i8086_inst_table[byte];
     inst->mnemonic = x.mnemonic;
+    inst->type = x.type;
     
     // Overwrite the arguments if the extenstion table lookup is find something
     if (x.mnemonic >= Mneumonic_grp1) {
         mod_reg_rm(cpu, inst);
 
         inst->mnemonic = extended_mneumonic_lookup[x.mnemonic][inst->reg];
+        // @Todo: Handle this!
+        switch (inst->mnemonic) {
+            case Mneumonic_jmp: inst->type = Instruction_Type_jump; break;
+            case Mneumonic_add: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_sub: inst->type = Instruction_Type_arithmetic; break;
+            default:
+                printf("[WARNING]: Not handled instruction (grouped) type definition.\n");
+                assert(0);
+        }
 
         const char *ext_arg1 = i8086_inst_ext_table[x.mnemonic][inst->reg][0]; 
         const char *ext_arg2 = i8086_inst_ext_table[x.mnemonic][inst->reg][1];
@@ -328,34 +339,34 @@ void decode_next_instruction(CPU *cpu)
     decode_arg(cpu, &inst->operands[1], x.arg2);
 
     // Set prefixes
-    // @Todo: Handle prefixes
+    // @Todo: Handle more prefixes
     if (inst->mnemonic == Mneumonic_lock) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Lock;
     } 
-    // @Incomplete: Here we have to get the current segment registers value or later?
     else if (inst->mnemonic == Mneumonic_cs) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Segment;
-        inst->extend_with_this_segment = "cs";
+        inst->extend_with_this_segment = Register_cs;
     }
     else if (inst->mnemonic == Mneumonic_ds) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Segment;
-        inst->extend_with_this_segment = "ds";
+        inst->extend_with_this_segment = Register_ds;
     }
     else if (inst->mnemonic == Mneumonic_es) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Segment;
-        inst->extend_with_this_segment = "es";
+        inst->extend_with_this_segment = Register_es;
     }
     else if (inst->mnemonic == Mneumonic_ss) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Segment;
-        inst->extend_with_this_segment = "ss";
+        inst->extend_with_this_segment = Register_ss;
     }
     
     if ((inst->flags & Inst_Lock) && inst->is_prefix == 0) {
+        // Flip memory, register because the lock prefix must be follow a memory operand   
         if (inst->operands[0].type != Operand_Memory) {
             assert(inst->operands[1].type == Operand_Memory);
             Instruction_Operand temp = inst->operands[0];

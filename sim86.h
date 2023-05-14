@@ -36,9 +36,6 @@ typedef unsigned long u64;
 
 ///////////////////////////////////////////////////
 
-#include "i8086table.h"
-
-
 #define MAX_MEMORY (1024 * 1024)
 
 #define F_SIGNED (1 << 8)
@@ -79,6 +76,7 @@ typedef enum {
 
   Register_ip, // ip register
 
+  Register_none,
   Register_count
 } Register;
 
@@ -89,43 +87,6 @@ typedef struct {
   u32 index; // register memory index in the cpu regmem array
   u32 size;  // register memory size in the cpu regmem array
 } Register_Access;
-
-typedef enum {
-  Opcode_none,
-
-  Opcode_mov,
-  Opcode_add,
-  Opcode_sub,
-  Opcode_cmp,
-
-  Opcode_push,
-  Opcode_pop,
-
-  Opcode_jo,
-  Opcode_js,
-  Opcode_jb,
-  Opcode_je,
-  Opcode_jbe,
-  Opcode_jp,
-  Opcode_jnz,
-  Opcode_jl,
-  Opcode_jle,
-  Opcode_jnl,
-  Opcode_jg,
-  Opcode_jae,
-  Opcode_ja,
-  Opcode_jnp,
-  Opcode_jno,
-  Opcode_jns,
-
-  Opcode_loop,
-  Opcode_loopz,
-  Opcode_loopnz,
-  Opcode_jcxz,
-
-  Opcode_count
-
-} Opcode;
 
 typedef enum {
   Operand_None,
@@ -161,10 +122,10 @@ typedef struct {
 } Effective_Address_Expression;
 
 typedef enum {
-  Inst_Lock = (1 << 0),
-  Inst_Rep = (1 << 1),
-  Inst_Segment = (1 << 2),
-  Inst_Wide = (1 << 3),
+  Inst_Wide = (1 << 0),
+  Inst_Segment = (1 << 1),
+  Inst_Lock = (1 << 2),
+  Inst_Rep = (1 << 3),
   Inst_Far = (1 << 4),
   Inst_Sign = (1 << 5)
 } Instruction_Flag;
@@ -182,15 +143,19 @@ typedef struct {
 
 } Instruction_Operand;
 
-typedef enum {
+typedef enum Instruction_Type Instruction_Type;
+enum Instruction_Type {
   Instruction_Type_None,
 
-  Instruction_Type_Move,
-  Instruction_Type_Arithmetic,
-  Instruction_Type_Jump,
+  Instruction_Type_move,
+  Instruction_Type_arithmetic,
+  Instruction_Type_jump,
+  Instruction_Type_stack,
 
   Instruction_Type_Count,
-} Instruction_Type;
+};
+
+#include "i8086table.h"
 
 typedef struct {
   u8 is_prefix;
@@ -198,14 +163,12 @@ typedef struct {
   u32 mem_address;
   u8 size;
 
-  Opcode opcode;
-
   Mneumonic mnemonic;
   Instruction_Type type;
   Instruction_Flag flags;
   Instruction_Operand operands[2];
 
-  const char *extend_with_this_segment;
+  Register extend_with_this_segment;
 
   u8 mod;
   u8 reg;
@@ -218,15 +181,9 @@ typedef struct {
   u16 loaded_executable_size; // @Todo: Remove
   u16 decoder_cursor;
 
+  u16 ip;
   u8 regmem[64]; // The "accessible" register values are stored here
   u8* memory;
-
-  // @Todo: Move this the regmem stuff too?
-  u16 ip;
-  u16 cs;
-  u16 ds;
-  u16 ss;
-  u16 es;
 
   Instruction instruction; // current instruction
   u16 flags;
@@ -239,7 +196,7 @@ typedef struct {
 } CPU;
 
 #define REG_ACCUMULATOR 0
-Register_Access *register_access(u32 reg, u8 is_wide);
+Register_Access *register_access(u32 reg, u32 flags);
 Register_Access *register_access_by_enum(Register reg);
 
 
