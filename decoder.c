@@ -273,6 +273,15 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
 
 }
 
+static Mneumonic extended_mneumonic_lookup[][8] = {
+    [Mneumonic_grp1]  = {Mneumonic_add, Mneumonic_or, Mneumonic_adc, Mneumonic_sbb, Mneumonic_and, Mneumonic_sub, Mneumonic_xor, Mneumonic_cmp},
+    [Mneumonic_grp2]  = {Mneumonic_rol, Mneumonic_ror, Mneumonic_rcl, Mneumonic_rcr, Mneumonic_shl, Mneumonic_shr, Mneumonic_invalid, Mneumonic_sar},
+    [Mneumonic_grp3b] = {Mneumonic_test, Mneumonic_invalid, Mneumonic_not, Mneumonic_neg, Mneumonic_mul, Mneumonic_imul, Mneumonic_div, Mneumonic_idiv},
+    [Mneumonic_grp3a] = {Mneumonic_test, Mneumonic_invalid, Mneumonic_not, Mneumonic_neg, Mneumonic_mul, Mneumonic_imul, Mneumonic_div, Mneumonic_idiv},
+    [Mneumonic_grp4]  = {Mneumonic_inc, Mneumonic_dec, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid},
+    [Mneumonic_grp5]  = {Mneumonic_inc, Mneumonic_dec, Mneumonic_call, Mneumonic_call, Mneumonic_jmp, Mneumonic_jmp, Mneumonic_push, Mneumonic_invalid}
+};
+
 static const char *i8086_inst_ext_table[][8][2] = {
     [Mneumonic_grp1]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
     [Mneumonic_grp2]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
@@ -285,27 +294,25 @@ static const char *i8086_inst_ext_table[][8][2] = {
 void decode_next_instruction(CPU *cpu)
 {
     Instruction *inst = &cpu->instruction;
-
     cpu->decoder_cursor = cpu->ip;
 
     if (!inst->is_prefix) {
         ZERO_MEMORY(inst, sizeof(Instruction));
-        inst->mem_address = cpu->decoder_cursor;
     }
-    
     inst->is_prefix = 0;
 
+    u8 byte = ASMD_CURR_BYTE(cpu);
+    inst->mem_address = cpu->decoder_cursor;
     u32 instruction_byte_start_offset = cpu->decoder_cursor;
 
-    u8 byte = ASMD_CURR_BYTE(cpu);
-
     i8086_Inst_Table x = i8086_inst_table[byte];
-
     inst->mnemonic = x.mnemonic;
-
+    
     // Overwrite the arguments if the extenstion table lookup is find something
     if (x.mnemonic >= Mneumonic_grp1) {
         mod_reg_rm(cpu, inst);
+
+        inst->mnemonic = extended_mneumonic_lookup[x.mnemonic][inst->reg];
 
         const char *ext_arg1 = i8086_inst_ext_table[x.mnemonic][inst->reg][0]; 
         const char *ext_arg2 = i8086_inst_ext_table[x.mnemonic][inst->reg][1];

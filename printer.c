@@ -44,19 +44,6 @@ const char *get_opcode_name(Opcode opcode)
 
 const char *mnemonic_name(Mneumonic m, u8 reg)
 {
-    static const char *extended_name_lookup[][8] = {
-        [Mneumonic_grp1]  = {"add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"},
-        [Mneumonic_grp2]  = {"rol", "ror", "rcl", "rcr", "shl", "shr", "???", "sar"},
-        [Mneumonic_grp3a] = {"test", "???", "not", "neg", "mul", "imul", "div", "idiv"},
-        [Mneumonic_grp3b] = {"test", "???", "not", "neg", "mul", "imul", "div", "idiv"},
-        [Mneumonic_grp4]  = {"inc", "dec", "???", "???", "???", "???", "???", "???"},
-        [Mneumonic_grp5]  = {"inc", "dec", "call", "call", "jmp", "jmp", "push", "???"}
-    };
-
-    if (m >= Mneumonic_grp1) {
-        return extended_name_lookup[m][reg];
-    }
-
     static const char *mnemonic_name_lookup[] = {
         [Mneumonic_mov]     = "mov",
         [Mneumonic_add]     = "add",
@@ -141,6 +128,23 @@ const char *mnemonic_name(Mneumonic m, u8 reg)
         [Mneumonic_loopnz]  = "loopnz",
         [Mneumonic_jcxz]    = "jcxz",
 
+        [Mneumonic_rol]     = "rol",
+        [Mneumonic_ror]     = "ror",
+        [Mneumonic_rcl]     = "rcl",
+        [Mneumonic_rcr]     = "rcr",
+        [Mneumonic_shl]     = "shl",
+        [Mneumonic_shr]     = "shr",
+        [Mneumonic_sar]     = "sar",
+        [Mneumonic_not]     = "not",
+        [Mneumonic_neg]     = "neg",
+        [Mneumonic_mul]     = "mul",
+        [Mneumonic_imul]    = "imul",   
+        [Mneumonic_div]     = "div",
+        [Mneumonic_idiv]    = "idiv",   
+
+        // DB (define-byte) pseudo-instruction
+        [Mneumonic_db]      = "db",
+
         // Prefixes
         [Mneumonic_repz]    = "repz",
         [Mneumonic_repnz]   = "repnz",
@@ -150,16 +154,18 @@ const char *mnemonic_name(Mneumonic m, u8 reg)
         [Mneumonic_es]      = "es", // segment register
         [Mneumonic_ss]      = "ss", // segment register
         
-        [Mneumonic_grp1]  = "grp1",
-        [Mneumonic_grp2]  = "grp2",
-        [Mneumonic_grp3a] = "grp3a",
-        [Mneumonic_grp3b] = "grp3b",
-        [Mneumonic_grp4]  = "grp4",
-        [Mneumonic_grp5]  = "grp5"
+        [Mneumonic_invalid] = "???",
+        
+        [Mneumonic_grp1]    = "grp1",
+        [Mneumonic_grp2]    = "grp2",
+        [Mneumonic_grp3a]   = "grp3a",
+        [Mneumonic_grp3b]   = "grp3b",
+        [Mneumonic_grp4]    = "grp4",
+        [Mneumonic_grp5]    = "grp5"
     };
 
     if (mnemonic_name_lookup[m] == NULL) {
-        printf("m: %d | %d \n", m, Mneumonic_grp1);
+        printf("[WARNING]: mneumonic not handled: %d\n", m);
         assert(0);
     }
 
