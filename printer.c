@@ -211,11 +211,12 @@ void print_instruction(CPU *cpu, u8 with_end_line)
                 if (&instruction->operands[0] == op && !(instruction->flags & Inst_Far)) {
                     fprintf(dest, "%s ", (instruction->flags & Inst_Wide) ? "word" : "byte");
                 }
-                
+
+                // @Todo: CleanUp                
                 if ((instruction->flags & Inst_Segment) && instruction->operands[0].is_segment_reg == 0 && instruction->operands[1].is_segment_reg == 0) {
                     if (instruction->extend_with_this_segment) {
                         // segment prefix
-                        fprintf(dest, ":");
+                        fprintf(dest, "%s:", register_name(instruction->extend_with_this_segment));
                     } else {
                         // segment at direct address
                         u16 segment = op->address.segment; 

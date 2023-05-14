@@ -1,5 +1,6 @@
 #include "decoder.h"
 #include "printer.h"
+#include "simulator.h"
 
 #define ASMD_CURR_BYTE(_d) _d->memory[_d->decoder_cursor]
 u8 ASMD_NEXT_BYTE(CPU *_d) { return _d->memory[++_d->decoder_cursor]; }
@@ -72,8 +73,6 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
     Instruction *inst = &cpu->instruction;
     
     if (arg == NULL) {
-        // @Todo: Maybe this will valid at some point, at some isntructions
-//        assert(&inst->operands[0] != op);
         return;
     }
 
@@ -238,6 +237,7 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
 
         } else if (arg[i] == 'M') {
             // The ModR/M byte may refer only to memory. Applicable, e.g., to LES and LDS.
+            
             mod_reg_rm(cpu, inst);
             decode_memory_address_displacement(cpu, op);
 
@@ -315,11 +315,34 @@ void decode_next_instruction(CPU *cpu)
         mod_reg_rm(cpu, inst);
 
         inst->mnemonic = extended_mneumonic_lookup[x.mnemonic][inst->reg];
-        // @Todo: Handle this!
+        
+        // @Todo: Handle this! // @Cleanup:
         switch (inst->mnemonic) {
-            case Mneumonic_jmp: inst->type = Instruction_Type_jump; break;
+            case Mneumonic_inc: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_dec: inst->type = Instruction_Type_arithmetic; break;
             case Mneumonic_add: inst->type = Instruction_Type_arithmetic; break;
             case Mneumonic_sub: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_mul: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_imul: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_div: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_idiv: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_or:  inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_xor: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_and: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_not: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_test: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_cmp: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_neg: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_adc: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_sbb: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_shl: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_shr: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_sar: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_rol: inst->type = Instruction_Type_arithmetic; break;
+            case Mneumonic_ror: inst->type = Instruction_Type_arithmetic; break;
+
+            case Mneumonic_jmp: inst->type = Instruction_Type_jump; break;
+
             default:
                 printf("[WARNING]: Not handled instruction (grouped) type definition.\n");
                 assert(0);

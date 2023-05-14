@@ -36,7 +36,8 @@ Register_Access *register_access_by_enum(Register reg_enum)
 
     if (reg >= 16) {
         assert(reg <= 19);
-        flags |= Inst_Segment;        
+        flags |= Inst_Segment;  
+        reg -= 16;      
     } else if (reg > 7) {
         flags |= Inst_Wide;
         reg -= 8;

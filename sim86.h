@@ -183,6 +183,8 @@ typedef struct {
 
   u16 ip;
   u8 regmem[64]; // The "accessible" register values are stored here
+
+  Register extend_with_this_segment;
   u8* memory;
 
   Instruction instruction; // current instruction
