@@ -38,8 +38,17 @@ typedef unsigned long u64;
 
 #define MAX_MEMORY (1024 * 1024)
 
-#define F_SIGNED (1 << 8)
-#define F_ZERO (1 << 7)
+// These are the real place of the 
+#define F_CARRY      (1 << 0)
+#define F_PARITY     (1 << 2)
+#define F_AUXILIARY  (1 << 4)
+#define F_ZERO       (1 << 6)
+#define F_SIGNED     (1 << 7)
+#define F_TRAP       (1 << 8)
+#define F_INTERRUPT  (1 << 9)
+#define F_DIRECTION  (1 << 10)
+#define F_OVERFLOW   (1 << 11)
+
 
 #define REG_IS_DEST 1
 #define REG_IS_SRC 0
@@ -125,34 +134,38 @@ typedef enum {
   Inst_Wide = (1 << 0),
   Inst_Segment = (1 << 1),
   Inst_Lock = (1 << 2),
-  Inst_Rep = (1 << 3),
-  Inst_Far = (1 << 4),
-  Inst_Sign = (1 << 5)
+  Inst_Repz = (1 << 3),
+  Inst_Repnz = (1 << 4),
+  Inst_Far = (1 << 5),
+  Inst_Sign = (1 << 6)
 } Instruction_Flag;
 
 typedef struct {
-  Operand_Type type;
-  u8 is_segment_reg;
-  u8 use_lower_reg; // @Cleanup: temp solution
-  
-  union {
-      u8 reg;
-      Effective_Address_Expression address;
-      s32 immediate;
-  };
+    Operand_Type type;
+    u16 flags;
+    
+    union {
+        u8 reg;
+        Effective_Address_Expression address;
+        s32 immediate;
+    };
 
 } Instruction_Operand;
 
 typedef enum Instruction_Type Instruction_Type;
 enum Instruction_Type {
-  Instruction_Type_None,
+    Instruction_Type_None,
 
-  Instruction_Type_move,
-  Instruction_Type_arithmetic,
-  Instruction_Type_jump,
-  Instruction_Type_stack,
+    Instruction_Type_move,
+    Instruction_Type_arithmetic,
+    Instruction_Type_bit,
+    Instruction_Type_string,
+    Instruction_Type_io,
+    Instruction_Type_control,
+    Instruction_Type_flow,
+    Instruction_Type_stack,
 
-  Instruction_Type_Count,
+    Instruction_Type_Count,
 };
 
 #include "i8086table.h"

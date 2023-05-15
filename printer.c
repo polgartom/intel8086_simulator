@@ -1,7 +1,7 @@
 #include "printer.h"
 
 // @Todo: Remove the reg param
-const char *mnemonic_name(Mneumonic m, u8 reg)
+const char *mnemonic_name(Mneumonic m)
 {
     static const char *mnemonic_name_lookup[] = {
         [Mneumonic_mov]     = "mov",
@@ -167,7 +167,7 @@ void print_instruction(CPU *cpu, u8 with_end_line)
     Instruction *instruction = &cpu->instruction;
 
     fprintf(dest, "%08X\t", instruction->mem_address);
-    fprintf(dest, "%s", mnemonic_name(instruction->mnemonic, instruction->reg));
+    fprintf(dest, "%s", mnemonic_name(instruction->mnemonic));
     
     if (instruction->flags & Inst_Lock) {
         fprintf(dest, "lock ");
@@ -188,21 +188,10 @@ void print_instruction(CPU *cpu, u8 with_end_line)
                 break;
             }
             case Operand_Register: {
-                Register reg; 
+                Register_Access *reg_access = register_access(op->reg, op->flags);
+                Register reg_enum = reg_access->reg; 
 
-                if (op->is_segment_reg) {
-                    Register_Access *reg_access = register_access(op->reg, Inst_Segment);
-                    reg = reg_access->reg;
-                } else {
-                    u8 is_wide = (instruction->flags & Inst_Wide) ? 1 : 0;
-                    // @Cleanup: This is a temp solution for the exceptions of SAL/SHL && SAR && SHR && ROL && ROR && RCL && RCR instructions
-                    if (op->use_lower_reg) is_wide = 0;
-                
-                    Register_Access *reg_access = register_access(op->reg, is_wide);
-                    reg = reg_access->reg; 
-                }
-
-                fprintf(dest, "%s", register_name(reg));
+                fprintf(dest, "%s", register_name(reg_enum));
 
                 break;
             }
@@ -213,7 +202,7 @@ void print_instruction(CPU *cpu, u8 with_end_line)
                 }
 
                 // @Todo: CleanUp                
-                if ((instruction->flags & Inst_Segment) && instruction->operands[0].is_segment_reg == 0 && instruction->operands[1].is_segment_reg == 0) {
+                if (instruction->flags & Inst_Segment) {
                     if (instruction->extend_with_this_segment != Register_none) {
                         // segment prefix
                         fprintf(dest, "%s:", register_name(instruction->extend_with_this_segment));
@@ -245,7 +234,7 @@ void print_instruction(CPU *cpu, u8 with_end_line)
                 break;
             }
             case Operand_Relative_Immediate: {
-                fprintf(dest, "$%+d", op->immediate);
+                fprintf(dest, "$%+d", op->immediate+instruction->size);
 
                 break;
             }

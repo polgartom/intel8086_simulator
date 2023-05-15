@@ -76,21 +76,16 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
         return;
     }
 
-    if (arg[0] == 'e' || arg[strlen(arg)-1] == 'X') {
+    if (arg[0] == 'e' || arg[STR_LEN(arg)-1] == 'X') {
         inst->flags |= Inst_Wide;
+        op->flags |= Inst_Wide;
     }
 
-    // @Cleanup!
     if (STR_EQUAL("AL", arg) || STR_EQUAL("eAX", arg)) {
         op->type = Operand_Register;
         op->reg  = 0; // encoded binary value of the reg
         return;
     } else if (STR_EQUAL("CL", arg) || STR_EQUAL("eCX", arg)) {
-        if (STR_EQUAL("CL", arg)) {
-            // @Cleanup: Temp solution 
-            // This one of the exceptions. SAL/SHL && SAR && SHR && ROL && ROR && RCL && RCR instructions are using it.
-            op->use_lower_reg = 1;
-        }
         op->type = Operand_Register;
         op->reg  = 1; 
         return;
@@ -120,22 +115,22 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
         return;
     } else if (STR_EQUAL("ES", arg)) {
         op->type = Operand_Register;
-        op->is_segment_reg = 1;
+        op->flags |= Inst_Segment;
         op->reg = 0; // @Incomplete @Cleanup: Lookup for the static const u32 segment_registers[] in printer.c
         return;
     } else if (STR_EQUAL("CS", arg)) {
         op->type = Operand_Register;
-        op->is_segment_reg = 1;
+        op->flags |= Inst_Segment;
         op->reg = 1; // @Incomplete @Cleanup: Lookup for the static const u32 segment_registers[] in printer.c
         return;
     } else if (STR_EQUAL("SS", arg)) {
         op->type = Operand_Register;
-        op->is_segment_reg = 1;
+        op->flags |= Inst_Segment;
         op->reg = 2; // @Incomplete @Cleanup: Lookup for the static const u32 segment_registers[] in printer.c
         return;
     } else if (STR_EQUAL("DS", arg)) {
         op->type = Operand_Register;
-        op->is_segment_reg = 1;
+        op->flags |= Inst_Segment;
         op->reg = 3; // @Incomplete @Cleanup: Lookup for the static const u32 segment_registers[] in printer.c
         return;
     }
@@ -159,16 +154,15 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
             // the result will be segment:offset
             
         } else if (arg[i] == 'J') {
-            // The instruction contains a relative offset to be added to the address of the 
+            // The instruction contains a relative offset to be added to the address of the
             // subsequent instruction. Applicable, e.g., to short JMP (opcode EB), or LOOP.
 
             op->type = Operand_Relative_Immediate;
             if (arg[++i] == 'v') {
-                // @Todo: Remove this 3. This is the isntruction size btw
-                op->immediate = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu))+3);
+                // @Todo: Set the op->flags |= Inst_Wide;???
+                op->immediate = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
             } else {
-                // @Todo: Remove this 2. This is the isntruction size btw
-                op->immediate = (s8)(ASMD_NEXT_BYTE(cpu)+2); 
+                op->immediate = (s8)(ASMD_NEXT_BYTE(cpu)); 
             }
         
         } else if (arg[i] == 'E') {
@@ -204,6 +198,7 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
             char next_char = arg[++i];
             if (next_char == 'v' || next_char == 'w') {
                 inst->flags |= Inst_Wide;
+                op->flags |= Inst_Wide;
                 op->immediate = (s16)BYTE_LOHI_TO_HILO(immediate, ASMD_NEXT_BYTE(cpu));
             } else if (next_char == '0') {
                 // @Todo: This is ok?
@@ -231,7 +226,7 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
             mod_reg_rm(cpu, inst);
 
             inst->flags |= Inst_Segment;
-            op->is_segment_reg = 1;
+            op->flags |= Inst_Segment;
             op->type = Operand_Register;
             op->reg  = inst->reg;
 
@@ -246,6 +241,7 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
             // from which this was derived, but here it's just a synonym for the 'w' code.)
 
             inst->flags |= Inst_Wide;  
+            op->flags |= Inst_Wide;
         
         } else if (arg[i] == 'b') {
             // Byte argument. This is the default value so we don't need to change here the flags.
@@ -309,8 +305,8 @@ void decode_next_instruction(CPU *cpu)
     i8086_Inst_Table x = i8086_inst_table[byte];
     inst->mnemonic = x.mnemonic;
     inst->type = x.type;
-    // kacsa
-    //printf("## opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", x.opcode, mnemonic_name(x.mnemonic, 0), x.arg1, x.arg2);
+
+    //printf("## opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", x.opcode, mnemonic_name(x.mnemonic), x.arg1, x.arg2);
     
     // Overwrite the arguments if the extenstion table lookup is find something
     if (x.mnemonic >= Mneumonic_grp1) {
@@ -343,7 +339,7 @@ void decode_next_instruction(CPU *cpu)
             case Mneumonic_rol: inst->type = Instruction_Type_arithmetic; break;
             case Mneumonic_ror: inst->type = Instruction_Type_arithmetic; break;
 
-            case Mneumonic_jmp: inst->type = Instruction_Type_jump; break;
+            case Mneumonic_jmp: inst->type = Instruction_Type_flow; break;
             
             case Mneumonic_call: inst->type = Instruction_Type_stack; break;
             case Mneumonic_push: inst->type = Instruction_Type_stack; break;
@@ -370,7 +366,15 @@ void decode_next_instruction(CPU *cpu)
 
     // Set prefixes
     // @Todo: Handle more prefixes
-    if (inst->mnemonic == Mneumonic_lock) {
+    if (inst->mnemonic == Mneumonic_repz) {
+        inst->is_prefix = 1;
+        inst->flags = Inst_Repz;
+    }
+    else if (inst->mnemonic == Mneumonic_repnz) {
+        inst->is_prefix = 1;
+        inst->flags = Inst_Repnz;
+    }
+    else if (inst->mnemonic == Mneumonic_lock) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Lock;
     } 
@@ -399,7 +403,7 @@ void decode_next_instruction(CPU *cpu)
         // Flip memory, register because the lock prefix must be follow a memory operand   
         if (inst->operands[0].type != Operand_Memory) {
             // DONT DELETE THIS ASSERT!
-            //assert(inst->operands[1].type == Operand_Memory);
+            assert(inst->operands[1].type == Operand_Memory);
 
             Instruction_Operand temp = inst->operands[0];
             inst->operands[0] = inst->operands[1];
@@ -409,6 +413,4 @@ void decode_next_instruction(CPU *cpu)
     
     cpu->decoder_cursor++;
     cpu->instruction.size = cpu->decoder_cursor - instruction_byte_start_offset; 
-    
-
 }
