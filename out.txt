@@ -1,0 +1,3424 @@
+
+binary: bios\bios
+
+bits 16
+
+00000000	jmp $+87
+00000002	scasw
+00000003	pop ss
+00000004	xchg di, ax
+00000005	pop ss
+00000006	mov bh, 23
+00000008	mov di, -28905
+0000000B	pop ss
+0000000C	xchg di, ax
+0000000D	pop ss
+0000000E	lahf
+0000000F	pop ss
+00000010	cmpsw
+00000011	pop ss
+00000012	mov word [bx], 6343
+00000016	mov word [bx+di], 7665
+0000001A	mov word [bp+si], 7111
+0000001E	mov word [si], 7633
+00000022	db
+00000023	sbb ax, 7649
+00000026	jmp $-14560
+00000029	sbb ax, 12344
+0000002C	cmp byte [+26996], dh
+00000030	db
+00000031	jns $+34
+00000033	inc dx
+00000034	dec cx
+00000035	dec di
+00000036	push bx
+00000037	and byte [bp+si+101], dl
+0000003A	jbe $+107
+0000003C	jnb $+107
+0000003E	db
+0000003F	db
+00000040	and byte [bx+di], dh
+00000044	xor al, ss:[bx+si]
+00000046	add dl, ch
+00000048	add byte [bx+di], al
+0000004A	add al, dh
+0000004C	xor byte [bp+di], dh
+0000004E	das
+0000004F	xor byte [bx+si], bh
+00000051	das
+00000052	xor word [si], si
+00000054	add dh, bh
+00000056	add byte [si-4096], bh
+0000005A	mov ss, sp
+0000005C	push cs
+0000005D	pop es
+0000005E	push ax
+0000005F	cld
+00000060	xor ax, ax
+00000062	mov di, 24
+00000065	stosw
+00000066	mov di, 49
+00000069	stosb
+0000006B	mov byte cs:[+5493], dl
+0000006F	push dx
+00000070	mov dx, 952
+00000073	mov al, 0
+00000075	out dx, ax
+00000076	mov dx, 948
+00000079	mov al, 1
+0000007B	out dx, ax
+0000007C	mov dx, 949
+0000007F	mov al, 45
+00000081	out dx, ax
+00000082	mov dx, 948
+00000085	mov al, 6
+00000087	out dx, ax
+00000088	mov dx, 949
+0000008B	mov al, 87
+0000008D	out dx, ax
+0000008E	pop dx
+0000008F	pop ax
+00000091	cmp byte cs:[+4211], 0
+00000096	jz $+5
+00000098	jmp $+170
+0000009C	mov byte cs:[+4211], 1
+000000A1	mov dx, cx
+000000A3	mov cx, ax
+000000A6	mov word cs:[+4193], dx
+000000AB	mov word cs:[+4195], cx
+000000AF	cmp cx, 0
+000000B2	jz $+11
+000000B5	mov word cs:[+4191], 2
+000000BB	jmp $+23
+000000BD	cmp dx, 0
+000000C0	jz $+11
+000000C3	mov word cs:[+4191], 2
+000000C9	jmp $+9
+000000CC	mov word cs:[+4191], 1
+000000D2	mov ax, cx
+000000D5	mov word cs:[+4199], 1
+000000DC	mov word cs:[+4201], 1
+000000E2	cmp dx, 0
+000000E5	ja $+13
+000000E7	cmp ax, 63
+000000EA	ja $+8
+000000ED	mov word cs:[+4197], ax
+000000F0	jmp $+18
+000000F2	mov cx, 63
+000000F5	div cx
+000000F8	mov word cs:[+4199], ax
+000000FC	mov word cs:[+4197], 63
+00000102	mov dx, 0
+00000106	mov ax, cs:[+4199]
+00000109	cmp ax, 1024
+0000010C	ja $+4
+0000010E	jmp $+18
+00000110	mov cx, 1024
+00000113	div cx
+00000116	mov word cs:[+4201], ax
+0000011A	mov word cs:[+4199], 1024
+00000121	mov ax, cs:[+4201]
+00000125	mov byte cs:[+4161], al
+00000129	mov ax, cs:[+4199]
+0000012D	mov word cs:[+4159], ax
+00000131	mov ax, cs:[+4197]
+00000135	mov byte cs:[+4173], al
+00000139	dec word cs:[+4199]
+0000013E	dec word cs:[+4201]
+00000142	mov ax, 0
+00000145	push ax
+00000146	popf
+00000147	push cs
+00000148	push cs
+00000149	pop ds
+0000014A	pop ss
+0000014B	mov sp, -4096
+0000014E	cld
+0000014F	xor ax, ax
+00000151	mov es, ax
+00000153	xor di, di
+00000155	mov cx, 512
+00000158	repz
+00000159	stosw
+0000015A	mov di, 0
+0000015D	mov si, 5848
+00000160	mov cx, [+5970]
+00000164	repz
+00000165	movsb
+00000166	mov cx, 4159
+0000016A	mov word es:[+260], cx
+0000016E	mov cx, -4096
+00000172	mov word es:[+262], cx
+00000176	mov ax, -1
+00000179	mov es, ax
+0000017B	mov di, 0
+0000017E	mov si, 327
+00000181	mov cx, 16
+00000184	repz
+00000185	movsb
+00000186	mov ax, 64
+00000189	mov es, ax
+0000018B	mov di, 0
+0000018E	mov si, 5337
+00000191	mov cx, 256
+00000194	repz
+00000195	movsb
+00000196	mov ax, -18432
+00000199	mov es, ax
+0000019B	mov di, 0
+0000019E	mov cx, 2000
+000001A1	mov ax, 1792
+000001A4	repz
+000001A5	stosw
+000001A6	mov ax, -14336
+000001A9	mov es, ax
+000001AB	mov di, 0
+000001AE	mov cx, 2000
+000001B1	mov ax, 1792
+000001B4	repz
+000001B5	stosw
+000001B6	mov dx, 97
+000001B9	mov al, 0
+000001BB	out dx, ax
+000001BC	mov dx, 96
+000001BF	out dx, ax
+000001C0	mov dx, 100
+000001C3	out dx, ax
+000001C4	mov dx, 0
+000001C7	mov al, 255
+000001C9	inc dx
+000001CA	cmp dx, 64
+000001CD	jz $-4
+000001CF	cmp dx, 66
+000001D2	jz $-9
+000001D4	cmp dx, 952
+000001D8	jz $-15
+000001DA	cmp dx, 96
+000001DD	jz $-20
+000001DF	cmp dx, 97
+000001E2	jz $-25
+000001E4	cmp dx, 100
+000001E7	jz $-30
+000001E9	out dx, ax
+000001EA	cmp dx, 4095
+000001EE	jl $-37
+000001F0	mov al, 0
+000001F2	mov dx, 986
+000001F5	out dx, ax
+000001F6	mov dx, 954
+000001F9	out dx, ax
+000001FA	mov dx, 952
+000001FD	out dx, ax
+000001FE	mov dx, 956
+00000201	out dx, ax
+00000202	mov dx, 98
+00000205	out dx, ax
+00000206	push cs
+00000207	pop es
+00000208	mov bx, 7921
+0000020B	db
+0000020C	add word [+5537], sp
+00000210	pop ds
+00000212	mov word cs:[+6028], ax
+00000215	mov ax, 0
+00000218	mov es, ax
+0000021A	mov ax, 513
+0000021D	mov dh, 0
+00000220	mov dl, cs:[+5493]
+00000224	mov cx, 1
+00000227	mov bx, 31744
+0000022A	int 19
+0000022C	jmp 0:31744
+00000231	push ds
+00000232	push es
+00000233	push ax
+00000234	push bx
+00000235	push bp
+00000236	push cs
+00000237	pop ds
+00000238	mov bx, 64
+0000023B	mov es, bx
+0000023E	mov ax, es:[+166]
+00000242	mov byte es:[+167], 0
+00000248	mov byte cs:[+6030], 0
+0000024D	test ah, 4
+00000250	jnz $+5
+00000252	jmp $+288
+00000256	mov byte es:[+23], 0
+0000025C	mov byte es:[+24], 0
+00000262	mov byte cs:[+6030], 1
+00000267	test ah, 64
+0000026A	jz $+8
+0000026D	mov byte cs:[+6030], 2
+00000272	mov bx, ax
+00000274	and bh, 7
+00000277	cmp bx, 1327
+0000027B	jz $+34
+0000027D	cmp bx, 1328
+00000281	jz $+28
+00000283	cmp bx, 1331
+00000287	jz $+37
+00000289	cmp bx, 1332
+0000028D	jz $+31
+0000028F	cmp bx, 1329
+00000293	jz $+40
+00000295	cmp bx, 1330
+00000299	jz $+34
+0000029B	jmp $+47
+0000029D	mov al, 54
+0000029F	and ah, 64
+000002A2	add al, ah
+000002A4	add al, ah
+000002A6	call $+3735
+000002A9	jmp $+653
+000002AC	mov al, 56
+000002AE	and ah, 64
+000002B1	add al, ah
+000002B3	add al, ah
+000002B5	call $+3720
+000002B8	jmp $+638
+000002BB	mov al, 29
+000002BD	and ah, 64
+000002C0	add al, ah
+000002C2	add al, ah
+000002C4	call $+3705
+000002C7	jmp $+623
+000002CA	test ah, 8
+000002CD	jz $+14
+000002D0	add byte es:[+23], 8
+000002D6	add byte es:[+24], 2
+000002DB	test ah, 32
+000002DE	jz $+8
+000002E1	add byte es:[+23], 4
+000002E6	test ah, 16
+000002E9	jz $+8
+000002EC	add byte es:[+23], 1
+000002F1	and ah, 1
+000002F4	cmp ax, 293
+000002F7	jbe $+5
+000002F9	jmp $+573
+000002FC	cmp ax, 282
+000002FF	jb $+19
+00000301	sub ax, 223
+00000304	cmp ax, 69
+00000307	jb $+5
+00000309	add ax, 18
+0000030C	mov bh, al
+0000030E	mov al, 0
+00000310	jmp $+72
+00000312	cmp ax, 278
+00000315	jb $+21
+00000317	cmp ax, 281
+0000031A	ja $+16
+0000031C	sub ax, 278
+0000031F	mov bx, 6016
+00000323	xlat
+00000324	mov bh, al
+00000326	mov al, 0
+00000328	jmp $+48
+0000032A	cmp ax, 273
+0000032D	jb $+21
+0000032F	sub ax, 273
+00000332	mov bx, 6012
+00000335	xlat
+00000336	mov bh, al
+00000338	mov al, 0
+0000033B	mov byte es:[+166], 0
+00000340	jmp $+24
+00000342	cmp ax, 256
+00000345	jb $+5
+00000347	jmp $+495
+0000034A	cmp al, 127
+0000034C	jnz $+4
+0000034E	mov al, 8
+00000350	push ax
+00000351	mov bx, 5592
+00000354	xlat
+00000355	mov bh, al
+00000357	pop ax
+00000358	add bh, 128
+0000035C	cmp byte cs:[+6030], 2
+00000361	jz $+9
+00000363	sub bh, 128
+00000367	mov byte es:[+166], al
+0000036A	mov al, bh
+0000036C	call $+3537
+0000036F	jmp $+455
+00000372	cmp al, 0
+00000374	jnz $+5
+00000376	jmp $+448
+00000379	cmp al, 127
+0000037B	jnz $+10
+0000037D	mov al, 8
+00000380	mov byte es:[+166], 8
+00000386	cmp byte es:[+160], 1
+0000038B	jnz $+5
+0000038D	jmp $+299
+00000390	cmp al, 1
+00000392	jnz $+28
+00000395	mov byte es:[+23], 8
+0000039B	mov byte es:[+24], 2
+000003A0	mov al, 56
+000003A2	call $+3483
+000003A6	mov byte es:[+163], 1
+000003AB	jmp $+395
+000003AE	cmp al, 6
+000003B0	jnz $+11
+000003B3	mov byte es:[+160], 1
+000003B8	jmp $+382
+000003BC	cmp byte es:[+165], 1
+000003C2	mov byte es:[+165], 0
+000003C7	jnz $+11
+000003CA	mov byte es:[+166], 0
+000003CF	jmp $+273
+000003D2	cmp al, 224
+000003D5	mov byte es:[+165], 1
+000003DA	jnz $+5
+000003DC	jmp $+346
+000003E0	mov byte es:[+165], 0
+000003E5	cmp al, 27
+000003E7	jnz $+30
+000003EA	cmp byte es:[+164], 1
+000003EF	jnz $+13
+000003F2	mov byte es:[+166], 27
+000003F7	mov al, 1
+000003F9	call $+3367
+000003FD	mov byte es:[+164], 1
+00000402	jmp $+308
+00000406	cmp byte es:[+164], 1
+0000040B	jnz $+38
+0000040D	cmp al, 91
+0000040F	jz $+25
+00000412	mov byte es:[+166], 27
+00000417	mov al, 1
+00000419	call $+3335
+0000041D	mov byte es:[+164], 0
+00000423	mov al, es:[+166]
+00000426	jmp $+11
+00000429	mov byte es:[+164], 2
+0000042E	jmp $+264
+00000432	cmp byte es:[+164], 2
+00000437	jnz $+29
+0000043A	mov byte es:[+23], 0
+00000440	mov byte es:[+24], 0
+00000445	sub al, 65
+00000447	mov bx, 6012
+0000044A	xlat
+0000044C	mov byte es:[+166], 0
+00000451	jmp $+143
+00000455	mov byte es:[+165], 0
+0000045A	mov bx, 5720
+0000045D	xlat
+0000045E	push ax
+00000460	mov ah, es:[+163]
+00000464	db
+00000465	in al, 3
+00000467	add al, ah
+0000046A	cmp byte es:[+166], 26
+0000046F	ja $+51
+00000472	cmp byte es:[+166], 0
+00000477	jz $+43
+0000047A	cmp byte es:[+166], 13
+0000047F	jz $+35
+00000482	cmp byte es:[+166], 10
+00000487	jz $+27
+0000048A	cmp byte es:[+166], 8
+0000048F	jz $+19
+00000492	cmp byte es:[+166], 9
+00000497	jz $+11
+00000499	add al, 4
+0000049B	push ax
+0000049C	mov al, 29
+0000049E	call $+3231
+000004A1	pop ax
+000004A3	mov byte es:[+23], al
+000004A6	db
+000004A7	in ax, dx
+000004A8	add ah, [+9864]
+000004AC	sbb byte [bx+si], al
+000004AE	pop ax
+000004AF	test al, 1
+000004B1	jz $+7
+000004B3	mov al, 54
+000004B5	call $+3208
+000004B9	mov al, es:[+166]
+000004BC	mov bx, 5592
+000004BF	xlat
+000004C1	cmp byte es:[+160], 1
+000004C6	jnz $+26
+000004C9	cmp byte es:[+166], 1
+000004CE	jz $+18
+000004D1	cmp byte es:[+166], 6
+000004D6	jz $+10
+000004D9	mov byte es:[+166], 0
+000004DE	add al, 57
+000004E1	mov byte es:[+164], 0
+000004E7	mov byte es:[+162], 0
+000004ED	cmp byte es:[+163], 1
+000004F2	jnz $+8
+000004F5	mov byte es:[+166], 0
+000004FA	call $+3110
+000004FD	cmp al, 224
+000004FF	jz $+55
+00000502	test byte es:[+23], 1
+00000507	jz $+7
+00000509	mov al, 182
+0000050B	call $+3122
+0000050F	test byte es:[+23], 4
+00000514	jz $+7
+00000516	mov al, 157
+00000518	call $+3109
+0000051C	mov al, es:[+163]
+00000520	mov byte es:[+163], 0
+00000526	mov byte es:[+160], 0
+0000052B	cmp al, 1
+0000052D	jz $+4
+0000052F	jmp $+7
+00000531	mov al, 184
+00000533	call $+3082
+00000536	pop bp
+00000537	pop bx
+00000538	pop ax
+00000539	pop es
+0000053A	pop ds
+0000053B	iret
+0000053C	push es
+0000053D	push ax
+0000053E	push bx
+0000053F	push bp
+00000540	in al, 96
+00000542	cmp al, 128
+00000544	jnb $+47
+00000546	cmp al, 54
+00000548	jz $+43
+0000054A	cmp al, 56
+0000054C	jz $+39
+0000054E	cmp al, 29
+00000550	jz $+35
+00000552	mov bx, 64
+00000555	mov es, bx
+00000557	mov bh, al
+0000055A	mov al, es:[+166]
+0000055E	mov bp, es:[+28]
+00000563	mov byte es:[bp], al
+00000567	mov byte es:[bp+1], bh
+0000056B	add word es:[+28], 2
+00000570	call $+2634
+00000573	mov al, 1
+00000575	out 100, al
+00000577	pop bp
+00000578	pop bx
+00000579	pop ax
+0000057A	pop es
+0000057B	iret
+0000057C	push ax
+0000057D	push bx
+0000057E	push dx
+0000057F	push bp
+00000580	push es
+00000581	push cx
+00000582	push di
+00000583	push ds
+00000584	push si
+00000585	call $+3033
+00000588	push cs
+00000589	pop es
+0000058A	mov bx, 7921
+0000058D	db
+0000058E	add word [+5537], bp
+00000592	pop ds
+00000594	sub ax, cs:[+6028]
+00000598	cmp ax, 0
+0000059B	jnl $+7
+0000059D	add ax, 1000
+000005A0	jmp $-8
+000005A2	mov bx, 64
+000005A5	mov es, bx
+000005A7	mov dx, 0
+000005AA	mov bx, 1193
+000005AD	mul bx
+000005B0	mov bx, es:[+168]
+000005B4	cmp bx, 0
+000005B7	jnz $+5
+000005B9	mov bx, -1
+000005BC	div bx
+000005BE	cmp ax, 0
+000005C1	jz $+108
+000005C4	add word es:[+108], ax
+000005C9	adc word es:[+110], 0
+000005CE	push ax
+000005CF	int 8
+000005D1	pop ax
+000005D2	dec ax
+000005D3	cmp ax, 0
+000005D6	jnz $-8
+000005D9	mov ax, cs:[+7957]
+000005DD	mov word cs:[+6028], ax
+000005E1	cmp byte cs:[+6030], 0
+000005E6	jnz $+71
+000005E9	cmp byte es:[+159], 0
+000005EE	jz $+17
+000005F1	mov al, es:[+159]
+000005F5	mov byte es:[+159], 0
+000005FA	add al, 128
+000005FC	call $+2881
+00000600	cmp byte es:[+164], 1
+00000605	jnz $+40
+00000608	cmp byte es:[+162], 1
+0000060D	jz $+9
+00000610	inc byte es:[+162]
+00000614	jmp $+25
+00000617	mov byte es:[+164], 0
+0000061D	mov byte es:[+162], 0
+00000623	mov byte es:[+166], 27
+00000628	mov al, 1
+0000062A	call $+2806
+0000062D	mov dx, 954
+00000630	in ax, dx
+00000631	xor al, 128
+00000633	out dx, ax
+00000634	pop si
+00000635	pop ds
+00000636	pop di
+00000637	pop cx
+00000638	pop es
+00000639	pop bp
+0000063A	pop dx
+0000063B	pop bx
+0000063C	pop ax
+0000063D	iret
+0000063E	int 28
+00000640	iret
+00000641	cmp ah, 0
+00000644	jz $+75
+00000646	cmp ah, 1
+00000649	jnz $+5
+0000064B	jmp $+235
+0000064E	cmp ah, 2
+00000651	jnz $+5
+00000653	jmp $+265
+00000656	cmp ah, 3
+00000659	jnz $+5
+0000065B	jmp $+343
+0000065E	cmp ah, 6
+00000661	jnz $+5
+00000663	jmp $+356
+00000666	cmp ah, 7
+00000669	jnz $+5
+0000066B	jmp $+638
+0000066E	cmp ah, 8
+00000671	jnz $+5
+00000673	jmp $+921
+00000676	cmp ah, 9
+00000679	jnz $+5
+0000067B	jmp $+1018
+0000067E	cmp ah, 14
+00000681	jnz $+5
+00000683	jmp $+955
+00000686	cmp ah, 15
+00000689	jnz $+5
+0000068B	jmp $+1290
+0000068E	iret
+0000068F	push dx
+00000690	push cx
+00000691	push bx
+00000692	push es
+00000693	cmp al, 4
+00000695	jz $+63
+00000697	cmp al, 5
+00000699	jz $+59
+0000069B	cmp al, 6
+0000069D	jz $+55
+0000069F	push ax
+000006A0	mov dx, 952
+000006A3	mov al, 0
+000006A5	out dx, ax
+000006A6	mov dx, 948
+000006A9	mov al, 1
+000006AB	out dx, ax
+000006AC	mov dx, 949
+000006AF	mov al, 45
+000006B1	out dx, ax
+000006B2	mov dx, 948
+000006B5	mov al, 6
+000006B7	out dx, ax
+000006B8	mov dx, 949
+000006BB	mov al, 87
+000006BD	out dx, ax
+000006BE	mov dx, 64
+000006C1	mov es, dx
+000006C4	mov byte es:[+172], 0
+000006C9	pop ax
+000006CA	cmp al, 7
+000006CC	jz $+63
+000006CE	cmp al, 2
+000006D0	jz $+59
+000006D2	jmp $+59
+000006D4	mov dx, 64
+000006D7	mov es, dx
+000006DA	mov byte es:[+73], al
+000006DE	mov byte es:[+172], 1
+000006E3	mov dx, 948
+000006E6	mov al, 1
+000006E8	out dx, ax
+000006E9	mov dx, 949
+000006EC	mov al, 40
+000006EE	out dx, ax
+000006EF	mov dx, 948
+000006F2	mov al, 6
+000006F4	out dx, ax
+000006F5	mov dx, 949
+000006F8	mov al, 100
+000006FA	out dx, ax
+000006FB	mov dx, 952
+000006FE	mov al, 138
+00000700	out dx, ax
+00000701	mov bh, 7
+00000703	call $+2387
+00000706	mov ax, 48
+00000709	jmp $+40
+0000070B	mov al, 3
+0000070D	mov bx, 64
+00000710	mov es, bx
+00000713	mov byte es:[+73], al
+00000716	mov bh, 7
+00000718	call $+2366
+0000071C	cmp byte es:[+73], 6
+00000721	jz $+6
+00000723	mov al, 48
+00000725	jmp $+4
+00000727	mov al, 63
+00000729	push ax
+0000072A	mov dx, 952
+0000072D	mov al, 0
+0000072F	out dx, ax
+00000730	pop ax
+00000731	pop es
+00000732	pop bx
+00000733	pop cx
+00000734	pop dx
+00000735	iret
+00000736	push ds
+00000737	push ax
+00000738	push cx
+00000739	mov ax, 64
+0000073C	mov ds, ax
+0000073E	mov byte [+161], 1
+00000743	and ch, 96
+00000746	cmp ch, 32
+00000749	jnz $+12
+0000074B	mov byte [+161], 0
+00000750	call $+3184
+00000753	jmp $+5
+00000755	call $+3154
+00000758	pop cx
+00000759	pop ax
+0000075A	pop ds
+0000075B	iret
+0000075C	push ds
+0000075D	push ax
+0000075E	mov ax, 64
+00000761	mov ds, ax
+00000763	mov byte [+81], dh
+00000767	mov byte [+158], dh
+0000076B	mov byte [+80], dl
+0000076F	mov byte [+157], dl
+00000773	cmp dh, 24
+00000776	jbe $+7
+00000778	call $+3144
+0000077B	jmp $+52
+0000077D	cmp dl, 79
+00000780	jbe $+7
+00000782	call $+3134
+00000785	jmp $+42
+00000787	mov al, 27
+00000789	db
+0000078A	add byte [bx+si+3931], dh
+0000078E	add byte [bx+si-272], cl
+00000792	db
+00000793	call $+2066
+00000796	mov al, 59
+00000798	db
+00000799	add byte [bx+si-304], cl
+0000079D	db
+0000079E	call $+2055
+000007A1	mov al, 72
+000007A3	db
+000007A4	add byte [bx+si-24258], al
+000007A8	add byte [bx+di], al
+000007AA	jnz $+5
+000007AC	call $+3067
+000007AF	pop ax
+000007B0	pop ds
+000007B1	iret
+000007B2	push es
+000007B3	mov cx, 64
+000007B6	mov es, cx
+000007B8	mov cx, 1543
+000007BC	mov dl, es:[+80]
+000007C1	mov dh, es:[+81]
+000007C5	pop es
+000007C6	iret
+000007C7	push bx
+000007C8	push cx
+000007C9	push bp
+000007CA	push ax
+000007CB	mov bp, bx
+000007CD	mov cl, 12
+000007CF	ror bp, cl
+000007D1	and bp, 7
+000007D5	mov bl, cs:[bp+5972]
+000007D9	add bl, 10
+000007DC	mov al, 27
+000007DE	db
+000007DF	add byte [bx+si+3931], dh
+000007E3	add byte [bx+si-5928], cl
+000007E7	mov sp, -20473
+000007EA	db
+000007EB	db
+000007EC	add byte [bx+si+93], bl
+000007EF	pop cx
+000007F0	pop bx
+000007F1	cmp al, 0
+000007F3	jnz $+21
+000007F5	cmp cx, 0
+000007F8	jnz $+16
+000007FA	cmp dl, 79
+000007FD	jb $+11
+000007FF	cmp dh, 24
+00000802	jb $+6
+00000804	call $+2130
+00000807	iret
+00000808	push ax
+00000809	push bx
+0000080A	mov bl, al
+0000080C	cmp bl, 0
+0000080F	jnz $+4
+00000811	mov bl, 25
+00000813	mov al, 27
+00000815	db
+00000816	add byte [bx+si+3931], dh
+0000081A	add byte [bx+si+253], al
+0000081E	jz $+4
+00000820	jmp $+7
+00000822	cmp dh, 24
+00000825	jz $+20
+00000827	mov al, ch
+00000829	inc al
+0000082B	call $+1914
+0000082E	mov al, 59
+00000830	db
+00000831	add byte [bx+si-272], cl
+00000835	db
+00000836	call $+1903
+00000839	mov al, 114
+0000083B	db
+0000083C	add byte [bx+si+3867], dh
+00000840	add byte [bx+si+3931], dh
+00000844	add byte [bx+si+507], al
+00000848	jnz $+6
+0000084A	mov al, 77
+0000084C	jmp $+9
+0000084E	mov al, bl
+00000850	call $+1877
+00000853	mov al, 83
+00000855	db
+00000856	add byte [bp+di+88], bl
+00000859	push ax
+0000085A	push bx
+0000085B	push dx
+0000085C	push es
+0000085D	mov ax, 64
+00000860	mov es, ax
+00000862	mov ah, 2
+00000864	mov bh, 0
+00000867	mov dh, es:[+81]
+0000086C	mov dl, es:[+80]
+00000870	int 16
+00000872	pop es
+00000873	pop dx
+00000874	pop bx
+00000875	pop ax
+00000876	push bx
+00000877	push ax
+00000878	push ds
+00000879	push es
+0000087A	push cx
+0000087B	push dx
+0000087C	push si
+0000087D	push di
+0000087F	mov byte cs:[+6022], 1
+00000884	push bx
+00000885	mov bx, -18432
+00000888	mov es, bx
+0000088A	mov ds, bx
+0000088C	pop bx
+0000088D	mov bl, al
+0000088F	cmp bl, 0
+00000892	jz $+78
+00000894	push bx
+00000895	push dx
+00000896	mov ax, 0
+00000899	mov al, ch
+0000089B	mov bx, 80
+0000089E	mul bx
+000008A0	add al, cl
+000008A2	adc ah, 0
+000008A5	mov bx, 2
+000008A8	mul bx
+000008AA	pop dx
+000008AB	pop bx
+000008AC	mov di, ax
+000008AE	mov si, ax
+000008B0	add si, 160
+000008B4	mov ax, 0
+000008B7	add al, dl
+000008B9	adc ah, 0
+000008BC	inc ax
+000008BD	sub al, cl
+000008BF	sbb ah, 0
+000008C2	cmp ch, dh
+000008C4	jnb $+13
+000008C6	push cx
+000008C7	mov cx, ax
+000008C9	cld
+000008CA	repz
+000008CB	movsw
+000008CC	pop cx
+000008CD	inc ch
+000008CF	jmp $-59
+000008D1	push cx
+000008D2	mov cx, ax
+000008D4	mov ah, bh
+000008D6	mov al, 0
+000008D8	cld
+000008D9	repz
+000008DA	stosw
+000008DB	pop cx
+000008DC	dec bl
+000008DE	jmp $-79
+000008E0	pop di
+000008E1	pop si
+000008E2	pop dx
+000008E3	pop cx
+000008E4	pop es
+000008E5	pop ds
+000008E6	pop ax
+000008E7	pop bx
+000008E8	iret
+000008E9	push bx
+000008EA	push cx
+000008EB	push bp
+000008EC	push ax
+000008ED	mov bp, bx
+000008EF	mov cl, 12
+000008F1	ror bp, cl
+000008F3	and bp, 7
+000008F7	mov bl, cs:[bp+5972]
+000008FB	add bl, 10
+000008FE	mov al, 27
+00000900	db
+00000901	add byte [bx+si+3931], dh
+00000905	add byte [bx+si-5928], cl
+00000909	call 3949:45062
+0000090E	add byte [bx+si+93], bl
+00000911	pop cx
+00000912	pop bx
+00000913	cmp al, 0
+00000915	jnz $+21
+00000917	cmp cx, 0
+0000091A	jnz $+16
+0000091C	cmp dl, 79
+0000091F	jnz $+11
+00000921	cmp dh, 24
+00000924	jl $+6
+00000926	call $+1840
+00000929	iret
+0000092A	push ax
+0000092B	push bx
+0000092C	mov bx, 0
+0000092F	mov bl, al
+00000931	cmp bl, 0
+00000934	jnz $+4
+00000936	mov bl, 25
+00000938	mov al, 27
+0000093A	db
+0000093B	add byte [bx+si+3931], dh
+0000093F	add byte [bx+si+253], al
+00000943	jz $+4
+00000945	jmp $+7
+00000947	cmp dh, 24
+0000094A	jz $+20
+0000094C	mov al, ch
+0000094E	inc al
+00000950	call $+1621
+00000953	mov al, 59
+00000955	db
+00000956	add byte [bx+si-272], cl
+0000095A	db
+0000095B	call $+1610
+0000095E	mov al, 114
+00000960	db
+00000961	add byte [bx+si+3867], dh
+00000965	add byte [bx+si+3931], dh
+00000969	add byte [bx+si+507], al
+0000096D	jnz $+6
+0000096F	mov al, 68
+00000971	jmp $+9
+00000973	mov al, bl
+00000975	call $+1584
+00000978	mov al, 84
+0000097A	db
+0000097B	add byte [bp+di+88], bl
+0000097E	push ax
+0000097F	push bx
+00000980	push dx
+00000981	push es
+00000982	mov ax, 64
+00000985	mov es, ax
+00000987	mov ah, 2
+00000989	mov bh, 0
+0000098C	mov dh, es:[+81]
+00000991	mov dl, es:[+80]
+00000995	int 16
+00000997	pop es
+00000998	pop dx
+00000999	pop bx
+0000099A	pop ax
+0000099B	push ax
+0000099C	push bx
+0000099D	push ds
+0000099E	push es
+0000099F	push cx
+000009A0	push dx
+000009A1	push si
+000009A2	push di
+000009A4	mov byte cs:[+6022], 1
+000009A9	push bx
+000009AA	mov bx, -18432
+000009AD	mov es, bx
+000009AF	mov ds, bx
+000009B1	pop bx
+000009B2	mov bl, al
+000009B4	cmp bl, 0
+000009B7	jz $+76
+000009B9	push bx
+000009BA	push dx
+000009BB	mov ax, 0
+000009BE	mov al, dh
+000009C0	mov bx, 80
+000009C3	mul bx
+000009C5	add al, cl
+000009C7	adc ah, 0
+000009CA	mov bx, 2
+000009CD	mul bx
+000009CF	pop dx
+000009D0	pop bx
+000009D1	mov di, ax
+000009D3	mov si, ax
+000009D5	sub si, 160
+000009D9	mov ax, 0
+000009DC	add al, dl
+000009DE	adc ah, 0
+000009E1	inc ax
+000009E2	sub al, cl
+000009E4	sbb ah, 0
+000009E7	cmp ch, dh
+000009E9	jnb $+12
+000009EB	push cx
+000009EC	mov cx, ax
+000009EE	repz
+000009EF	movsw
+000009F0	pop cx
+000009F1	dec dh
+000009F3	jmp $-58
+000009F5	push cx
+000009F6	mov cx, ax
+000009F8	mov ah, bh
+000009FA	mov al, 0
+000009FC	repz
+000009FD	stosw
+000009FE	pop cx
+000009FF	dec bl
+00000A01	jmp $-77
+00000A03	pop di
+00000A04	pop si
+00000A05	pop dx
+00000A06	pop cx
+00000A07	pop es
+00000A08	pop ds
+00000A09	pop bx
+00000A0A	pop ax
+00000A0B	iret
+00000A0C	push ds
+00000A0D	push es
+00000A0E	push bx
+00000A0F	push dx
+00000A10	mov bx, 64
+00000A13	mov es, bx
+00000A15	mov bx, -16384
+00000A18	mov ds, bx
+00000A1A	mov bx, 160
+00000A1D	mov ax, 0
+00000A21	mov al, es:[+81]
+00000A24	mul bx
+00000A26	mov bx, 0
+00000A2A	mov bl, es:[+80]
+00000A2E	add ax, bx
+00000A30	add ax, bx
+00000A32	mov bx, ax
+00000A34	mov ah, 7
+00000A36	mov al, [bx]
+00000A38	pop dx
+00000A39	pop bx
+00000A3A	pop es
+00000A3B	pop ds
+00000A3C	iret
+00000A3D	iret
+00000A3E	push ds
+00000A3F	push es
+00000A40	push cx
+00000A41	push dx
+00000A42	push ax
+00000A43	push bp
+00000A44	push bx
+00000A45	push ax
+00000A46	mov cl, al
+00000A48	mov ch, 7
+00000A4A	mov bx, 64
+00000A4D	mov es, bx
+00000A4F	mov bx, -16384
+00000A52	mov ds, bx
+00000A54	mov bx, 160
+00000A57	mov ax, 0
+00000A5B	mov al, es:[+81]
+00000A5E	mul bx
+00000A60	mov bx, 0
+00000A64	mov bl, es:[+80]
+00000A68	shl bx, 1
+00000A6A	add bx, ax
+00000A6C	mov word [bx], cx
+00000A6E	pop ax
+00000A6F	push ax
+00000A70	db
+00000A71	add cl, ch
+00000A73	lahf
+00000A74	add byte [+20742], bl
+00000A78	push dx
+00000A79	push ax
+00000A7A	push bp
+00000A7B	push bx
+00000A7C	push ax
+00000A7D	push cx
+00000A7E	mov cl, al
+00000A80	mov ch, bl
+00000A82	mov bx, 64
+00000A85	mov es, bx
+00000A87	mov bx, -16384
+00000A8A	mov ds, bx
+00000A8C	mov bx, 160
+00000A8F	mov ax, 0
+00000A93	mov al, es:[+81]
+00000A96	mul bx
+00000A98	mov bx, 0
+00000A9C	mov bl, es:[+80]
+00000AA0	shl bx, 1
+00000AA2	add bx, ax
+00000AA4	mov word [bx], cx
+00000AA6	mov bl, ch
+00000AA8	mov bh, bl
+00000AAA	and bl, 7
+00000AAD	mov bp, bx
+00000AAF	and bp, 255
+00000AB4	mov bl, cs:[bp+5972]
+00000AB8	and bh, 8
+00000ABB	db
+00000ABC	out dx, ax
+00000ABD	add si, [bx+si+3867]
+00000AC1	add byte [bx+si+3931], dh
+00000AC5	add byte [bx+si-5896], cl
+00000AC9	db
+00000ACA	add al, 176
+00000ACC	cmp cx, [bx]
+00000ACE	add byte [bx+si-5928], cl
+00000AD2	rol word [si], 1
+00000AD4	mov bl, ch
+00000AD6	mov bh, bl
+00000AD8	db
+00000AD9	jmp $+6
+00000ADB	and bl, 7
+00000ADE	mov bp, bx
+00000AE0	and bp, 255
+00000AE5	mov bl, cs:[bp+5972]
+00000AE9	add bl, 10
+00000AEC	mov al, 59
+00000AEE	db
+00000AEF	add byte [bx+si-5928], cl
+00000AF3	mov al, 4
+00000AF5	mov al, 109
+00000AF7	db
+00000AF8	add byte [bx+di+88], bl
+00000AFB	push ax
+00000AFC	db
+00000AFD	add byte [bx+di-125], cl
+00000B00	stc
+00000B01	add byte [di-8], dh
+00000B04	mov al, 27
+00000B06	db
+00000B07	add byte [bx+si+3931], dh
+00000B0B	add byte [bx+si+3888], dh
+00000B0F	add byte [bx+si+3949], dh
+00000B13	add byte [bx+si+6], bl
+00000B16	pop ds
+00000B17	cmp al, 8
+00000B19	jnz $+29
+00000B1B	dec byte [+80]
+00000B1F	dec byte [+157]
+00000B23	cmp byte [+80], 0
+00000B28	jg $+101
+00000B2A	mov byte [+80], 0
+00000B2F	mov byte [+157], 0
+00000B34	jmp $+89
+00000B36	cmp al, 10
+00000B38	jz $+35
+00000B3A	cmp al, 13
+00000B3C	jnz $+14
+00000B3E	mov byte [+80], 0
+00000B43	mov byte [+157], 0
+00000B48	jmp $+69
+00000B4A	inc byte [+80]
+00000B4E	inc byte [+157]
+00000B52	cmp byte [+80], 80
+00000B57	jnl $+4
+00000B59	jmp $+52
+00000B5B	mov byte [+80], 0
+00000B60	mov byte [+157], 0
+00000B65	inc byte [+81]
+00000B69	inc byte [+158]
+00000B6D	cmp byte [+81], 25
+00000B72	jb $+27
+00000B74	mov byte [+81], 24
+00000B79	mov byte [+158], 24
+00000B7E	mov bh, 7
+00000B80	mov al, 1
+00000B82	mov cx, 0
+00000B85	mov dx, 6223
+00000B88	pushf
+00000B89	push cs
+00000B8A	call $-788
+00000B8D	pop bx
+00000B8E	pop bp
+00000B8F	pop ax
+00000B90	pop dx
+00000B91	pop cx
+00000B92	pop es
+00000B93	pop ds
+00000B94	iret
+00000B95	push es
+00000B96	mov ax, 64
+00000B99	mov es, ax
+00000B9B	mov ah, 80
+00000B9E	mov al, es:[+73]
+00000BA1	mov bh, 0
+00000BA3	pop es
+00000BA4	iret
+00000BA6	mov ax, cs:[+5353]
+00000BA9	iret
+00000BAA	mov ax, 640
+00000BAD	iret
+00000BAE	cmp ah, 0
+00000BB1	jz $+100
+00000BB3	cmp ah, 1
+00000BB6	jz $+98
+00000BB8	cmp dl, 128
+00000BBB	jnz $+15
+00000BBE	cmp word cs:[+4191], 2
+00000BC3	jnl $+7
+00000BC5	mov ah, 15
+00000BC7	jmp $+1409
+00000BCA	cmp ah, 2
+00000BCD	jz $+86
+00000BCF	cmp ah, 3
+00000BD2	jnz $+5
+00000BD4	jmp $+184
+00000BD7	cmp ah, 4
+00000BDA	jnz $+5
+00000BDC	jmp $+275
+00000BDF	cmp ah, 5
+00000BE2	jnz $+5
+00000BE4	jmp $+386
+00000BE7	cmp ah, 8
+00000BEA	jnz $+5
+00000BEC	jmp $+264
+00000BEF	cmp ah, 12
+00000BF2	jnz $+5
+00000BF4	jmp $+344
+00000BF7	cmp ah, 16
+00000BFA	jnz $+5
+00000BFC	jmp $+341
+00000BFF	cmp ah, 21
+00000C02	jnz $+5
+00000C04	jmp $+359
+00000C07	cmp ah, 22
+00000C0A	jnz $+5
+00000C0C	jmp $+391
+00000C0F	mov ah, 1
+00000C11	jmp $+1335
+00000C14	iret
+00000C15	jmp $+1340
+00000C19	mov ah, cs:[+5402]
+00000C1D	jz $+4
+00000C1F	stc
+00000C20	iret
+00000C21	clc
+00000C22	iret
+00000C23	push dx
+00000C24	cmp dl, 0
+00000C27	jz $+13
+00000C29	cmp dl, 128
+00000C2C	jz $+23
+00000C2E	pop dx
+00000C2F	mov ah, 1
+00000C31	jmp $+1303
+00000C34	push si
+00000C35	push bp
+00000C37	cmp cl, cs:[+4152]
+00000C3B	ja $+67
+00000C3D	pop bp
+00000C3E	pop si
+00000C3F	mov dl, 1
+00000C41	jmp $+4
+00000C43	mov dl, 0
+00000C45	push si
+00000C46	push bp
+00000C47	call $+930
+00000C4A	mov ah, 0
+00000C4C	db
+00000C4D	loopnz $+11
+00000C4F	db
+00000C50	add al, cl
+00000C52	call $-19444
+00000C55	add bh, [si]
+00000C57	add byte [si+36], dh
+00000C5A	cmp dx, 1
+00000C5D	jnz $+28
+00000C5F	cmp cx, 1
+00000C62	jnz $+23
+00000C64	push ax
+00000C66	mov al, es:[bx+24]
+00000C69	cmp al, 9
+00000C6B	jz $+9
+00000C6D	cmp al, 18
+00000C6F	jz $+5
+00000C71	pop ax
+00000C72	jmp $+7
+00000C75	mov byte cs:[+4152], al
+00000C78	pop ax
+00000C79	clc
+00000C7A	mov ah, 0
+00000C7C	jmp $+5
+00000C7E	stc
+00000C7F	mov ah, 4
+00000C81	pop bp
+00000C82	pop si
+00000C83	pop dx
+00000C85	mov byte cs:[+5402], ah
+00000C89	jmp $+1233
+00000C8C	push dx
+00000C8D	cmp dl, 0
+00000C90	jz $+13
+00000C92	cmp dl, 128
+00000C95	jz $+12
+00000C97	pop dx
+00000C98	mov ah, 1
+00000C9A	jmp $+1198
+00000C9D	mov dl, 1
+00000C9F	jmp $+4
+00000CA1	mov dl, 0
+00000CA3	push si
+00000CA4	push bp
+00000CA5	push cx
+00000CA6	push di
+00000CA7	call $+834
+00000CAA	cmp dl, 0
+00000CAD	jnz $+29
+00000CAF	mov cx, bp
+00000CB1	mov di, si
+00000CB3	mov ah, 0
+00000CB5	add cx, ax
+00000CB7	adc di, 0
+00000CBB	cmp di, cs:[+4193]
+00000CBF	ja $+32
+00000CC1	jb $+9
+00000CC4	cmp cx, cs:[+4195]
+00000CC8	ja $+23
+00000CCA	mov ah, 0
+00000CCC	db
+00000CCD	loopnz $+11
+00000CCF	db
+00000CD0	add ax, cx
+00000CD2	call $-19444
+00000CD5	add di, [si]
+00000CD7	add byte [si+5], dh
+00000CDA	clc
+00000CDB	mov ah, 0
+00000CDD	jmp $+5
+00000CDF	stc
+00000CE0	mov ah, 4
+00000CE2	pop di
+00000CE3	pop cx
+00000CE4	pop bp
+00000CE5	pop si
+00000CE6	pop dx
+00000CE8	mov byte cs:[+5402], ah
+00000CEC	jmp $+1134
+00000CEF	mov ah, 0
+00000CF1	jmp $+1120
+00000CF4	cmp dl, 0
+00000CF7	jz $+17
+00000CF9	cmp dl, 128
+00000CFC	jz $+42
+00000CFE	mov ah, 1
+00000D01	mov byte cs:[+5402], ah
+00000D05	jmp $+1091
+00000D08	push cs
+00000D09	pop es
+00000D0A	mov di, 4148
+00000D0D	mov ax, 0
+00000D10	mov bx, 4
+00000D13	mov ch, 79
+00000D16	mov cl, cs:[+4152]
+00000D1A	mov dx, 257
+00000D1E	mov byte cs:[+5402], 0
+00000D23	jmp $+1070
+00000D26	mov ax, 0
+00000D29	mov bx, 0
+00000D2C	mov dl, 1
+00000D2F	mov dh, cs:[+4201]
+00000D34	mov cx, cs:[+4199]
+00000D38	ror ch, 1
+00000D3A	ror ch, 1
+00000D3D	add ch, cs:[+4197]
+00000D41	xchg ch, cl
+00000D44	mov byte cs:[+5402], 0
+00000D49	jmp $+1032
+00000D4C	mov ah, 0
+00000D4E	jmp $+1027
+00000D52	cmp byte cs:[+4191], 2
+00000D57	jnz $+12
+00000D59	cmp dl, 128
+00000D5C	jnz $+7
+00000D5E	mov ah, 0
+00000D60	jmp $+1009
+00000D63	jmp $+997
+00000D66	mov ah, 0
+00000D68	jmp $+1001
+00000D6B	cmp dl, 0
+00000D6E	jz $+17
+00000D70	cmp dl, 128
+00000D73	jz $+17
+00000D75	mov ah, 15
+00000D78	mov byte cs:[+5402], ah
+00000D7C	jmp $+972
+00000D7F	mov ah, 1
+00000D81	jmp $+976
+00000D84	mov ah, 3
+00000D87	mov cx, cs:[+4193]
+00000D8C	mov dx, cs:[+4195]
+00000D90	jmp $+961
+00000D93	mov ah, 0
+00000D95	jmp $+956
+00000D98	cmp ah, 0
+00000D9B	jz $+5
+00000D9D	jmp $+939
+00000DA0	mov ax, 0
+00000DA3	jmp $+933
+00000DA6	mov ah, 134
+00000DA8	jmp $+928
+00000DAB	cmp ah, 0
+00000DAE	jz $+18
+00000DB0	cmp ah, 1
+00000DB3	jz $+59
+00000DB5	cmp ah, 2
+00000DB8	jz $+90
+00000DBA	cmp ah, 18
+00000DBD	jz $+99
+00000DBF	iret
+00000DC0	push es
+00000DC1	push bx
+00000DC2	push cx
+00000DC3	push dx
+00000DC4	mov bx, 64
+00000DC7	mov es, bx
+00000DC9	cli
+00000DCB	mov cx, es:[+28]
+00000DD0	mov bx, es:[+26]
+00000DD5	mov dx, es:[bx]
+00000DD7	sti
+00000DD8	cmp cx, bx
+00000DDA	jz $-17
+00000DDD	add word es:[+26], 2
+00000DE2	call $+472
+00000DE5	mov ah, dh
+00000DE7	mov al, dl
+00000DE9	pop dx
+00000DEA	pop cx
+00000DEB	pop bx
+00000DEC	pop es
+00000DED	iret
+00000DEE	push es
+00000DEF	push bx
+00000DF0	push cx
+00000DF1	push dx
+00000DF2	mov bx, 64
+00000DF5	mov es, bx
+00000DF8	mov cx, es:[+28]
+00000DFD	mov bx, es:[+26]
+00000E02	mov dx, es:[bx]
+00000E04	sti
+00000E05	cmp cx, bx
+00000E07	mov ah, dh
+00000E09	mov al, dl
+00000E0B	pop dx
+00000E0C	pop cx
+00000E0D	pop bx
+00000E0E	pop es
+00000E0F	retf 2
+00000E12	push es
+00000E13	push bx
+00000E14	mov bx, 64
+00000E17	mov es, bx
+00000E1A	mov al, es:[+23]
+00000E1D	pop bx
+00000E1E	pop es
+00000E1F	iret
+00000E20	push es
+00000E21	push bx
+00000E22	mov bx, 64
+00000E25	mov es, bx
+00000E28	mov al, es:[+23]
+00000E2B	mov ah, al
+00000E2D	pop bx
+00000E2E	pop es
+00000E2F	iret
+00000E30	cmp ah, 1
+00000E33	jz $+5
+00000E35	jmp $+787
+00000E38	mov ah, 1
+00000E3A	jmp $+782
+00000E3D	jmp $-3323
+00000E40	cmp ah, 0
+00000E43	jz $+24
+00000E45	cmp ah, 2
+00000E48	jz $+114
+00000E4A	cmp ah, 4
+00000E4D	jnz $+5
+00000E4F	jmp $+167
+00000E52	cmp ah, 15
+00000E55	jnz $+5
+00000E57	jmp $+217
+00000E5A	iret
+00000E5B	push ax
+00000E5C	push bx
+00000E5D	push ds
+00000E5E	push es
+00000E5F	push cs
+00000E60	push cs
+00000E61	pop ds
+00000E62	pop es
+00000E63	mov bx, 7921
+00000E66	db
+00000E67	add word [bx+si+182], di
+00000E6B	mul word [+7957]
+00000E6F	mov bx, 10000
+00000E72	div bx
+00000E74	mov word [+7957], ax
+00000E77	mov ax, 182
+00000E7A	mul word [+7921]
+00000E7E	mov bx, 10
+00000E81	mov dx, 0
+00000E84	div bx
+00000E86	mov word [+7921], ax
+00000E89	mov ax, 1092
+00000E8C	mul word [+7925]
+00000E90	mov word [+7925], ax
+00000E93	mov ax, -16
+00000E96	mul word [+7929]
+00000E9A	add ax, [+7957]
+00000E9E	adc dx, 0
+00000EA1	add ax, [+7921]
+00000EA5	adc dx, 0
+00000EA8	add ax, [+7925]
+00000EAC	adc dx, 0
+00000EAF	push dx
+00000EB0	push ax
+00000EB1	pop dx
+00000EB2	pop cx
+00000EB3	pop es
+00000EB4	pop ds
+00000EB5	pop bx
+00000EB6	pop ax
+00000EB7	mov al, 0
+00000EB9	iret
+00000EBA	push ds
+00000EBB	push es
+00000EBC	push ax
+00000EBD	push bx
+00000EBE	push cs
+00000EBF	push cs
+00000EC0	pop ds
+00000EC1	pop es
+00000EC2	mov bx, 7921
+00000EC5	db
+00000EC6	add word [bx+si], di
+00000ECA	mov cx, [+7929]
+00000ECE	call $+168
+00000ED1	mov bh, al
+00000ED3	mov ax, 0
+00000ED6	mov cx, [+7925]
+00000EDA	call $+156
+00000EDD	mov bl, al
+00000EDF	mov ax, 0
+00000EE2	mov cx, [+7921]
+00000EE6	call $+144
+00000EE9	mov dh, al
+00000EEB	mov dl, 0
+00000EED	mov cx, bx
+00000EEF	pop bx
+00000EF0	pop ax
+00000EF1	pop es
+00000EF2	pop ds
+00000EF3	jmp $+606
+00000EF6	push ds
+00000EF7	push es
+00000EF8	push bx
+00000EF9	push ax
+00000EFA	push cs
+00000EFB	push cs
+00000EFC	pop ds
+00000EFD	pop es
+00000EFE	mov bx, 7921
+00000F01	db
+00000F02	add word [bx+si+6400], di
+00000F06	mov cx, [+7941]
+00000F0A	call $+108
+00000F0D	mov cx, ax
+00000F0F	push cx
+00000F10	mov ax, 1
+00000F13	mov cx, [+7937]
+00000F17	call $+95
+00000F1A	mov dh, al
+00000F1C	mov ax, 0
+00000F1F	mov cx, [+7933]
+00000F23	call $+83
+00000F26	mov dl, al
+00000F28	pop cx
+00000F29	pop ax
+00000F2A	pop bx
+00000F2B	pop es
+00000F2C	pop ds
+00000F2D	jmp $+548
+00000F30	jmp $+545
+00000F33	iret
+00000F34	db
+00000F35	add ah, [di]
+00000F37	add dl, [bp+si]
+00000F39	sbb di, di
+00000F3B	push sp
+00000F3C	??? byte [bx]
+00000F3E	or byte [bx+si], al
+00000F40	add byte [bx+si], al
+00000F42	add byte [bx+si], al
+00000F44	add byte [bx+si], al
+00000F46	add al, al
+00000F48	add byte [bx+si], al
+00000F4A	add byte [bx+si], al
+00000F4C	add byte [bx+si], al
+00000F4E	add byte [bx+si], dl
+00000F50	add dh, bh
+00000F52	inc cx
+00000F53	inc bx
+00000F54	and byte [bx+si], al
+00000F56	add byte [bx+si], al
+00000F58	add byte [bx+si], al
+00000F5A	add byte [bx+si], al
+00000F5C	add byte [bx+si], al
+00000F5E	add byte [bx+si], al
+00000F60	add byte [bx+si], al
+00000F62	add byte [bx+si], al
+00000F64	add byte [bx+si], al
+00000F66	add byte [bx+si], al
+00000F68	add byte [bx+si], al
+00000F6A	add byte [bx+si], al
+00000F6C	add byte [bx+si], al
+00000F6E	add byte [bx+si], al
+00000F70	add byte [bx+si], al
+00000F72	add byte [bx+si], al
+00000F74	add bh, cl
+00000F76	push bx
+00000F77	jcxz $+44
+00000F79	inc ax
+00000F7A	mov bh, al
+00000F7C	and bh, 15
+00000F7F	cmp bh, 10
+00000F82	jnz $+5
+00000F84	add ax, 6
+00000F87	mov bh, al
+00000F89	and bh, 240
+00000F8C	cmp bh, 160
+00000F8F	jnz $+5
+00000F91	add ax, 96
+00000F94	mov bh, ah
+00000F96	and bh, 15
+00000F99	cmp bh, 10
+00000F9C	jnz $+5
+00000F9E	add ax, 1536
+00000FA1	loop $-40
+00000FA3	pop bx
+00000FA4	ret
+00000FA5	push ax
+00000FA6	aam 5
+00000FA9	xor byte [bx+si], dh
+00000FAB	cmp ah, 48
+00000FAE	jz $+8
+00000FB0	xchg ah, al
+00000FB2	db
+00000FB3	add byte [bp+4064], al
+00000FB7	add byte [bx+si-61], bl
+00000FBA	push ax
+00000FBB	push bx
+00000FBD	mov ax, es:[+130]
+00000FC1	cmp word es:[+26], ax
+00000FC5	jl $+12
+00000FC8	mov bx, es:[+128]
+00000FCD	mov word es:[+26], bx
+00000FD2	mov ax, es:[+130]
+00000FD6	cmp word es:[+28], ax
+00000FDA	jl $+12
+00000FDD	mov bx, es:[+128]
+00000FE2	mov word es:[+28], bx
+00000FE6	pop bx
+00000FE7	pop ax
+00000FE8	ret
+00000FE9	push ax
+00000FEA	push bx
+00000FEB	push cx
+00000FEC	push dx
+00000FEE	mov byte cs:[+4209], dl
+00000FF2	push cx
+00000FF3	mov bh, cl
+00000FF5	mov cl, 6
+00000FF7	shr bh, cl
+00000FF9	mov bl, ch
+00000FFC	cmp byte cs:[+4209], 1
+00001001	push dx
+00001002	mov dx, 0
+00001005	xchg bx, ax
+00001006	jnz $+18
+00001008	shl ax, 1
+0000100A	push ax
+0000100B	xor ax, ax
+0000100E	mov al, cs:[+4152]
+00001012	mov word cs:[+4205], ax
+00001015	pop ax
+00001016	jmp $+28
+00001019	mov bp, cs:[+4201]
+0000101D	inc bp
+0000101F	mov word cs:[+4207], bp
+00001024	mul word cs:[+4207]
+00001029	mov bp, cs:[+4197]
+0000102E	mov word cs:[+4205], bp
+00001032	xchg bx, ax
+00001033	pop dx
+00001034	xchg dh, dl
+00001036	mov dh, 0
+00001038	add bx, dx
+0000103B	mov ax, cs:[+4205]
+0000103E	mul bx
+00001040	pop cx
+00001041	mov ch, 0
+00001043	and cl, 63
+00001046	dec cl
+00001048	add ax, cx
+0000104A	adc dx, 0
+0000104D	mov bp, ax
+0000104F	mov si, dx
+00001051	pop dx
+00001052	pop cx
+00001053	pop bx
+00001054	pop ax
+00001055	ret
+00001056	push ax
+00001057	mov al, 27
+00001059	db
+0000105A	add byte [bx+si+3931], dh
+0000105E	add byte [bx+si+3954], dh
+00001062	add byte [bx+si+3867], dh
+00001066	add byte [bx+si+3931], dh
+0000106A	add byte [bx+si+3888], dh
+0000106E	add byte [bx+si+3949], dh
+00001072	add byte [bp+di+81], dl
+00001075	push bp
+00001076	push ax
+00001077	push es
+00001078	mov bp, bx
+0000107A	mov cl, 12
+0000107C	ror bp, cl
+0000107E	and bp, 7
+00001082	mov bl, cs:[bp+5972]
+00001086	add bl, 10
+00001089	mov al, 27
+0000108B	db
+0000108C	add byte [bx+si+3931], dh
+00001090	add byte [bx+si-5928], cl
+00001094	db
+00001095	push word [bx+si+3949]
+00001099	add byte [bx+si+64], bh
+0000109D	mov es, ax
+000010A0	mov byte es:[+80], 0
+000010A6	mov byte es:[+157], 0
+000010AC	mov byte es:[+81], 0
+000010B2	mov byte es:[+158], 0
+000010B7	pop es
+000010B8	pop ax
+000010B9	pop bp
+000010BA	pop cx
+000010BB	pop bx
+000010BC	mov al, 27
+000010BE	db
+000010BF	add byte [bx+si+3931], dh
+000010C3	add byte [bx+si+3890], dh
+000010C7	add byte [bx+si+3914], dh
+000010CB	add byte [bx+si+3867], dh
+000010CF	add byte [bx+si+3931], dh
+000010D3	add byte [bx+si+3889], dh
+000010D7	add byte [bx+si+3899], dh
+000010DB	add byte [bx+si+3889], dh
+000010DF	add byte [bx+si+3912], dh
+000010E3	add byte [+20823], al
+000010E7	cld
+000010E8	mov ax, -18432
+000010EB	mov es, ax
+000010ED	mov di, 0
+000010F0	mov al, 0
+000010F2	mov ah, bh
+000010F4	mov cx, 2000
+000010F7	repz
+000010F8	stosw
+000010F9	cld
+000010FA	mov di, -14336
+000010FD	mov es, di
+000010FF	mov di, 0
+00001102	mov cx, 2000
+00001105	repz
+00001106	stosw
+00001107	cld
+00001108	mov di, -16384
+0000110B	mov es, di
+0000110D	mov di, 0
+00001110	mov cx, 2000
+00001113	repz
+00001114	stosw
+00001115	pop cx
+00001116	pop di
+00001117	pop es
+00001118	pop ax
+0000111A	mov byte cs:[+6022], 1
+0000111F	ret
+00001120	push ax
+00001122	cmp byte es:[+159], 0
+00001127	jz $+13
+0000112A	mov al, es:[+159]
+0000112D	add al, 128
+0000112F	call $+14
+00001132	pop ax
+00001133	push ax
+00001135	mov byte es:[+159], al
+00001138	call $+5
+0000113B	pop ax
+0000113C	ret
+0000113D	push ax
+0000113E	mov al, 1
+00001140	out 100, al
+00001142	pop ax
+00001143	out 96, al
+00001145	int 9
+00001147	ret
+00001148	xchg bp, sp
+0000114A	or word [bp+4], 1
+0000114E	xchg bp, sp
+00001150	iret
+00001151	xchg bp, sp
+00001153	and word [bp+4], 254
+00001157	xchg bp, sp
+00001159	iret
+0000115A	jb $-18
+0000115C	jmp $-11
+0000115F	cmp byte cs:[+6021], 1
+00001164	jz $+29
+00001167	inc byte cs:[+6020]
+0000116C	cmp byte cs:[+6020], 8
+00001171	jnz $+16
+00001174	mov byte cs:[+6020], 0
+00001179	mov dx, 952
+0000117C	in ax, dx
+0000117D	test al, 2
+0000117F	jz $+3
+00001181	ret
+00001183	mov byte cs:[+6021], 1
+00001188	sti
+00001189	mov bx, 64
+0000118C	mov ds, bx
+0000118E	mov di, [+173]
+00001192	shl di, 1
+00001194	push di
+00001195	mov bx, -18432
+00001198	mov es, bx
+0000119A	mov cx, 2000
+0000119D	mov ax, 1792
+000011A0	cld
+000011A1	repz
+000011A2	scasw
+000011A3	pop di
+000011A4	jnz $+5
+000011A6	jmp $+500
+000011AA	cmp byte cs:[+6022], 1
+000011AF	jz $+54
+000011B1	mov bx, -14336
+000011B4	mov ds, bx
+000011B6	mov si, 0
+000011B9	mov cx, 2000
+000011BC	cld
+000011BD	repz
+000011BE	cmpsw
+000011BF	jnz $+38
+000011C1	mov bx, 64
+000011C4	mov ds, bx
+000011C6	mov bh, [+158]
+000011CA	mov bl, [+157]
+000011CF	cmp bh, cs:[+6027]
+000011D3	jz $+5
+000011D5	jmp $+375
+000011D9	cmp bl, cs:[+6026]
+000011DD	jz $+5
+000011DF	jmp $+365
+000011E2	jmp $+440
+000011E5	mov bx, 64
+000011E8	mov es, bx
+000011EA	push cs
+000011EB	pop ds
+000011EC	mov byte [+6024], 255
+000011F1	mov byte [+6025], 255
+000011F7	cmp byte es:[+161], 0
+000011FC	jz $+5
+000011FE	call $+450
+00001201	mov byte [+6023], 255
+00001206	mov bx, 64
+00001209	mov es, bx
+0000120C	mov di, es:[+173]
+00001210	shl di, 1
+00001212	sub di, 2
+00001215	mov bx, -18432
+00001218	mov es, bx
+0000121A	mov bp, -1
+0000121D	mov si, 79
+00001220	add di, 2
+00001223	inc si
+00001224	cmp si, 80
+00001227	jnz $+115
+00001229	mov si, 0
+0000122C	inc bp
+0000122D	cmp bp, 25
+00001230	jnz $+5
+00001232	jmp $+266
+00001236	cmp byte cs:[+6022], 1
+0000123B	jz $+95
+0000123D	push si
+0000123E	push di
+0000123F	mov bx, -18432
+00001242	mov ds, bx
+00001244	mov bx, -14336
+00001247	mov es, bx
+00001249	mov si, di
+0000124B	push es
+0000124C	mov bx, 64
+0000124F	mov es, bx
+00001252	sub di, es:[+173]
+00001257	sub di, es:[+173]
+0000125B	pop es
+0000125C	mov cx, 80
+0000125F	cld
+00001260	repz
+00001261	cmpsw
+00001262	pop di
+00001263	pop si
+00001264	jz $+48
+00001266	push cx
+00001267	push si
+00001268	push di
+00001269	push es
+0000126A	mov bx, 64
+0000126D	mov es, bx
+0000126F	mov si, di
+00001272	sub di, es:[+173]
+00001277	sub di, es:[+173]
+0000127B	pop es
+0000127C	mov cx, 80
+0000127F	cld
+00001280	repz
+00001281	movsw
+00001282	pop di
+00001283	pop si
+00001284	pop cx
+00001285	mov bx, 79
+00001288	sub bx, cx
+0000128A	add di, bx
+0000128C	add di, bx
+0000128E	add si, bx
+00001290	push ds
+00001291	pop es
+00001292	jmp $+8
+00001294	add di, 160
+00001298	jmp $-111
+0000129A	push cs
+0000129B	pop ds
+0000129D	cmp byte es:[di], 0
+000012A0	jnz $+5
+000012A2	jmp $-130
+000012A5	mov ax, bp
+000012A7	mov bx, si
+000012A9	mov dh, al
+000012AB	mov dl, bl
+000012AD	cmp dh, [+6025]
+000012B1	jnz $+12
+000012B3	push dx
+000012B4	dec dl
+000012B6	cmp dl, [+6024]
+000012BA	pop dx
+000012BB	jz $+36
+000012BD	mov al, 27
+000012BF	db
+000012C0	add byte [bx+si+3931], dh
+000012C4	add byte [bx+si-272], cl
+000012C8	db
+000012C9	call $-804
+000012CC	mov al, 59
+000012CE	db
+000012CF	add byte [bx+si-304], cl
+000012D3	db
+000012D4	call $-815
+000012D7	mov al, 72
+000012D9	db
+000012DA	add byte [bx+si-30410], cl
+000012DE	pop ss
+000012DF	mov byte [+6024], dl
+000012E4	mov dl, es:[di+1]
+000012E7	cmp dl, [+6023]
+000012EB	jz $+64
+000012ED	mov byte [+6023], dl
+000012F1	mov al, 27
+000012F3	db
+000012F4	add byte [bx+si+3931], dh
+000012F8	add byte [bx+si+9424], cl
+000012FC	or al, al
+000012FE	call $-6138
+00001301	mov byte [+45308], al
+00001304	cmp cx, [bx]
+00001306	add byte [bp+si-128], dl
+00001309	loop $+9
+0000130B	mov bx, 5972
+0000130E	mov al, dl
+00001310	xlat
+00001311	call $-876
+00001314	mov al, 59
+00001316	db
+00001317	add byte [bp+si-64], bl
+0000131A	jmp 2018:32772
+0000131F	mov al, dl
+00001321	xlat
+00001322	add al, 10
+00001324	call $-895
+00001327	mov al, 109
+00001329	db
+0000132A	add byte [+1418], ah
+0000132E	cmp al, 32
+00001330	jnb $+7
+00001332	mov bx, 5980
+00001336	xlat
+00001337	db
+00001338	add cl, ch
+0000133A	in al, 254
+0000133C	mov al, 27
+0000133E	db
+0000133F	add byte [bx+si+3931], dh
+00001343	add byte [bx+si+3888], dh
+00001347	add byte [bx+si+3949], dh
+0000134B	add byte [bp+di+64], bh
+0000134F	mov ds, bx
+00001351	mov bh, [+158]
+00001355	mov bl, [+157]
+0000135A	mov byte cs:[+6027], bh
+0000135F	mov byte cs:[+6026], bl
+00001363	cmp bh, 24
+00001366	ja $+49
+00001368	cmp bl, 79
+0000136B	ja $+44
+0000136D	mov al, 27
+0000136F	db
+00001370	add byte [bx+si+3931], dh
+00001374	add byte [bx+si-264], cl
+00001378	db
+00001379	call $-980
+0000137C	mov al, 59
+0000137E	db
+0000137F	add byte [bx+si-296], cl
+00001383	db
+00001384	call $-991
+00001387	mov al, 72
+00001389	db
+0000138A	add byte [bx+si-24258], al
+0000138E	add byte [bx+di], al
+00001390	jnz $+7
+00001392	call $+21
+00001395	jmp $+5
+00001397	call $+41
+0000139B	mov byte cs:[+6022], 0
+000013A1	mov byte cs:[+6021], 0
+000013A6	ret
+000013A7	mov al, 27
+000013A9	db
+000013AA	add byte [bx+si+3931], dh
+000013AE	add byte [bx+si+3903], dh
+000013B2	add byte [bx+si+3890], dh
+000013B6	add byte [bx+si+3893], dh
+000013BA	add byte [bx+si+3944], dh
+000013BE	add bl, al
+000013C0	mov al, 27
+000013C2	db
+000013C3	add byte [bx+si+3931], dh
+000013C7	add byte [bx+si+3903], dh
+000013CB	add byte [bx+si+3890], dh
+000013CF	add byte [bx+si+3893], dh
+000013D3	add byte [bx+si+3948], dh
+000013D7	add bl, al
+000013D9	add byte [bx+si], al
+000013DB	add byte [bx+si], al
+000013DD	add byte [bx+si], al
+000013DF	add byte [bx+si], al
+000013E1	add byte [bx+si], al
+000013E3	add byte [bx+si], al
+000013E5	add byte [bx+si], al
+000013E7	add byte [bx+si], al
+000013E9	and word [bx+si], ax
+000013EB	add byte [bx+si+2], al
+000013EF	add byte [bx+si], al
+000013F1	add byte [bx+si], al
+000013F3	push ds
+000013F4	add byte [+22528], bl
+000013F8	pop ax
+000013F9	pop ax
+000013FA	pop ax
+000013FB	pop ax
+000013FC	pop ax
+000013FD	pop ax
+000013FE	pop ax
+000013FF	pop ax
+00001400	pop ax
+00001401	pop ax
+00001402	pop ax
+00001403	pop ax
+00001404	pop ax
+00001405	pop ax
+00001406	pop ax
+00001407	pop ax
+00001408	pop ax
+00001409	pop ax
+0000140A	pop ax
+0000140B	pop ax
+0000140C	pop ax
+0000140D	pop ax
+0000140E	pop ax
+0000140F	pop ax
+00001410	pop ax
+00001411	pop ax
+00001412	pop ax
+00001413	pop ax
+00001414	pop ax
+00001415	pop ax
+00001416	pop ax
+00001417	add byte [bx+si], al
+00001419	pop es
+0000141A	add byte [bx+si], al
+0000141C	add byte [bx+si], al
+0000141E	add byte [bx+si], al
+00001420	add byte [bx+si], al
+00001422	add dx, [bx+si]
+00001425	add byte [bx+si], dl
+00001427	add byte [bx+si], al
+00001429	add byte [bx+si], al
+0000142B	add byte [bx+si], al
+0000142D	add byte [bx+si], al
+0000142F	add byte [bx+si], al
+00001431	add byte [bx+si], al
+00001433	add byte [bx+si], al
+00001435	add byte [bx+si], al
+00001437	add byte [bx+si], al
+00001439	pop es
+0000143A	push es
+0000143B	add ah, dl
+0000143D	add cx, [bp+si]
+0000143F	add byte [bx+si], al
+00001441	add byte [bx+si], al
+00001443	add byte [bx+si], al
+00001445	add byte [bx+si], al
+00001447	add byte [bx+si], al
+00001449	add byte [bx+si], al
+0000144B	xor al, 18
+0000144D	add byte [bx+si], al
+0000144F	add byte [bx+si], al
+00001451	add byte [bx+si], al
+00001453	add byte [bx+si], al
+00001455	add byte [bx+si], al
+00001457	add byte [bx+si], al
+00001459	push ds
+0000145A	add byte [+6400], bh
+0000145E	add byte [bx+si], al
+00001460	add byte [bx+si], al
+00001462	add byte [bx+si], al
+00001464	add byte [bx+si], al
+00001466	add byte [bx+si], al
+00001468	add byte [bx+si], al
+0000146A	add byte [bx+si], al
+0000146C	add byte [bx+si], al
+0000146E	add byte [bx+si], al
+00001470	add byte [bx+si], al
+00001472	add byte [bx+si], al
+00001474	add byte [bx+si], al
+00001476	add byte [bx+si], al
+00001478	add byte [bx+si], al
+0000147A	add word [bx+si], ax
+0000147C	add byte [bx+si], al
+0000147E	add byte [bx+si], al
+00001480	add bh, bh
+00001482	inc word [bx+si]
+00001484	add byte [bx+si], al
+00001486	add byte [bx+si], al
+00001488	add byte [bx+si], al
+0000148A	add byte [bx+si], al
+0000148C	add byte [bx+si], al
+0000148E	add byte [bx+si], al
+00001490	add byte [bx+si], al
+00001492	add byte [bx+si], al
+00001494	add byte [bx+si], al
+00001496	add byte [bx+si], al
+00001498	add byte [bx+si], al
+0000149A	add byte [bx+si], al
+0000149C	add byte [bx+si], al
+0000149E	add byte [bx+si], al
+000014A0	add byte [bx+si], al
+000014A2	add byte [bx+si], al
+000014A4	add byte [bx+si], al
+000014A6	add byte [bx+si], al
+000014A8	add byte [bx+si], al
+000014AA	add byte [bx+si], al
+000014AC	add byte [bx+si], al
+000014AE	add byte [bx+si], al
+000014B0	add byte [bx+si], al
+000014B2	add byte [bx+si], al
+000014B4	add byte [bx+si], al
+000014B6	add byte [bx+si], al
+000014B8	add byte [bx+si], al
+000014BA	add byte [bx+si], al
+000014BC	add byte [bx+si], al
+000014BE	add byte [bx+si], al
+000014C0	add byte [bx+si], al
+000014C2	add byte [bx+si], al
+000014C4	add byte [bx+si], al
+000014C6	add byte [bx+si], al
+000014C8	add byte [bx+si], al
+000014CA	add byte [bx+si], al
+000014CC	add byte [bx+si], al
+000014CE	add byte [bx+si], al
+000014D0	add byte [bx+si], al
+000014D2	add byte [bx+si], al
+000014D4	add byte [bx+si], al
+000014D6	add byte [bx+si], al
+000014D8	call far [+11824]
+000014DC	and byte [bp+si], dl
+000014DE	and word [bp+si], sp
+000014E0	push cs
+000014E1	db
+000014E2	and al, 37
+000014E5	sbb al, 49
+000014E7	sbb byte [bx+di], bl
+000014E9	adc byte [bp+di], dl
+000014EB	pop ds
+000014EC	adc al, 22
+000014EE	das
+000014EF	adc word [di], bp
+000014F1	adc ax, 300
+000014F4	add byte [bx+si], al
+000014F6	add byte [bx+si], al
+000014F8	cmp word [bp+si], ax
+000014FA	sub byte [si], al
+000014FC	add ax, 2054
+000014FF	sub byte [bp+si], cl
+00001501	or cx, [bx+di]
+00001503	or ax, 3123
+00001506	xor al, 53
+00001508	or ax, [bp+si]
+0000150A	add ax, [si]
+0000150C	add ax, 1798
+0000150F	or byte [bx+di], cl
+00001511	or ah, [bx]
+00001513	daa
+00001514	xor cx, [di]
+00001516	xor al, 53
+00001518	add bx, [+11824]
+0000151C	and byte [bp+si], dl
+0000151E	and word [bp+si], sp
+00001520	and dx, [bx]
+00001522	and al, 37
+00001525	xor dh, es:[bx+di]
+00001527	sbb byte [bx+di], bl
+00001529	adc byte [bp+di], dl
+0000152B	pop ds
+0000152C	adc al, 22
+0000152E	das
+0000152F	adc word [di], bp
+00001531	adc ax, 6700
+00001534	sub bx, [bp+di]
+00001536	pop es
+00001537	or al, 41
+00001539	push ds
+0000153A	xor byte [+4640], ch
+0000153E	and word [bp+si], sp
+00001540	and dx, [bx]
+00001542	and al, 37
+00001545	xor dh, es:[bx+di]
+00001547	sbb byte [bx+di], bl
+00001549	adc byte [bp+di], dl
+0000154B	pop ds
+0000154C	adc al, 22
+0000154E	das
+0000154F	adc word [di], bp
+00001551	adc ax, 6700
+00001554	sub bx, [bp+di]
+00001556	sub word [], cx
+0000155A	add byte [bx+si], al
+0000155C	add byte [bx+si], al
+0000155E	add byte [bx+si], al
+00001560	add byte [bx+si], al
+00001562	add byte [bx+si], al
+00001564	add byte [bx+si], al
+00001566	add byte [bx+si], al
+00001568	add byte [bx+si], al
+0000156A	add byte [bx+si], al
+0000156C	add byte [bx+si], al
+0000156E	add byte [bx+si], al
+00001570	add byte [bx+si], al
+00001572	add byte [bx+si], al
+00001574	add byte [bx+si], al
+00001576	add byte [bx+si], al
+00001578	add byte [bx+di], al
+0000157A	add word [bx+di], ax
+0000157C	add word [bx+di], ax
+0000157E	add word [bx+si], ax
+00001580	add word [bx+di], ax
+00001582	add word [bx+di], ax
+00001584	add byte [bx+si], al
+00001586	add byte [bx+si], al
+00001588	add byte [bx+si], al
+0000158A	add byte [bx+si], al
+0000158C	add byte [bx+si], al
+0000158E	add byte [bx+si], al
+00001590	add byte [bx+si], al
+00001592	add word [bx+si], ax
+00001594	add word [bx+si], ax
+00001596	add word [bx+di], ax
+00001598	add word [bx+di], ax
+0000159A	add word [bx+di], ax
+0000159C	add word [bx+di], ax
+0000159E	add word [bx+di], ax
+000015A0	add word [bx+di], ax
+000015A2	add word [bx+di], ax
+000015A4	add word [bx+di], ax
+000015A6	add word [bx+di], ax
+000015A8	add word [bx+di], ax
+000015AA	add word [bx+di], ax
+000015AC	add word [bx+di], ax
+000015AE	add word [bx+di], ax
+000015B0	add word [bx+di], ax
+000015B2	add word [bx+si], ax
+000015B4	add byte [bx+si], al
+000015B6	add word [bx+di], ax
+000015B8	add byte [bx+si], al
+000015BA	add byte [bx+si], al
+000015BC	add byte [bx+si], al
+000015BE	add byte [bx+si], al
+000015C0	add byte [bx+si], al
+000015C2	add byte [bx+si], al
+000015C4	add byte [bx+si], al
+000015C6	add byte [bx+si], al
+000015C8	add byte [bx+si], al
+000015CA	add byte [bx+si], al
+000015CC	add byte [bx+si], al
+000015CE	add byte [bx+si], al
+000015D0	add byte [bx+si], al
+000015D2	add byte [bx+di], al
+000015D4	add word [bx+di], ax
+000015D6	add word [bx+si], ax
+000015D8	jnz $+18
+000015DA	add al, dh
+000015DC	jnz $+18
+000015DE	add al, dh
+000015E0	jnz $+18
+000015E2	add al, dh
+000015E4	jnz $+18
+000015E6	add al, dh
+000015E8	jnz $+18
+000015EA	add al, dh
+000015EC	jnz $+18
+000015EE	add al, dh
+000015F0	jnz $+18
+000015F2	add al, dh
+000015F4	xor word [bp+di], ax
+000015F6	add al, dh
+000015F9	pop es
+000015FA	add al, dh
+000015FC	cmp al, 6
+000015FE	add al, dh
+00001600	jl $+8
+00001602	add al, dh
+00001604	jnz $+18
+00001606	add al, dh
+00001608	jnz $+18
+0000160A	add al, dh
+0000160C	jnz $+18
+0000160E	add al, dh
+00001610	jnz $+18
+00001612	add al, dh
+00001614	jnz $+18
+00001616	add al, dh
+00001618	inc cx
+00001619	pop es
+0000161A	add al, dh
+0000161C	movsw
+0000161D	or al, 0
+00001620	stosblock 
+00001621	or al, 0
+00001624	scasblock 
+00001625	or al, 0
+00001628	cbwlock 
+00001629	push cs
+0000162A	add al, dh
+0000162C	cmpsb
+0000162D	push cs
+0000162E	add al, dh
+00001630	stosw
+00001631	push cs
+00001632	add al, dh
+00001634	xor byte [bx], cl
+00001636	add al, dh
+00001638	jnz $+18
+0000163A	add al, dh
+0000163C	cmp ax, 15
+00001640	inclock  ax
+00001641	db
+00001642	add al, dh
+00001644	jnz $+18
+00001646	add al, dh
+00001648	xor dx, [bx+si]
+0000164A	add al, dh
+0000164C	jnz $+18
+0000164E	add al, dh
+00001650	xor al, 16
+00001652	jp $+2
+00001654	push ds
+00001655	and ah, [bx+si]
+00001657	and al, 31
+00001659	and sp, [bx+di]
+0000165B	and ax, -1504
+0000165E	cli
+0000165F	cli
+00001660	cli
+00001661	cli
+00001662	cli
+00001663	cli
+00001664	cli
+00001665	cli
+00001666	cli
+00001667	cli
+00001668	cli
+00001669	cli
+0000166A	cli
+0000166B	cli
+0000166D	cmp al, 124
+0000166F	and word [si+36], di
+00001672	cli
+00001673	jl $+96
+00001675	jbe $+64
+00001677	cmp al, 45
+00001679	sub ax, 30302
+0000167C	dec ax
+0000167D	push ax
+0000167E	dec bp
+0000167F	dec bx
+00001680	inc di
+00001681	dec di
+00001682	dec cx
+00001683	push cx
+00001684	add byte [bx+si], al
+00001686	add byte [bx+si], al
+00001688	add byte [bx+si], al
+0000168A	add byte [bx+si], al
+0000168C	add byte [bx+si], al
+0000168E	add byte [bp+di], al
+00001690	add ax, [di]
+00001692	add ax, 1798
+00001695	or al, 3
+00001697	push es
+00001698	pop es
+00001699	push es
+0000169A	pop es
+0000169B	or al, 12
+0000169D	or al, 12
+0000169F	add byte [bx+si], al
+000016A1	add byte [bx+si], al
+000016A3	add byte [bx+si], al
+000016A5	add word [bx+si], ax
+000016A7	or cx, [bp+di]
+000016A9	or cl, [bp+si]
+000016AB	or cx, [bp+di]
+000016AD	or cx, [bp+di]
+000016AF	add ax, [bp+di]
+000016B1	add ax, 1541
+000016B4	pop es
+000016B5	add ax, 259
+000016B8	add word [bx+di], ax
+000016BA	add word [bx+di], ax
+000016BC	add word [bx+di], ax
+000016BE	add word [bp+di], cx
+000016C0	or cx, [bp+si]
+000016C2	or cl, [bp+di]
+000016C4	or cx, [bp+si]
+000016C6	or cx, [bx+di]
+000016C8	or word [bx+di], cx
+000016CA	or word [bx], ax
+000016CC	pop es
+000016CD	sbb word [bp+si], bx
+000016CF	or word [bx+di], cx
+000016D1	or word [bx+di], cx
+000016D3	pop es
+000016D4	pop es
+000016D5	sbb word [bx+si], si
+000016D7	or word [bx+di], cx
+000016D9	or word [bx+di], cx
+000016DB	pop es
+000016DC	pop es
+000016DD	sbb word [bp+si], bx
+000016DF	or word [bx+di], cx
+000016E1	or word [bx+di], cx
+000016E3	pop es
+000016E4	pop es
+000016E5	sbb word [bp+si], bx
+000016E7	or word [bx+di], cx
+000016E9	or word [bx+di], cx
+000016EB	pop es
+000016EC	pop es
+000016ED	sbb bx, [si]
+000016EF	or word [bx+di], cx
+000016F1	or word [bx+di], cx
+000016F3	pop es
+000016F4	pop es
+000016F5	sbb bx, [si]
+000016F7	or word [bx+di], cx
+000016F9	or word [bx+di], cx
+000016FB	pop es
+000016FC	pop es
+000016FD	sbb bx, [di]
+000016FF	or word [bx+di], cx
+00001701	or word [bx+di], cx
+00001703	pop es
+00001704	pop es
+00001705	sbb bx, [di]
+00001707	add al, [bp+si]
+00001709	add al, [bp+si]
+0000170B	add al, [bp+si]
+0000170D	add al, [bp+si]
+0000170F	add al, [bp+si]
+00001711	add al, [bp+si]
+00001713	add al, [bp+si]
+00001715	add al, [bp+si]
+00001717	add ax, [bp+di]
+00001719	add ax, [bp+di]
+0000171B	add ax, [bp+di]
+0000171D	add ax, [bp+di]
+0000171F	add al, 4
+00001721	add al, 4
+00001723	add al, 4
+00001725	add al, 4
+00001727	xor si, [+13364]
+0000172B	xor al, 52
+0000172D	xor al, 52
+0000172F	aaa
+00001730	aaa
+00001731	aaa
+00001732	aaa
+00001733	xor al, 52
+00001735	xor al, 52
+00001737	add byte [bx+si], al
+00001739	add byte [bx+si], al
+0000173B	add byte [bx+si], al
+0000173D	add byte [bx+si], al
+0000173F	add byte [bx+si], al
+00001741	add byte [bx+si], al
+00001743	add byte [bx+si], al
+00001745	add byte [bx+si], al
+00001747	or byte [bx+si], cl
+00001749	or byte [bx+si], cl
+0000174B	db
+0000174C	db
+0000174D	sbb byte [bx+si], bl
+0000174F	or word [bx+di], cx
+00001751	or word [bx+di], cx
+00001753	or cl, [bp+si]
+00001755	or cl, [bp+si]
+00001757	adc byte [bx+si], dl
+00001759	adc byte [bx+si], dl
+0000175B	adc byte [bx+si], dl
+0000175D	adc byte [bx+si], dl
+0000175F	push ds
+00001760	pop ds
+00001761	and byte [+8737], dh
+00001765	and sp, [si]
+00001767	or cx, [bp+di]
+00001769	or cx, [bp+di]
+0000176B	adc word [bx+di], dx
+0000176D	adc dl, [bp+si]
+0000176F	das
+00001770	das
+00001771	adc word [bx+di], dx
+00001773	adc word [bx+di], dx
+00001775	adc dl, [bp+si]
+00001777	add word [bx+di], ax
+00001779	add word [bx+di], ax
+0000177B	add word [bx+di], ax
+0000177D	add word [bx+di], ax
+0000177F	add word [bx+di], ax
+00001781	add word [bx+di], ax
+00001783	add word [bx+di], ax
+00001785	add word [bx+di], ax
+00001787	or al, 12
+00001789	adc dx, [bp+di]
+0000178B	and ax, 5157
+0000178E	adc al, 49
+00001790	xor dl, [bp+di]
+00001792	adc sp, [+10279]
+00001796	adc cx, [si]
+00001798	or al, 12
+0000179A	or al, 41
+0000179C	sub ch, [bp+di]
+0000179E	sub al, 53
+000017A0	xor ax, 13621
+000017A3	xor ax, 13621
+000017A6	xor ax, 3341
+000017A9	or ax, 5389
+000017AC	adc ax, 5654
+000017AF	push cs
+000017B0	push cs
+000017B1	push cs
+000017B2	push cs
+000017B3	adc ax, 5653
+000017B6	push ss
+000017B7	xor ax, 5888
+000017BA	pop ss
+000017BB	xor ax, 1581
+000017BE	push es
+000017C5	add ax, 5
+000017C8	add byte [bx+si], al
+000017CA	add byte [bx+si], al
+000017CC	add byte [bx+si], cl
+000017CE	or byte [bx+di], al
+000017D0	add word [bx+di], ax
+000017D2	add word [bx+di], ax
+000017D4	add word [bx+di], cx
+000017D6	and al, 2
+000017D8	add al, [bp+si]
+000017DA	add al, [bp+si]
+000017DC	add cl, [bp+si]
+000017DE	or al, [bp+di]
+000017E0	add ax, [bp+di]
+000017E2	add ax, [bp+di]
+000017E4	add cx, [bp+di]
+000017E6	or ax, [si]
+000017E8	add al, 4
+000017EA	add al, 4
+000017EC	add al, 8
+000017EE	add byte [di], al
+000017F0	add ax, 1285
+000017F3	add ax, 2309
+000017F6	add word [+1542], ax
+000017FA	push es
+000017FB	push es
+000017FC	push es
+000017FD	or al, [bp+si]
+000017FF	pop es
+00001800	pop es
+00001801	pop es
+00001802	pop es
+00001803	pop es
+00001804	pop es
+00001805	or ax, [bx+si]
+00001807	add byte [bx+si], al
+00001809	add byte [bx+si], al
+0000180B	add byte [bx+si], al
+0000180D	add byte [bx+si], al
+0000180F	add word [bx+di], ax
+00001811	add word [bx+di], ax
+00001813	add word [bx+di], ax
+00001815	add word [bx+di], ax
+00001817	add byte [bx+si], al
+00001819	add byte [bx+si], al
+0000181B	add byte [bx+si], al
+0000181D	add byte [bx+si], al
+0000181F	add byte [bx+si], al
+00001821	add byte [bx+si], al
+00001823	add byte [bx+si], al
+00001825	add byte [bx+si], al
+00001827	add byte [bx+si], al
+00001829	adc ax, 5397
+0000182C	adc ax, 5397
+0000182F	add byte [bx+si], al
+00001831	add byte [bx+si], al
+00001833	adc ax, 5397
+00001836	adc ax, 5397
+00001839	adc ax, 5397
+0000183C	adc ax, 5397
+0000183F	adc ax, 5397
+00001842	adc ax, 5397
+00001845	adc ax, 21
+00001848	add byte [bx+si], al
+0000184A	add byte [bx+si], al
+0000184C	add byte [bx+si], al
+0000184E	add byte [bx+si], cl
+00001850	or byte [bx+si], cl
+00001852	or byte [si], cl
+00001854	or al, 12
+00001856	or al, 0
+00001858	add byte [bx+si], al
+0000185A	add byte [bx+si], al
+0000185C	add byte [bx+si], al
+0000185E	add byte [bx+si], al
+00001860	add byte [bx+si], al
+00001862	add byte [bx+si], al
+00001864	add bh, bh
+00001866	add byte [bx+si], al
+00001868	add byte [bx+si], al
+0000186A	add byte [bx+si], al
+0000186C	add byte [bx+si], al
+0000186E	add byte [bx+si], al
+00001870	add byte [bx+di], al
+00001872	add word [bp+si], ax
+00001874	add al, [bx+di]
+00001876	add word [bx+si], ax
+00001878	add byte [bx+si], al
+0000187A	add byte [bx+si], al
+0000187C	add byte [bx+si], al
+0000187E	add byte [bx+si], al
+00001880	add byte [bx+si], al
+00001882	add byte [bx+si], al
+00001884	add byte [bx+si], al
+00001886	add byte [bx+di], al
+00001888	add word [bx+si], ax
+0000188A	add byte [bx+si], dl
+0000188C	push ss
+0000188D	add byte [bx+si], al
+0000188F	add byte [bx+si], al
+00001891	add word [bx+di], ax
+00001893	add bh, bh
+00001895	xor byte [bp+si], al
+00001897	add byte [bx+si], al
+00001899	add byte [bx+si], al
+0000189B	??? di
+0000189D	sub byte [bp+di], cl
+0000189F	add ax, [bp+di]
+000018A1	add ax, [bp+di]
+000018A3	add ax, [bp+di]
+000018A5	add ax, [bp+di]
+000018A7	sub bp, [bp+di]
+000018A9	sub bp, [bp+di]
+000018AB	add byte [bx+si], al
+000018AD	add byte [bx+si], al
+000018AF	add byte [bx+si], al
+000018B1	add byte [bx+si], al
+000018B3	add word [bx+di], ax
+000018B5	add word [bx+di], ax
+000018B7	add word [di], dx
+000018B9	add byte [bx+si], al
+000018BB	add ch, [bx+si]
+000018BD	adc ax, 20501
+000018C0	push cx
+000018C1	pop sp
+000018C2	pop bp
+000018C3	pop si
+000018C4	pop di
+000018C5	add byte [bx+si], al
+000018C7	add ax, [bp+di]
+000018C9	add ax, [bp+di]
+000018CB	add ax, [bp+di]
+000018CD	add byte [bx+si], al
+000018CF	add ax, 1285
+000018D2	add ax, 1285
+000018D5	add byte [bx+si], al
+000018D7	add word [bx+di], ax
+000018D9	add word [bx+di], ax
+000018DB	add word [bx+di], ax
+000018DD	add byte [bx+si], al
+000018DF	add word [bx+di], ax
+000018E1	add word [bx+di], ax
+000018E3	add word [bx+di], ax
+000018E5	add byte [bx+si], al
+000018E7	add ax, 1285
+000018EA	add ax, 1285
+000018ED	add byte [bx+di], al
+000018EF	add ax, [bp+di]
+000018F1	add ax, [bp+di]
+000018F3	add ax, [bp+di]
+000018F5	add byte [bx+di], al
+000018F7	add ax, 1285
+000018FA	add ax, 1285
+000018FD	add byte [bx+di], al
+000018FF	add ax, [bp+di]
+00001901	add ax, [bp+di]
+00001903	add ax, [bp+di]
+00001905	add byte [bx+di], al
+00001907	add word [bx+di], ax
+00001909	add word [bx+di], ax
+0000190B	add word [bx+di], ax
+0000190D	add word [bx+di], ax
+0000190F	add word [bx+di], ax
+00001911	add word [bx+di], ax
+00001913	add word [bx+di], ax
+00001915	add word [bx+di], ax
+00001917	add byte [bx+si], al
+00001919	add byte [bx+si], al
+0000191B	add byte [bx+si], al
+0000191D	add byte [bx+si], al
+0000191F	add byte [bx+si], al
+00001921	add byte [bx+si], al
+00001923	add byte [bx+si], al
+00001925	add byte [bx+si], al
+00001927	add byte [bx+si], al
+00001929	add byte [bx+si], al
+0000192B	add byte [bx+si], al
+0000192D	add byte [bx+si], al
+0000192F	add byte [bx+si], al
+00001931	add byte [bx+si], al
+00001933	add byte [bx+si], al
+00001935	add byte [bx+si], al
+00001937	add byte [bx+si], al
+00001939	add byte [bx+si], al
+0000193B	add byte [bx+si], al
+0000193D	add byte [bx+si], al
+0000193F	add byte [bx+si], al
+00001941	add byte [bx+si], al
+00001943	add byte [bx+si], al
+00001945	add byte [bx+si], al
+00001947	add word [bx+di], ax
+00001949	add word [bx+di], ax
+0000194B	add ax, 5
+0000194E	add byte [bx+si], al
+00001950	add byte [bx+si], al
+00001952	add byte [bx+si], al
+00001954	add byte [bx+si], al
+00001956	add byte [bx+si], al
+00001958	add byte [bx+si], al
+0000195A	add byte [bx+si], al
+0000195C	add byte [bx+si], al
+0000195E	add byte [bx+si], al
+00001960	add byte [bx+si], al
+00001962	add byte [bx+si], al
+00001964	add byte [bx+si], al
+00001966	add byte [bx+si], al
+00001968	add byte [bx+si], al
+0000196A	add byte [bx+si], al
+0000196C	add byte [bx+si], al
+0000196E	add byte [di], al
+00001970	add ax, 0
+00001973	add byte [bx+si], al
+00001975	add byte [bx+si], al
+00001977	add byte [bx+si], al
+00001979	add byte [bx+si], al
+0000197B	add byte [bx+si], al
+0000197D	add byte [bx+si], al
+0000197F	add byte [bx+si], al
+00001981	add byte [bx+si], al
+00001983	add byte [bx+si], al
+00001985	add byte [bx+si], al
+00001987	add byte [bx+si], al
+00001989	add byte [bx+si], al
+0000198B	add byte [bx+si], al
+0000198D	add byte [bx+si], al
+0000198F	add byte [bx+si], al
+00001991	add byte [bx+si], al
+00001993	add byte [bx+si], al
+00001995	add byte [bx+si], al
+00001997	add byte [bx+si], al
+00001999	add byte [bx+si], al
+0000199B	add ax, 5
+0000199E	add byte [bx+si], al
+000019A0	add byte [bx+si], al
+000019A2	add byte [bx+si], al
+000019A4	add byte [bx+si], al
+000019A6	add byte [bx+si], al
+000019A8	add byte [bx+si], al
+000019AA	add byte [bx+si], al
+000019AC	add byte [bx+si], al
+000019AE	add byte [bx+si], al
+000019B0	add byte [bx+si], al
+000019B2	add byte [bx+si], al
+000019B4	add byte [bx+si], al
+000019B6	add byte [bx+si], al
+000019B8	add byte [bx+si], al
+000019BA	add byte [bx+si], al
+000019BC	add byte [bx+si], al
+000019BE	add byte [bx+si], al
+000019C0	add byte [bx+si], al
+000019C2	add byte [bx+si], al
+000019C4	add byte [bx+si], al
+000019C6	add byte [bp+si], al
+000019C8	add al, [bp+si]
+000019CA	add al, [bx+di]
+000019CC	add word [bx+di], ax
+000019CE	add word [bp+si], ax
+000019D0	add al, [bp+si]
+000019D2	add al, [bx+di]
+000019D4	add word [bx+di], ax
+000019D6	add al, [bp+si]
+000019D8	add al, [bp+si]
+000019DA	add al, [bx+di]
+000019DC	add word [bx+di], ax
+000019DE	add word [bp+si], ax
+000019E0	add al, [bp+si]
+000019E2	add al, [bx+di]
+000019E4	add word [bx+di], ax
+000019E6	add word [bp+si], ax
+000019E8	add al, [bp+si]
+000019EA	add al, [bx+di]
+000019EC	add word [bx+di], ax
+000019EE	add word [bp+si], ax
+000019F0	add al, [bp+si]
+000019F2	add al, [bx+di]
+000019F4	add word [bx+di], ax
+000019F6	add word [bp+si], ax
+000019F8	add al, [bp+si]
+000019FA	add al, [bx+di]
+000019FC	add word [bx+di], ax
+000019FE	add word [bp+si], ax
+00001A00	add al, [bp+si]
+00001A02	add al, [bx+di]
+00001A04	add word [bx+di], ax
+00001A06	add word [bx+di], ax
+00001A08	add word [bx+di], ax
+00001A0A	add word [bx+di], ax
+00001A0C	add word [bx+di], ax
+00001A0E	add word [bx+di], ax
+00001A10	add word [bx+di], ax
+00001A12	add word [bx+di], ax
+00001A14	add word [bx+di], ax
+00001A16	add word [bx+di], ax
+00001A18	add word [bx+di], ax
+00001A1A	add word [bx+di], ax
+00001A1C	add word [bx+di], ax
+00001A1E	add word [bx+di], ax
+00001A20	add word [bx+di], ax
+00001A22	add word [bx+di], ax
+00001A24	add word [bx+di], ax
+00001A26	add word [bx+di], ax
+00001A28	add word [bx+di], ax
+00001A2A	add word [bx+di], ax
+00001A2C	add word [bx+di], ax
+00001A2E	add word [bx+di], ax
+00001A30	add word [bx+di], ax
+00001A32	add word [bx+di], ax
+00001A34	add word [bx+di], ax
+00001A36	add word [bp+si], ax
+00001A38	add al, [bp+si]
+00001A3A	add al, [bp+si]
+00001A3C	add al, [bp+si]
+00001A3E	add al, [bp+si]
+00001A40	add al, [bp+si]
+00001A42	add al, [bp+si]
+00001A44	add al, [bp+si]
+00001A46	add al, [bp+si]
+00001A48	add al, [bp+si]
+00001A4A	add al, [bp+si]
+00001A4C	add al, [bp+si]
+00001A4E	add al, [bp+si]
+00001A50	add al, [bp+si]
+00001A52	add al, [bp+si]
+00001A54	add al, [bp+si]
+00001A56	add al, [bx+di]
+00001A58	add word [bx+di], ax
+00001A5A	add word [bx+di], ax
+00001A5C	add word [bx+di], ax
+00001A5E	add word [bx+di], ax
+00001A60	add word [bx+si], ax
+00001A62	add word [bx+di], ax
+00001A64	add word [bx+di], ax
+00001A66	add word [bp+di], ax
+00001A68	add ax, [bp+di]
+00001A6A	add ax, [bx+di]
+00001A6C	add word [bx+di], ax
+00001A6E	add word [bx+di], ax
+00001A70	add word [bx+di], ax
+00001A72	add word [bx+di], ax
+00001A74	add word [bx+di], ax
+00001A76	add word [bx+di], ax
+00001A78	add word [bx+di], ax
+00001A7A	add word [bx+di], ax
+00001A7C	add word [bx+di], ax
+00001A7E	add word [bx+di], ax
+00001A80	add word [bx+di], ax
+00001A82	add word [bx+di], ax
+00001A84	add word [bx+di], ax
+00001A86	add word [bp+di], ax
+00001A88	add ax, [bx+si]
+00001A8A	add byte [bp+si], al
+00001A8C	add al, [bp+si]
+00001A8E	add al, [si]
+00001A90	add word [bx+si], ax
+00001A92	add byte [bx+si], al
+00001A94	add byte [bx+si], al
+00001A96	add byte [bp+si], al
+00001A98	add al, [bp+si]
+00001A9A	add al, [bp+si]
+00001A9C	add al, [bx+di]
+00001A9E	add word [bp+si], ax
+00001AA0	add al, [bp+si]
+00001AA2	add al, [bp+si]
+00001AA4	add al, [bp+si]
+00001AA6	add al, [bp+si]
+00001AA8	add al, [bp+si]
+00001AAA	add al, [bp+si]
+00001AAC	add al, [bp+si]
+00001AAE	add al, [bx+si]
+00001AB0	add byte [bx+si], al
+00001AB2	add byte [bx+di], al
+00001AB4	add word [bx+di], ax
+00001AB6	add word [bx+di], ax
+00001AB8	add al, [bx+di]
+00001ABA	add word [bx+di], ax
+00001ABC	add word [bp+si], ax
+00001ABE	add al, [bx+di]
+00001AC0	add word [bx+di], ax
+00001AC2	add word [bx+di], ax
+00001AC4	add word [bp+si], ax
+00001AC6	add al, [bx+si]
+00001AC8	add byte [bx+si], al
+00001ACA	add byte [bx+di], al
+00001ACC	add word [bx+si], ax
+00001ACE	add byte [bx+si], al
+00001AD0	add byte [bx+si], al
+00001AD2	add byte [bx+di], al
+00001AD4	add word [bx+si], ax
+00001AD6	add byte [bx+si], al
+00001AD8	add byte [bx+si], al
+00001ADA	add byte [bx+di], al
+00001ADC	add word [bx+si], ax
+00001ADE	add byte [bx+si], al
+00001AE0	add byte [bx+si], al
+00001AE2	add byte [bx+di], al
+00001AE4	add word [bx+si], ax
+00001AE6	add byte [bx+si], al
+00001AE8	add byte [bx+si], al
+00001AEA	add byte [bx+di], al
+00001AEC	add word [bx+si], ax
+00001AEE	add byte [bx+si], al
+00001AF0	add byte [bx+si], al
+00001AF2	add byte [bx+di], al
+00001AF4	add word [bx+si], ax
+00001AF6	add byte [bx+si], al
+00001AF8	add byte [bx+si], al
+00001AFA	add byte [bx+di], al
+00001AFC	add word [bx+si], ax
+00001AFE	add byte [bx+si], al
+00001B00	add byte [bx+si], al
+00001B02	add byte [bx+di], al
+00001B04	add word [bx+si], ax
+00001B06	add byte [bx+si], al
+00001B08	add byte [bx+si], al
+00001B0A	add byte [bx+si], al
+00001B0C	add byte [bx+si], al
+00001B0E	add byte [bx+si], al
+00001B10	add byte [bx+si], al
+00001B12	add byte [bx+si], al
+00001B14	add byte [bx+si], al
+00001B16	add byte [bx+si], al
+00001B18	add byte [bx+si], al
+00001B1A	add byte [bx+si], al
+00001B1C	add byte [bx+si], al
+00001B1E	add byte [bx+si], al
+00001B20	add byte [bx+si], al
+00001B22	add byte [bx+si], al
+00001B24	add byte [bx+si], al
+00001B26	add byte [bx+si], al
+00001B28	add byte [bx+si], al
+00001B2A	add byte [bx+si], al
+00001B2C	add byte [bx+si], al
+00001B2E	add byte [bx+di], al
+00001B30	add word [bx+di], ax
+00001B32	add word [bx+si], ax
+00001B34	add byte [bx+si], al
+00001B36	add byte [bx+si], al
+00001B38	add byte [bx+si], al
+00001B3A	add byte [bx+si], al
+00001B3C	add byte [bx+si], al
+00001B3E	add byte [bx+si], al
+00001B40	add byte [bx+si], al
+00001B42	add byte [bx+si], al
+00001B44	add byte [bx+si], al
+00001B46	add byte [bx+di], al
+00001B48	add word [bx+di], ax
+00001B4A	add word [bx+si], ax
+00001B4C	add byte [bx+si], al
+00001B4E	add byte [bx+si], al
+00001B50	add byte [bx+si], al
+00001B52	add byte [bx+si], al
+00001B54	add byte [bx+si], al
+00001B56	add byte [bx+si], al
+00001B58	add byte [bx+si], al
+00001B5A	add byte [bx+si], al
+00001B5C	add byte [bx+si], al
+00001B5E	add byte [bx+si], al
+00001B60	add byte [bx+si], al
+00001B62	add byte [bx+si], al
+00001B64	add byte [bx+si], al
+00001B66	add byte [bx+si], al
+00001B68	add byte [bx+si], al
+00001B6A	add byte [bx+si], al
+00001B6C	add byte [bx+si], al
+00001B6E	add byte [bx+di], al
+00001B70	add word [bx+si], ax
+00001B72	add byte [bx+si], al
+00001B74	add byte [bx+si], al
+00001B76	add byte [bx+di], al
+00001B78	add word [bx+di], ax
+00001B7A	add word [bx+di], ax
+00001B7C	add word [bx+di], ax
+00001B7E	add word [bx+di], ax
+00001B80	add word [bx+di], ax
+00001B82	add word [bx+di], ax
+00001B84	add word [bx+di], ax
+00001B86	add word [bx+si], ax
+00001B88	add byte [bx+si], al
+00001B8A	add byte [bx+si], al
+00001B8C	add byte [bx+di], al
+00001B8E	add word [bx+si], ax
+00001B90	add byte [bx+si], al
+00001B92	add byte [bx+si], al
+00001B94	add byte [bx+si], al
+00001B96	add byte [bx+si], al
+00001B98	add byte [bx+si], al
+00001B9A	add byte [bx+si], al
+00001B9C	add byte [bx+si], al
+00001B9E	add byte [bx+si], al
+00001BA0	add byte [bx+si], al
+00001BA2	add byte [bx+si], al
+00001BA4	add byte [bx+si], al
+00001BA6	add byte [bx+si], al
+00001BA8	add byte [bx+si], al
+00001BAA	add byte [bx+si], al
+00001BAC	add byte [bx+si], al
+00001BAE	add byte [bx+si], al
+00001BB0	add byte [bx+si], al
+00001BB2	add byte [bx+si], al
+00001BB4	add byte [bx+si], al
+00001BB6	add byte [bx+si], al
+00001BB8	add byte [bx+si], al
+00001BBA	add byte [bx+si], al
+00001BBC	add byte [bx+si], al
+00001BBE	add byte [bx+si], al
+00001BC0	add byte [bx+si], al
+00001BC2	add byte [bx+si], al
+00001BC4	add byte [bx+si], al
+00001BC6	add byte [bx+di], al
+00001BC8	add word [bx+di], ax
+00001BCA	add word [bx+si], ax
+00001BCC	add byte [bx+si], al
+00001BCE	add byte [bx+di], al
+00001BD0	add word [bx+di], ax
+00001BD2	add word [bx+si], ax
+00001BD4	add byte [bx+si], al
+00001BD6	add byte [bx+di], al
+00001BD8	add word [bx+di], ax
+00001BDA	add word [bx+si], ax
+00001BDC	add byte [bx+si], al
+00001BDE	add byte [bx+di], al
+00001BE0	add word [bx+di], ax
+00001BE2	add word [bx+si], ax
+00001BE4	add byte [bx+si], al
+00001BE6	add byte [bx+di], al
+00001BE8	add word [bx+di], ax
+00001BEA	add word [bx+si], ax
+00001BEC	add byte [bx+si], al
+00001BEE	add byte [bx+di], al
+00001BF0	add word [bx+di], ax
+00001BF2	add word [bx+si], ax
+00001BF4	add byte [bx+si], al
+00001BF6	add byte [bx+di], al
+00001BF8	add word [bx+di], ax
+00001BFA	add word [bx+si], ax
+00001BFC	add byte [bx+si], al
+00001BFE	add byte [bx+di], al
+00001C00	add word [bx+di], ax
+00001C02	add word [bx+si], ax
+00001C04	add byte [bx+si], al
+00001C06	add byte [bx+si], al
+00001C08	add byte [bx+si], al
+00001C0A	add byte [bx+si], al
+00001C0C	add byte [bx+si], al
+00001C0E	add byte [bx+si], al
+00001C10	add byte [bx+si], al
+00001C12	add byte [bx+si], al
+00001C14	add byte [bx+si], al
+00001C16	add byte [bx+si], al
+00001C18	add byte [bx+si], al
+00001C1A	add byte [bx+si], al
+00001C1C	add byte [bx+si], al
+00001C1E	add byte [bx+si], al
+00001C20	add byte [bx+si], al
+00001C22	add byte [bx+si], al
+00001C24	add byte [bx+si], al
+00001C26	add byte [bx+si], al
+00001C28	add byte [bx+si], al
+00001C2A	add byte [bx+si], al
+00001C2C	add byte [bx+si], al
+00001C2E	add byte [bx+si], al
+00001C30	add byte [bx+si], al
+00001C32	add byte [bx+si], al
+00001C34	add byte [bx+si], al
+00001C36	add byte [bx+si], al
+00001C38	add byte [bx+si], al
+00001C3A	add byte [bx+si], al
+00001C3C	add byte [bx+si], al
+00001C3E	add byte [bx+si], al
+00001C40	add byte [bx+si], al
+00001C42	add byte [bx+si], al
+00001C44	add byte [bx+si], al
+00001C46	add byte [bx+di], al
+00001C48	add word [bx+di], ax
+00001C4A	add word [bx+di], ax
+00001C4C	add word [bx+di], ax
+00001C4E	add word [bx+di], ax
+00001C50	add word [bx+di], ax
+00001C52	add word [bx+di], ax
+00001C54	add word [bx+di], ax
+00001C56	add word [bx+si], ax
+00001C58	add byte [bx+si], al
+00001C5A	add byte [bx+si], al
+00001C5C	add byte [bx+si], al
+00001C5E	add byte [bx+si], al
+00001C60	add byte [bx+si], al
+00001C62	add byte [bx+si], al
+00001C64	add byte [bx+si], al
+00001C66	add byte [bx+si], al
+00001C68	add byte [bx+si], al
+00001C6A	add byte [bx+si], al
+00001C6C	add byte [bx+si], al
+00001C6E	add byte [bx+si], al
+00001C70	add byte [bx+si], al
+00001C72	add byte [bx+si], al
+00001C74	add byte [bx+si], al
+00001C76	add byte [bx+si], al
+00001C78	add byte [bx+si], al
+00001C7A	add byte [bx+si], al
+00001C7C	add byte [bx+si], al
+00001C7E	add byte [bx+si], al
+00001C80	add byte [bx+si], al
+00001C82	add byte [bx+si], al
+00001C84	add byte [bx+si], al
+00001C86	add byte [bx+di], al
+00001C88	add word [bx+si], ax
+00001C8A	add byte [bx+di], al
+00001C8C	add word [bx+di], ax
+00001C8E	add word [bx+si], ax
+00001C90	add byte [bx+si], al
+00001C92	add byte [bx+si], al
+00001C94	add byte [bx+si], al
+00001C96	add byte [bx+di], al
+00001C98	add word [bx+di], ax
+00001C9A	add word [bx+si], ax
+00001C9C	add byte [bx+si], al
+00001C9E	add byte [bx+di], al
+00001CA0	add word [bx+di], ax
+00001CA2	add word [bx+di], ax
+00001CA4	add word [bx+di], ax
+00001CA6	add word [bx+si], ax
+00001CA8	add byte [bx+si], al
+00001CAA	add byte [bx+si], al
+00001CAC	add byte [bx+si], al
+00001CAE	add byte [bx+si], al
+00001CB0	add byte [bx+si], al
+00001CB2	add byte [bx+si], al
+00001CB4	add byte [bx+si], al
+00001CB6	add byte [bx+si], al
+00001CB8	add byte [bx+si], al
+00001CBA	add byte [bx+si], al
+00001CBC	add byte [bx+di], al
+00001CBE	add word [bx+si], ax
+00001CC0	add byte [bx+si], al
+00001CC2	add byte [bx+si], al
+00001CC4	add byte [bx+di], al
+00001CC6	add word [bx+si], ax
+00001CC8	add al, [si]
+00001CCA	push es
+00001CCB	pop es
+00001CCC	or byte [bx+di], cl
+00001CCE	or cl, [bp+di]
+00001CD0	or al, 8
+00001CD2	add byte [bp+di], al
+00001CD4	add byte [si], al
+00001CD6	add word [bx+di], cx
+00001CD8	or word [bx+di], cx
+00001CDA	or word [bx+di], cx
+00001CDC	add cx, [bx+di]
+00001CDE	or word [bx+di], cx
+00001CE0	add cx, [bx+di]
+00001CE2	or word [bx+di], cx
+00001CE4	or word [bx+di], cx
+00001CE6	or word [si], ax
+00001CE8	add al, 9
+00001CEA	or word [bx+di], cx
+00001CEC	or word [bx+di], cx
+00001CEE	or word [bx+si], cx
+00001CF0	or byte [bx+di], al
+00001CF2	add byte [bx+si], al
+00001CF4	add word [bx+si], ax
+00001CF6	add word [bx+di], ax
+00001CF8	add byte [bx+si], al
+00001CFA	add word [bx+di], ax
+00001CFC	add byte [bx+di], al
+00001CFE	add byte [bx+si], al
+00001D00	add word [bx+si], ax
+00001D02	add word [bx+di], ax
+00001D04	add byte [bx+di], al
+00001D06	add byte [bx+si], al
+00001D08	add word [bx+di], ax
+00001D0A	add byte [bx+si], al
+00001D0C	add word [bx+si], ax
+00001D0E	add word [bx+di], ax
+00001D10	add byte [bx+si], al
+00001D12	add word [bx+di], ax
+00001D14	add byte [bx+di], al
+00001D16	add byte [bx+si], al
+00001D18	add word [bx+di], ax
+00001D1A	add byte [bx+si], al
+00001D1C	add word [bx+si], ax
+00001D1E	add word [bx+di], ax
+00001D20	add byte [bx+di], al
+00001D22	add byte [bx+si], al
+00001D24	add word [bx+si], ax
+00001D26	add word [bx+di], ax
+00001D28	add byte [bx+si], al
+00001D2A	add word [bx+di], ax
+00001D2C	add byte [bx+di], al
+00001D2E	add byte [bx+si], al
+00001D30	add word [bx+si], ax
+00001D32	add word [bx+di], ax
+00001D34	add byte [bx+di], al
+00001D36	add byte [bx+si], al
+00001D38	add word [bx+di], ax
+00001D3A	add byte [bx+si], al
+00001D3C	add word [bx+si], ax
+00001D3E	add word [bx+di], ax
+00001D40	add byte [bx+di], al
+00001D42	add byte [bx+si], al
+00001D44	add word [bx+si], ax
+00001D46	add word [bx+di], ax
+00001D48	add byte [bx+si], al
+00001D4A	add word [bx+di], ax
+00001D4C	add byte [bx+di], al
+00001D4E	add byte [bx+si], al
+00001D50	add word [bx+di], ax
+00001D52	add byte [bx+si], al
+00001D54	add word [bx+si], ax
+00001D56	add word [bx+di], ax
+00001D58	add byte [bx+si], al
+00001D5A	add word [bx+di], ax
+00001D5C	add byte [bx+di], al
+00001D5E	add byte [bx+si], al
+00001D60	add word [bx+si], ax
+00001D62	add word [bx+di], ax
+00001D64	add byte [bx+di], al
+00001D66	add byte [bx+si], al
+00001D68	add word [bx+di], ax
+00001D6A	add byte [bx+si], al
+00001D6C	add word [bx+si], ax
+00001D6E	add word [bx+di], ax
+00001D70	add byte [bx+si], al
+00001D72	add word [bx+di], ax
+00001D74	add byte [bx+di], al
+00001D76	add byte [bx+si], al
+00001D78	add word [bx+di], ax
+00001D7A	add byte [bx+si], al
+00001D7C	add word [bx+si], ax
+00001D7E	add word [bx+di], ax
+00001D80	add byte [bx+di], al
+00001D82	add byte [bx+si], al
+00001D84	add word [bx+si], ax
+00001D86	add word [bx+di], ax
+00001D88	add byte [bx+si], al
+00001D8A	add word [bx+di], ax
+00001D8C	add byte [bx+di], al
+00001D8E	add byte [bx+si], al
+00001D90	add word [bx+di], ax
+00001D92	add byte [bx+si], al
+00001D94	add word [bx+si], ax
+00001D96	add word [bx+di], ax
+00001D98	add byte [bx+si], al
+00001D9A	add word [bx+di], ax
+00001D9C	add byte [bx+di], al
+00001D9E	add byte [bx+si], al
+00001DA0	add word [bx+si], ax
+00001DA2	add word [bx+di], ax
+00001DA4	add byte [bx+di], al
+00001DA6	add byte [bx+si], al
+00001DA8	add word [bx+di], ax
+00001DAA	add byte [bx+si], al
+00001DAC	add word [bx+si], ax
+00001DAE	add word [bx+di], ax
+00001DB0	add byte [bx+di], al
+00001DB2	add byte [bx+si], al
+00001DB4	add word [bx+si], ax
+00001DB6	add word [bx+di], ax
+00001DB8	add byte [bx+si], al
+00001DBA	add word [bx+di], ax
+00001DBC	add byte [bx+di], al
+00001DBE	add byte [bx+si], al
+00001DC0	add word [bx+si], ax
+00001DC2	add word [bx+di], ax
+00001DC4	add byte [bx+di], al
+00001DC6	add byte [bx+si], al
+00001DC8	add word [bx+di], ax
+00001DCA	add byte [bx+si], al
+00001DCC	add word [bx+si], ax
+00001DCE	add word [bx+di], ax
+00001DD0	add byte [bx+si], al
+00001DD2	add word [bx+di], ax
+00001DD4	add byte [bx+di], al
+00001DD6	add byte [bx+si], al
+00001DD8	add word [bx+di], ax
+00001DDA	add byte [bx+si], al
+00001DDC	add word [bx+si], ax
+00001DDE	add word [bx+di], ax
+00001DE0	add byte [bx+di], al
+00001DE2	add byte [bx+si], al
+00001DE4	add word [bx+si], ax
+00001DE6	add word [bx+di], ax
+00001DE8	add byte [bx+si], al
+00001DEA	add word [bx+di], ax
+00001DEC	add byte [bx+di], al
+00001DEE	add byte [bx+si], al
+00001DF0	add word [bx+si], ax

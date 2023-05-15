@@ -140,7 +140,6 @@ class Arg_Dereference(Argument):
         if (self._parent.code.get_opcode() in self.q_opcodes):
             if ((not str(self._parent.mneumonic).strip() in self.nq_mneumonics) or
                 ((str(self._parent.mneumonic).strip() in self.q_far_mneumonics) and (self.type == 'p'))):
-                print(">>", str(self._parent.mneumonic), self.type, "\n");
                 rv.append(self.q_lut[self.type] + ' ')
         # Bracket
         rv.append('[')
@@ -281,7 +280,6 @@ class Disassembler(object):
             size = self.size_lut[desc[1]]
             return Arg_Offset(self.read_integer(size/8), size)
         elif (desc[0] == 'O'):
-            print("CICA")
             return Arg_Dereference(type=desc[1], disp=self.read_integer(2), disp_size=16)
         elif (desc[0] == 'S'):
             self.read_modrm()
@@ -325,7 +323,7 @@ class Disassembler(object):
                 break
                 
                
-f = open("input/listing_0042_completionist_decode", "rb")
+f = open("test\dude", "rb")
 bin = f.read()
 inst = Disassembler().disassemble(bin)
 

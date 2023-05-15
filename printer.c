@@ -1,5 +1,6 @@
 #include "printer.h"
 
+// @Todo: Remove the reg param
 const char *mnemonic_name(Mneumonic m, u8 reg)
 {
     static const char *mnemonic_name_lookup[] = {
@@ -165,13 +166,12 @@ void print_instruction(CPU *cpu, u8 with_end_line)
 
     Instruction *instruction = &cpu->instruction;
 
-    //fprintf(dest, "[0000:%04x] ", instruction->mem_address);
+    fprintf(dest, "%08X\t", instruction->mem_address);
+    fprintf(dest, "%s", mnemonic_name(instruction->mnemonic, instruction->reg));
     
     if (instruction->flags & Inst_Lock) {
         fprintf(dest, "lock ");
     }
-    
-    fprintf(dest, "%s", mnemonic_name(instruction->mnemonic, instruction->reg));
     
     const char *separator = " ";
     for (u8 j = 0; j < 2; j++) {
@@ -214,7 +214,7 @@ void print_instruction(CPU *cpu, u8 with_end_line)
 
                 // @Todo: CleanUp                
                 if ((instruction->flags & Inst_Segment) && instruction->operands[0].is_segment_reg == 0 && instruction->operands[1].is_segment_reg == 0) {
-                    if (instruction->extend_with_this_segment) {
+                    if (instruction->extend_with_this_segment != Register_none) {
                         // segment prefix
                         fprintf(dest, "%s:", register_name(instruction->extend_with_this_segment));
                     } else {

@@ -2257,7 +2257,7 @@ int13:
 	add	cx, ax
 	adc	di, 0
 
-	cmp	di, [cs:hd_secs_hi]
+	cmp	di, [cs:hd_secs_hi] ; kacsa
 	ja	wr_error
 	jb	wr_fine
 	cmp	cx, [cs:hd_secs_lo]

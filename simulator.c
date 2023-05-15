@@ -39,7 +39,7 @@ void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data)
 u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
 { 
     u16 address = 0;
-    u16 segment = expr->segment;
+    u16 segment = expr->segment; // This a constant segment value like in the asm: jmp 5312:2891
     
     if ((cpu->instruction.flags & Inst_Segment) && cpu->extend_with_this_segment != Register_none) {
         Register_Access *reg_access = register_access_by_enum(cpu->extend_with_this_segment);
@@ -136,8 +136,6 @@ s32 get_data_from_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit)
 
 void set_data_to_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit, u16 data)
 {
-    s32 current_data = get_data_from_operand(cpu, op, is_16bit); // @Debug
-
     if (op->type == Operand_Register) {
         u32 flags = cpu->instruction.flags & Inst_Wide;
         if (op->is_segment_reg) flags |= Inst_Segment;
@@ -260,27 +258,30 @@ void execute_instruction(CPU *cpu)
                 printf("\n[ERROR]: This instruction: '%s' is have not handled yet!\n", mnemonic_name(i->mnemonic, i->reg));
                 assert(0);
         }
-    } else if (i->type == Instruction_Type_stack) {
+    } 
+    else if (i->type == Instruction_Type_stack) {
+        Instruction_Operand *op = &i->operands[0];
+        assert (op->type == Operand_Memory || op->type == Operand_Register);
+    
         u16 ss = get_data_from_register_by_enum(cpu, Register_ss); 
         u16 sp = get_data_from_register_by_enum(cpu, Register_sp);
-        u32 absolute_address = (ss << 4) + sp; // special address calc  
+        u32 absolute_address = (ss << 4) + sp; // stack stegment address calc  
         
         switch (i->mnemonic) {
             case Mneumonic_push: {
-                s32 data = get_data_from_operand(cpu, &dest_op, 1);
+                s32 data = get_data_from_operand(cpu, op, 1);
             
                 sp -= 2; // @Todo: Can be larger?
                 set_data_to_register_by_enum(cpu, Register_sp, sp);
                 
-                absolute_address = (ss << 4) + sp; // recalc the address
+                absolute_address = (ss << 4) + sp;
                 set_data_to_memory(cpu->memory, absolute_address, 1, data);
                 
-                // kacsa
                 break;
             }
             case Mneumonic_pop: {
                 s32 data = get_data_from_memory(cpu->memory, absolute_address, 1);
-                set_data_to_operand(cpu, &dest_op, 1, data);
+                set_data_to_operand(cpu, op, 1, data);
                 
                 sp += 2; // @Todo: can be larger?
                 set_data_to_register_by_enum(cpu, Register_sp, sp);
@@ -354,7 +355,7 @@ decode_next:;
         // @Todo: The i8086 contains the debug flag so later we simulate this too
         // instead of this boolean
         if (cpu->debug_mode) {
-            printf(">> Press enter to the next instruction\n");
+            //printf(">> Press enter to the next instruction\n");
 __de:;
             fgets(input, sizeof(input), stdin);
             if (input[0] != '\n') {
@@ -381,5 +382,7 @@ __de:;
         }
 
     // @Todo: Another option to check end of the executable?
-    } while (cpu->ip != cpu->loaded_executable_size);
+    } while (cpu->ip <= cpu->loaded_executable_size);
+    
+    //printf("cpu->ip: %d; cpu->loaded_exec_size: %d\n", cpu->ip, cpu->loaded_executable_size);
 }

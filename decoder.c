@@ -309,6 +309,8 @@ void decode_next_instruction(CPU *cpu)
     i8086_Inst_Table x = i8086_inst_table[byte];
     inst->mnemonic = x.mnemonic;
     inst->type = x.type;
+    // kacsa
+    //printf("## opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", x.opcode, mnemonic_name(x.mnemonic, 0), x.arg1, x.arg2);
     
     // Overwrite the arguments if the extenstion table lookup is find something
     if (x.mnemonic >= Mneumonic_grp1) {
@@ -342,9 +344,14 @@ void decode_next_instruction(CPU *cpu)
             case Mneumonic_ror: inst->type = Instruction_Type_arithmetic; break;
 
             case Mneumonic_jmp: inst->type = Instruction_Type_jump; break;
+            
+            case Mneumonic_call: inst->type = Instruction_Type_stack; break;
+            case Mneumonic_push: inst->type = Instruction_Type_stack; break;
+            
+            case Mneumonic_invalid: break;
 
             default:
-                printf("[WARNING]: Not handled instruction (grouped) type definition.\n");
+                printf("[WARNING]: Not handled instruction (grouped) type definition. gi: %d ; r: %d\n", (u32)x.mnemonic - (u32)Mneumonic_grp1, inst->reg);
                 assert(0);
         }
 
@@ -391,7 +398,9 @@ void decode_next_instruction(CPU *cpu)
     if ((inst->flags & Inst_Lock) && inst->is_prefix == 0) {
         // Flip memory, register because the lock prefix must be follow a memory operand   
         if (inst->operands[0].type != Operand_Memory) {
-            assert(inst->operands[1].type == Operand_Memory);
+            // DONT DELETE THIS ASSERT!
+            //assert(inst->operands[1].type == Operand_Memory);
+
             Instruction_Operand temp = inst->operands[0];
             inst->operands[0] = inst->operands[1];
             inst->operands[1] = temp;
@@ -400,4 +409,6 @@ void decode_next_instruction(CPU *cpu)
     
     cpu->decoder_cursor++;
     cpu->instruction.size = cpu->decoder_cursor - instruction_byte_start_offset; 
+    
+
 }
