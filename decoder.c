@@ -7,7 +7,7 @@ u8 ASMD_NEXT_BYTE(CPU *_d) { return _d->memory[++_d->decoder_cursor]; }
 #define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) _d->memory[_d->decoder_cursor+1]
 #define ASMD_CURR_BYTE_INDEX(_d) _d->decoder_cursor
 
-Effective_Address_Base get_address_base(u8 r_m, u8 mod) 
+Effective_Address_Base get_address_base(u8 r_m, u8 mod)
 {
     switch (r_m) {
         case 0x00: {return Effective_Address_bx_si;}
@@ -18,11 +18,11 @@ Effective_Address_Base get_address_base(u8 r_m, u8 mod)
         case 0x05: {return Effective_Address_di;   }
         case 0x06: {
             if (mod == 0x00) {
-                return Effective_Address_direct; 
+                return Effective_Address_direct;
             }
             return Effective_Address_bp;
         }
-        case 0x07: {return Effective_Address_bx;} 
+        case 0x07: {return Effective_Address_bx;}
     }
 
     fprintf(stderr, "[ERROR]: Invalid effective address expression!\n");
@@ -39,14 +39,14 @@ void decode_memory_address_displacement(CPU *cpu, Instruction_Operand *operand)
     operand->address.base = get_address_base(inst->r_m, inst->mod);
     operand->address.displacement = 0;
 
-    if ((inst->mod == 0x00 && inst->r_m == 0x06) || inst->mod == 0x02) { 
+    if ((inst->mod == 0x00 && inst->r_m == 0x06) || inst->mod == 0x02) {
         if (operand->address.base == Effective_Address_direct) {
             operand->address.displacement = (u16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
         } else {
             operand->address.displacement = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
         }
-    } 
-    else if (inst->mod == 0x01) { 
+    }
+    else if (inst->mod == 0x01) {
         if (operand->address.base == Effective_Address_direct) {
             operand->address.displacement = (u8)ASMD_NEXT_BYTE(cpu);
         } else {
@@ -55,7 +55,7 @@ void decode_memory_address_displacement(CPU *cpu, Instruction_Operand *operand)
     }
 }
 
-void mod_reg_rm(CPU *cpu, Instruction *inst) 
+void mod_reg_rm(CPU *cpu, Instruction *inst)
 {
     if (inst->mod_reg_rm_decoded == 0) {
         u8 byte = ASMD_NEXT_BYTE(cpu);
@@ -71,7 +71,7 @@ void mod_reg_rm(CPU *cpu, Instruction *inst)
 void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
 {
     Instruction *inst = &cpu->instruction;
-    
+
     if (arg == NULL) {
         return;
     }
@@ -87,16 +87,16 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
         return;
     } else if (STR_EQUAL("CL", arg) || STR_EQUAL("eCX", arg)) {
         op->type = Operand_Register;
-        op->reg  = 1; 
+        op->reg  = 1;
         return;
     } else if (STR_EQUAL("AH", arg) || STR_EQUAL("eSP", arg)) {
         op->type = Operand_Register;
         op->reg  = 4;
-        return; 
+        return;
     } else if (STR_EQUAL("CH", arg) || STR_EQUAL("eBP", arg)) {
         op->type = Operand_Register;
         op->reg  = 5;
-        return;    
+        return;
     } else if (STR_EQUAL("DL", arg) || STR_EQUAL("eDX", arg) || STR_EQUAL("DX", arg)) {
         op->type = Operand_Register;
         op->reg  = 2;
@@ -108,51 +108,51 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
     } else if (STR_EQUAL("BL", arg) || STR_EQUAL("eBX", arg)) {
         op->type = Operand_Register;
         op->reg  = 3;
-        return;    
+        return;
     } else if (STR_EQUAL("BH", arg) || STR_EQUAL("eDI", arg)) {
         op->type = Operand_Register;
         op->reg  = 7;
         return;
-    } else if (STR_EQUAL("ES", arg)) {
-        op->type = Operand_Register;
-        op->flags |= Inst_Segment;
-        op->reg = 0; // @Incomplete @Cleanup: Lookup for the static const u32 segment_registers[] in printer.c
-        return;
     } else if (STR_EQUAL("CS", arg)) {
         op->type = Operand_Register;
         op->flags |= Inst_Segment;
-        op->reg = 1; // @Incomplete @Cleanup: Lookup for the static const u32 segment_registers[] in printer.c
-        return;
-    } else if (STR_EQUAL("SS", arg)) {
-        op->type = Operand_Register;
-        op->flags |= Inst_Segment;
-        op->reg = 2; // @Incomplete @Cleanup: Lookup for the static const u32 segment_registers[] in printer.c
+        op->reg = 0;
         return;
     } else if (STR_EQUAL("DS", arg)) {
         op->type = Operand_Register;
         op->flags |= Inst_Segment;
-        op->reg = 3; // @Incomplete @Cleanup: Lookup for the static const u32 segment_registers[] in printer.c
+        op->reg = 1;
+        return;
+    } else if (STR_EQUAL("SS", arg)) {
+        op->type = Operand_Register;
+        op->flags |= Inst_Segment;
+        op->reg = 2;
+        return;
+    } else if (STR_EQUAL("ES", arg)) {
+        op->type = Operand_Register;
+        op->flags |= Inst_Segment;
+        op->reg = 3;
         return;
     }
 
     u8 arg_strlen = STR_LEN(arg);
     for (u64 i = 0; i < arg_strlen; i++) {
         if (arg[i] == 'A') {
-            // Direct address. The instruction has no ModR/M byte; the address of the operand 
+            // Direct address. The instruction has no ModR/M byte; the address of the operand
             // is encoded in the instruction. Applicable, e.g., to far JMP (opcode EA).
             assert(arg[++i] == 'p');
 
             inst->flags |= Inst_Segment | Inst_Far;
 
             op->type = Operand_Memory;
-            op->address.base = Effective_Address_direct;        
+            op->address.base = Effective_Address_direct;
             // this is the offset
             op->address.displacement = (u16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
             // segment are encoded next to the offset
             op->address.segment = (u16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
-            
+
             // the result will be segment:offset
-            
+
         } else if (arg[i] == 'J') {
             // The instruction contains a relative offset to be added to the address of the
             // subsequent instruction. Applicable, e.g., to short JMP (opcode EB), or LOOP.
@@ -162,16 +162,16 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
                 // @Todo: Set the op->flags |= Inst_Wide;???
                 op->immediate = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
             } else {
-                op->immediate = (s8)(ASMD_NEXT_BYTE(cpu)); 
+                op->immediate = (s8)(ASMD_NEXT_BYTE(cpu));
             }
-        
+
         } else if (arg[i] == 'E') {
             // A ModR/M byte follows the opcode and specifies the operand. The operand is either a general-
-            // purpose register or a memory address. If it is a memory address, the address is computed from a 
+            // purpose register or a memory address. If it is a memory address, the address is computed from a
             // segment register and any of the following values: a base register, an index register, a displacement.
-            
+
             mod_reg_rm(cpu, inst);
-    
+
             if (inst->mod == MOD_REGISTER) {
                 op->type = Operand_Register;
                 op->reg = inst->r_m;
@@ -213,7 +213,7 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
             }
 
         } else if (arg[i] == 'O') {
-            // The instruction has no ModR/M byte; the offset of the operand is encoded as a WORD in the instruction. 
+            // The instruction has no ModR/M byte; the offset of the operand is encoded as a WORD in the instruction.
             // Applicable, e.g., to certain MOVs (opcodes A0 through A3).
 
             op->type = Operand_Memory;
@@ -232,17 +232,17 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
 
         } else if (arg[i] == 'M') {
             // The ModR/M byte may refer only to memory. Applicable, e.g., to LES and LDS.
-            
+
             mod_reg_rm(cpu, inst);
             decode_memory_address_displacement(cpu, op);
 
         } else if (arg[i] == 'v' || arg[i] == 'w') {
-            // Word argument. (The 'v' code has a more complex meaning in later x86 opcode maps, 
+            // Word argument. (The 'v' code has a more complex meaning in later x86 opcode maps,
             // from which this was derived, but here it's just a synonym for the 'w' code.)
 
-            inst->flags |= Inst_Wide;  
+            inst->flags |= Inst_Wide;
             op->flags |= Inst_Wide;
-        
+
         } else if (arg[i] == 'b') {
             // Byte argument. This is the default value so we don't need to change here the flags.
 
@@ -254,7 +254,7 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
             // @Todo: This is ok? Maybe we should create a new opcode type like Operand_Constant?
             op->type = Operand_Immediate;
             op->reg = 1;
-            
+
         } else if (arg[i] == '3') {
             // @Todo: This is ok? Maybe we should create a new opcode type like Operand_Constant?
             op->type = Operand_Immediate;
@@ -290,7 +290,8 @@ static const char *i8086_inst_ext_table[][8][2] = {
 void decode_next_instruction(CPU *cpu)
 {
     Instruction *inst = &cpu->instruction;
-    cpu->decoder_cursor = cpu->ip;
+    cpu->decoder_cursor = calc_inst_pointer_address(cpu);
+    //printf(" $ cs:ip: %#08X | dc: %#08X\n", calc_inst_pointer_address(cpu), cpu->decoder_cursor);
 
     if (!inst->is_prefix) {
         ZERO_MEMORY(inst, sizeof(Instruction));
@@ -307,13 +308,13 @@ void decode_next_instruction(CPU *cpu)
     inst->type = x.type;
 
     //printf("## opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", x.opcode, mnemonic_name(x.mnemonic), x.arg1, x.arg2);
-    
+
     // Overwrite the arguments if the extenstion table lookup is find something
     if (x.mnemonic >= Mneumonic_grp1) {
         mod_reg_rm(cpu, inst);
 
         inst->mnemonic = extended_mneumonic_lookup[x.mnemonic][inst->reg];
-        
+
         // @Todo: Handle this! // @Cleanup:
         switch (inst->mnemonic) {
             case Mneumonic_inc: inst->type = Instruction_Type_arithmetic; break;
@@ -340,10 +341,10 @@ void decode_next_instruction(CPU *cpu)
             case Mneumonic_ror: inst->type = Instruction_Type_arithmetic; break;
 
             case Mneumonic_jmp: inst->type = Instruction_Type_flow; break;
-            
+
             case Mneumonic_call: inst->type = Instruction_Type_stack; break;
             case Mneumonic_push: inst->type = Instruction_Type_stack; break;
-            
+
             case Mneumonic_invalid: break;
 
             default:
@@ -351,7 +352,7 @@ void decode_next_instruction(CPU *cpu)
                 assert(0);
         }
 
-        const char *ext_arg1 = i8086_inst_ext_table[x.mnemonic][inst->reg][0]; 
+        const char *ext_arg1 = i8086_inst_ext_table[x.mnemonic][inst->reg][0];
         const char *ext_arg2 = i8086_inst_ext_table[x.mnemonic][inst->reg][1];
         if (ext_arg1 || ext_arg2) {
             x.arg1 = ext_arg1;
@@ -377,7 +378,7 @@ void decode_next_instruction(CPU *cpu)
     else if (inst->mnemonic == Mneumonic_lock) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Lock;
-    } 
+    }
     else if (inst->mnemonic == Mneumonic_cs) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Segment;
@@ -398,9 +399,9 @@ void decode_next_instruction(CPU *cpu)
         inst->flags |= Inst_Segment;
         inst->extend_with_this_segment = Register_ss;
     }
-    
+
     if ((inst->flags & Inst_Lock) && inst->is_prefix == 0) {
-        // Flip memory, register because the lock prefix must be follow a memory operand   
+        // Flip memory, register because the lock prefix must be follow a memory operand
         if (inst->operands[0].type != Operand_Memory) {
             // DONT DELETE THIS ASSERT!
             assert(inst->operands[1].type == Operand_Memory);
@@ -410,7 +411,7 @@ void decode_next_instruction(CPU *cpu)
             inst->operands[1] = temp;
         }
     }
-    
+
     cpu->decoder_cursor++;
-    cpu->instruction.size = cpu->decoder_cursor - instruction_byte_start_offset; 
+    cpu->instruction.size = cpu->decoder_cursor - instruction_byte_start_offset;
 }

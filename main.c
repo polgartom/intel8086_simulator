@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     u8 dump_out = 0;
 
     char *input_filename = NULL;
-    
+
     for (int i = 0; i < argc; i++) {
         if (argv[i]) {
             if (argv[i][0] == '-') {
@@ -38,12 +38,13 @@ int main(int argc, char **argv)
 
     printf("\nbinary: %s\n\n", input_filename);
 
+    boot(&cpu);
     load_executable(&cpu, input_filename);
     run(&cpu);
 
     if (dump_out) {
         FILE *fp = fopen("memory_dump.data", "w");
-        assert(fp != NULL);    
+        assert(fp != NULL);
         fwrite(cpu.memory, 1, 65556, fp);
     }
 

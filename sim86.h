@@ -38,7 +38,7 @@ typedef unsigned long u64;
 
 #define MAX_MEMORY (1024 * 1024)
 
-// These are the real place of the 
+// These are the real place of the
 #define F_CARRY      (1 << 0)
 #define F_PARITY     (1 << 2)
 #define F_AUXILIARY  (1 << 4)
@@ -91,7 +91,7 @@ typedef enum {
 
 typedef struct {
   Register reg;
-  
+
   // They have to be u32 because we're using that number at register_acces() lookup table
   u32 index; // register memory index in the cpu regmem array
   u32 size;  // register memory size in the cpu regmem array
@@ -143,7 +143,7 @@ typedef enum {
 typedef struct {
     Operand_Type type;
     u16 flags;
-    
+
     union {
         u8 reg;
         Effective_Address_Expression address;
@@ -192,7 +192,7 @@ typedef struct {
 
 typedef struct {
   u16 loaded_executable_size; // @Todo: Remove
-  u16 decoder_cursor;
+  u32 decoder_cursor;
 
   u16 ip;
   u8 regmem[64]; // The "accessible" register values are stored here
@@ -202,7 +202,7 @@ typedef struct {
 
   Instruction instruction; // current instruction
   u16 flags;
-  
+
   // Options
   u8 dump_out;
   u8 decode_only;

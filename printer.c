@@ -23,7 +23,7 @@ const char *mnemonic_name(Mneumonic m)
         [Mneumonic_test]    = "test",
         [Mneumonic_or]      = "or",
         [Mneumonic_xor]     = "xor",
-        
+
         [Mneumonic_movsw]   = "movsw",
         [Mneumonic_movsb]   = "movsb",
         [Mneumonic_cmpsb]   = "cmpsb",
@@ -45,7 +45,7 @@ const char *mnemonic_name(Mneumonic m)
         [Mneumonic_cli]     = "cli",
         [Mneumonic_sti]     = "sti",
         [Mneumonic_hlt]     = "hlt",
-        [Mneumonic_wait]    = "wait",        
+        [Mneumonic_wait]    = "wait",
         [Mneumonic_cbw]     = "cbw",
         [Mneumonic_cwd]     = "cwd",
         [Mneumonic_ret]     = "ret",
@@ -97,9 +97,9 @@ const char *mnemonic_name(Mneumonic m)
         [Mneumonic_not]     = "not",
         [Mneumonic_neg]     = "neg",
         [Mneumonic_mul]     = "mul",
-        [Mneumonic_imul]    = "imul",   
+        [Mneumonic_imul]    = "imul",
         [Mneumonic_div]     = "div",
-        [Mneumonic_idiv]    = "idiv",   
+        [Mneumonic_idiv]    = "idiv",
 
         // DB (define-byte) pseudo-instruction
         [Mneumonic_db]      = "db",
@@ -112,9 +112,9 @@ const char *mnemonic_name(Mneumonic m)
         [Mneumonic_ds]      = "ds", // segment register
         [Mneumonic_es]      = "es", // segment register
         [Mneumonic_ss]      = "ss", // segment register
-        
+
         [Mneumonic_invalid] = "???",
-        
+
         [Mneumonic_grp1]    = "grp1",
         [Mneumonic_grp2]    = "grp2",
         [Mneumonic_grp3a]   = "grp3a",
@@ -168,18 +168,18 @@ void print_instruction(CPU *cpu, u8 with_end_line)
 
     fprintf(dest, "%08X\t", instruction->mem_address);
     fprintf(dest, "%s", mnemonic_name(instruction->mnemonic));
-    
+
     if (instruction->flags & Inst_Lock) {
         fprintf(dest, "lock ");
     }
-    
+
     const char *separator = " ";
     for (u8 j = 0; j < 2; j++) {
         Instruction_Operand *op = &instruction->operands[j];
         if (op->type == Operand_None) {
             continue;
         }
-        
+
         fprintf(dest, "%s", separator);
         separator = ", ";
 
@@ -189,7 +189,7 @@ void print_instruction(CPU *cpu, u8 with_end_line)
             }
             case Operand_Register: {
                 Register_Access *reg_access = register_access(op->reg, op->flags);
-                Register reg_enum = reg_access->reg; 
+                Register reg_enum = reg_access->reg;
 
                 fprintf(dest, "%s", register_name(reg_enum));
 
@@ -201,20 +201,20 @@ void print_instruction(CPU *cpu, u8 with_end_line)
                     fprintf(dest, "%s ", (instruction->flags & Inst_Wide) ? "word" : "byte");
                 }
 
-                // @Todo: CleanUp                
+                // @Todo: CleanUp
                 if (instruction->flags & Inst_Segment) {
                     if (instruction->extend_with_this_segment != Register_none) {
                         // segment prefix
                         fprintf(dest, "%s:", register_name(instruction->extend_with_this_segment));
                     } else {
                         // segment at direct address
-                        u16 segment = op->address.segment; 
+                        u16 segment = op->address.segment;
                         u16 offset = op->address.displacement;
                         fprintf(dest, "%d:%d", segment, offset);
                         break;
                     }
                 }
-                
+
                 if (&instruction->operands[0] == op && instruction->flags & Inst_Far) {
                     fprintf(dest, "far ");
                 }
