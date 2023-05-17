@@ -180,6 +180,15 @@ void print_flags(u16 flags)
     }
 }
 
+void print_out_formated_flags(u16 old_flags, u16 new_flags)
+{
+    printf(" flags: [");
+    print_flags(old_flags);
+    printf(" ] -> [");
+    print_flags(new_flags);
+    printf(" ]");
+}
+
 void print_instruction(CPU *cpu, u8 with_end_line)
 {
     FILE *dest = stdout;

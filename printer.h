@@ -5,10 +5,12 @@
 
 const char *mnemonic_name(Mneumonic m);
 const char *register_name(Register reg);
+
 void print_flags(u16 flags);
+void print_out_formated_flags(u16 old_flags, u16 new_flags);
+
 void print_instruction(CPU *cpu, u8 with_end_line);
 
-// :Utility
 static void int_to_bin_str(u64 val, u8 size)
 {
     printf("0b");
