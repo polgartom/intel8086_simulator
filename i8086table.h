@@ -3,7 +3,7 @@
 
 #include "sim86.h"
 
-typedef enum { 
+typedef enum {
     Mneumonic_none,
 
     Mneumonic_add,
@@ -188,12 +188,12 @@ static const i8086_Inst_Table i8086_inst_table[] = {
     { 0x2D, Mneumonic_sub, "eAX", "Iv" },
     { 0x2E, Mneumonic_cs, NULL, NULL },
     { 0x2F, Mneumonic_das, NULL, NULL },
-    { 0x30, Mneumonic_xor, "Eb", "Gb", Instruction_Type_arithmetic },
-    { 0x31, Mneumonic_xor, "Ev", "Gv", Instruction_Type_arithmetic },
-    { 0x32, Mneumonic_xor, "Gb", "Eb", Instruction_Type_arithmetic },
-    { 0x33, Mneumonic_xor, "Gv", "Ev", Instruction_Type_arithmetic },
-    { 0x34, Mneumonic_xor, "AL", "Ib", Instruction_Type_arithmetic },
-    { 0x35, Mneumonic_xor, "eAX", "Iv", Instruction_Type_arithmetic },
+    { 0x30, Mneumonic_xor, "Eb", "Gb", Instruction_Type_logical },
+    { 0x31, Mneumonic_xor, "Ev", "Gv", Instruction_Type_logical },
+    { 0x32, Mneumonic_xor, "Gb", "Eb", Instruction_Type_logical },
+    { 0x33, Mneumonic_xor, "Gv", "Ev", Instruction_Type_logical },
+    { 0x34, Mneumonic_xor, "AL", "Ib", Instruction_Type_logical },
+    { 0x35, Mneumonic_xor, "eAX", "Iv", Instruction_Type_logical },
     { 0x36, Mneumonic_ss, NULL, NULL },
     { 0x37, Mneumonic_aaa, NULL, NULL },
     { 0x38, Mneumonic_cmp, "Eb", "Gb", Instruction_Type_arithmetic },
@@ -392,7 +392,7 @@ static const i8086_Inst_Table i8086_inst_table[] = {
     { 0xF9, Mneumonic_stc, NULL, NULL },
     { 0xFA, Mneumonic_cli, NULL, NULL },
     { 0xFB, Mneumonic_sti, NULL, NULL },
-    { 0xFC, Mneumonic_cld, NULL, NULL, Instruction_Type_bit },
+    { 0xFC, Mneumonic_cld, NULL, NULL},
     { 0xFD, Mneumonic_std, NULL, NULL },
     { 0xFE, Mneumonic_grp4, "Eb", NULL },
     { 0xFF, Mneumonic_grp5, "Ev", NULL },

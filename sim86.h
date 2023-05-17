@@ -49,7 +49,6 @@ typedef unsigned long u64;
 #define F_DIRECTION  (1 << 10)
 #define F_OVERFLOW   (1 << 11)
 
-
 #define REG_IS_DEST 1
 #define REG_IS_SRC 0
 
@@ -158,12 +157,12 @@ enum Instruction_Type {
 
     Instruction_Type_move,
     Instruction_Type_arithmetic,
-    Instruction_Type_bit,
+    Instruction_Type_control,
     Instruction_Type_string,
     Instruction_Type_io,
-    Instruction_Type_control,
     Instruction_Type_flow,
     Instruction_Type_stack,
+    Instruction_Type_logical,
 
     Instruction_Type_Count,
 };
@@ -191,22 +190,23 @@ typedef struct {
 } Instruction;
 
 typedef struct {
-  u16 loaded_executable_size; // @Todo: Remove
-  u32 decoder_cursor;
+    u32 loaded_executable_size; // @Todo: Remove
+    u32 exec_end;
+    u32 decoder_cursor;
 
-  u16 ip;
-  u8 regmem[64]; // The "accessible" register values are stored here
+    Instruction instruction; // current instruction
 
-  Register extend_with_this_segment;
-  u8* memory;
+    u16 ip;
+    u16 flags;
+    u8 regmem[64]; // The "accessible" register values are stored here
+    Register extend_with_this_segment;
 
-  Instruction instruction; // current instruction
-  u16 flags;
+    u8* memory;
 
-  // Options
-  u8 dump_out;
-  u8 decode_only;
-  u8 debug_mode;
+    // Options
+    u8 dump_out;
+    u8 decode_only;
+    u8 debug_mode;
 
 } CPU;
 

@@ -152,11 +152,31 @@ const char *register_name(Register reg)
 void print_flags(u16 flags)
 {
     if (flags & F_SIGNED) {
-        printf("S");
+        printf(" SF");
     }
-
     if (flags & F_ZERO) {
-        printf("Z");
+        printf(" ZF");
+    }
+    if (flags & F_CARRY) {
+        printf(" CF");
+    }
+    if (flags & F_PARITY) {
+        printf(" PF");
+    }
+    if (flags & F_OVERFLOW) {
+        printf(" OF");
+    }
+    if (flags & F_AUXILIARY) {
+        printf(" AF");
+    }
+    if (flags & F_INTERRUPT) {
+        printf(" IF");
+    }
+    if (flags & F_DIRECTION) {
+        printf(" DF");
+    }
+    if (flags & F_TRAP) {
+        printf(" TF");
     }
 }
 

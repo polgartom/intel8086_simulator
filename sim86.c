@@ -48,3 +48,4 @@ Register_Access *register_access_by_enum(Register reg_enum)
 
     return result;
 }
+

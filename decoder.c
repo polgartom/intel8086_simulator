@@ -315,43 +315,6 @@ void decode_next_instruction(CPU *cpu)
 
         inst->mnemonic = extended_mneumonic_lookup[x.mnemonic][inst->reg];
 
-        // @Todo: Handle this! // @Cleanup:
-        switch (inst->mnemonic) {
-            case Mneumonic_inc: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_dec: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_add: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_sub: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_mul: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_imul: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_div: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_idiv: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_or:  inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_xor: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_and: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_not: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_test: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_cmp: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_neg: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_adc: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_sbb: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_shl: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_shr: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_sar: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_rol: inst->type = Instruction_Type_arithmetic; break;
-            case Mneumonic_ror: inst->type = Instruction_Type_arithmetic; break;
-
-            case Mneumonic_jmp: inst->type = Instruction_Type_flow; break;
-
-            case Mneumonic_call: inst->type = Instruction_Type_stack; break;
-            case Mneumonic_push: inst->type = Instruction_Type_stack; break;
-
-            case Mneumonic_invalid: break;
-
-            default:
-                printf("[WARNING]: Not handled instruction (grouped) type definition. gi: %d ; r: %d\n", (u32)x.mnemonic - (u32)Mneumonic_grp1, inst->reg);
-                assert(0);
-        }
-
         const char *ext_arg1 = i8086_inst_ext_table[x.mnemonic][inst->reg][0];
         const char *ext_arg2 = i8086_inst_ext_table[x.mnemonic][inst->reg][1];
         if (ext_arg1 || ext_arg2) {

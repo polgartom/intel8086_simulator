@@ -1,6 +1,8 @@
 #include "sim86.h"
 #include "decoder.h"
 #include "simulator.h"
+#include "printer.h"
+
 
 int main(int argc, char **argv)
 {

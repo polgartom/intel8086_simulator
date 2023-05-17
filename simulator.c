@@ -2,6 +2,19 @@
 #include "decoder.h"
 #include "printer.h"
 
+#define SIGN_BIT(__wide) (__wide ? (1 << 15) : (1 << 7))
+#define MASK_BY_WIDTH(__wide) (__wide ? 0xffff : 0xff)
+
+// @Debug
+void print_out_formated_flags(u16 old_flags, u16 new_flags)
+{
+    printf(" flags: [");
+    print_flags(old_flags);
+    printf(" ] -> [");
+    print_flags(new_flags);
+    printf(" ]");
+}
+
 // @Todo: How can be return s32?
 s32 get_data_from_register(CPU *cpu, Register_Access *src_reg)
 {
@@ -19,7 +32,8 @@ s32 get_data_from_register(CPU *cpu, Register_Access *src_reg)
 void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data)
 {
     u16 current_data = get_data_from_register(cpu, dest_reg); // @Debug
-    printf(" @reg: %#02x -> %#02x |", current_data, data);
+
+    printf(" \n\t\t@%s: %#02x -> %#02x ", register_name(dest_reg->reg), current_data, data);
 
     u16 lower_mem_index = dest_reg->index;
     if (dest_reg->size == 2) {
@@ -32,10 +46,9 @@ void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data)
     cpu->regmem[lower_mem_index] = data;
 }
 
-#define get_data_from_register_by_enum(_cpu, _src_reg_enum) get_data_from_register(_cpu, register_access_by_enum(_src_reg_enum))
-#define set_data_to_register_by_enum(_cpu, _dest_reg_enum, _data) set_data_to_register(_cpu, register_access_by_enum(_dest_reg_enum), _data)
 #define GET_FROM_REGISTER(_cpu, _reg_enum) get_data_from_register(_cpu, register_access_by_enum(_reg_enum))
 #define SET_TO_REGISTER(_cpu, _reg_enum, _data) set_data_to_register(_cpu, register_access_by_enum(_reg_enum), _data)
+
 
 u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
 {
@@ -51,39 +64,39 @@ u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
         case Effective_Address_direct:
             break;
         case Effective_Address_bx_si:
-            address = get_data_from_register_by_enum(cpu, Register_bx);
-            address += get_data_from_register_by_enum(cpu, Register_si);
+            address = GET_FROM_REGISTER(cpu, Register_bx);
+            address += GET_FROM_REGISTER(cpu, Register_si);
 
             break;
         case Effective_Address_bx_di:
-            address = get_data_from_register_by_enum(cpu, Register_bx);
-            address += get_data_from_register_by_enum(cpu, Register_di);
+            address = GET_FROM_REGISTER(cpu, Register_bx);
+            address += GET_FROM_REGISTER(cpu, Register_di);
 
             break;
         case Effective_Address_bp_si:
-            address = get_data_from_register_by_enum(cpu, Register_bp);
-            address += get_data_from_register_by_enum(cpu, Register_si);
+            address = GET_FROM_REGISTER(cpu, Register_bp);
+            address += GET_FROM_REGISTER(cpu, Register_si);
 
             break;
         case Effective_Address_bp_di:
-            address = get_data_from_register_by_enum(cpu, Register_bp);
-            address += get_data_from_register_by_enum(cpu, Register_di);
+            address = GET_FROM_REGISTER(cpu, Register_bp);
+            address += GET_FROM_REGISTER(cpu, Register_di);
 
             break;
         case Effective_Address_si:
-            address = get_data_from_register_by_enum(cpu, Register_si);
+            address = GET_FROM_REGISTER(cpu, Register_si);
 
             break;
         case Effective_Address_di:
-            address = get_data_from_register_by_enum(cpu, Register_di);
+            address = GET_FROM_REGISTER(cpu, Register_di);
 
             break;
         case Effective_Address_bp:
-            address = get_data_from_register_by_enum(cpu, Register_bp);
+            address = GET_FROM_REGISTER(cpu, Register_bp);
 
             break;
         case Effective_Address_bx:
-            address = get_data_from_register_by_enum(cpu, Register_bx);
+            address = GET_FROM_REGISTER(cpu, Register_bx);
 
             break;
         default:
@@ -122,7 +135,9 @@ s32 get_data_from_memory(u8 *memory, u32 address, u8 is_16bit)
 void set_data_to_memory(u8 *memory, u32 address, u8 is_16bit, u16 data)
 {
     s32 current_data = get_data_from_memory(memory, address, is_16bit); // @Debug
-    printf(" @mem: %#02x -> %#02x |", current_data, data);
+
+    // @Todo: @Debug: Print out the memory address in this format 0000:0xFFF, so with the segment and the offset
+    printf(" @[%d]: %#02x -> %#02x |", address, current_data, data);
 
     memory[address] = (u8)(data & 0x00FF);
     if (is_16bit) {
@@ -165,274 +180,271 @@ void set_data_to_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit, u16 dat
     }
 }
 
+void update_parity_flag(CPU *cpu, u32 result)
+{
+    cpu->flags &= ~(F_PARITY);
+
+    u8 ones = 0;
+    u8 size = (cpu->instruction.flags & Inst_Wide) ? 16 : 8;
+    u8 i = size;
+    for (u8 i = 0; i < size; i++) {
+        if (result & (1<<i)) ones++;
+    }
+
+    cpu->flags |= ((ones % 2) == 0) ? F_PARITY : 0;
+}
+
+void update_common_flags(CPU *cpu, u32 result)
+{
+    u32 sign_bit = SIGN_BIT(cpu->instruction.flags & Inst_Wide);
+
+    cpu->flags &= (~(F_SIGNED|F_ZERO));
+
+    cpu->flags |= (result & sign_bit ? F_SIGNED : 0);
+    cpu->flags |= result == 0 ? F_ZERO : 0;
+
+    update_parity_flag(cpu, result);
+}
+
+void update_arith_flags(CPU *cpu, u32 result, u32 OF, u32 AF)
+{
+    u32 flags_before = cpu->flags;
+
+    u32 sign_bit = SIGN_BIT(cpu->instruction.flags & Inst_Wide);
+    u32 CF = result & (sign_bit << 1);
+
+    cpu->flags &= (~(F_CARRY|F_OVERFLOW|F_AUXILIARY));
+    cpu->flags |= CF ? F_CARRY : 0;
+    cpu->flags |= OF ? F_OVERFLOW : 0;
+    cpu->flags |= AF ? F_AUXILIARY : 0;
+
+    update_common_flags(cpu, result);
+
+    print_out_formated_flags(flags_before, cpu->flags);
+}
+
 void execute_instruction(CPU *cpu)
 {
     Instruction *i = &cpu->instruction;
-    Instruction_Operand dest_op = i->operands[0];
-    u8 is_16bit = (i->flags & Inst_Wide) ? 1 : 0;
+    u8 is_wide = (i->flags & Inst_Wide) ? 1 : 0;
 
-    u8  inc_ip_after = 1;
+    Instruction_Operand *left_op  = &i->operands[0];
+    Instruction_Operand *right_op = &i->operands[1];
+
+    s32 left_val  = get_data_from_operand(cpu, left_op, is_wide);
+    s32 right_val = get_data_from_operand(cpu, right_op, is_wide);
+
+    u32 sign_bit = SIGN_BIT(is_wide);
+    u32 mask = MASK_BY_WIDTH(is_wide);
+
+    // @Debug
     u32 ip_before = cpu->ip;
     u32 ip_after  = cpu->ip;
 
     printf(" ;");
 
-    if (i->type == Instruction_Type_move) {
-        if (i->mnemonic != Mneumonic_mov) {
-            printf("[WARNING]: Has another move type instruction which are not handled yet!\n");
+    switch (i->mnemonic) {
+        // :Arithmatic
+        case Mneumonic_mov: {
+            set_data_to_operand(cpu, left_op, is_wide, right_val);
+            break;
+        }
+        case Mneumonic_add: {
+            u32 result = (left_val & mask) + (right_val & mask);
+
+            u32 OF = (~(left_val ^ right_val) & (left_val ^ result)) & sign_bit;
+            u32 AF = ((left_val & 0xf) + (right_val & 0xf)) & 0x10;
+
+            update_arith_flags(cpu, result, OF, AF);
+            set_data_to_operand(cpu, left_op, is_wide, result);
+
+            break;
+        }
+        case Mneumonic_sub: {
+            left_val -= right_val;
+            set_data_to_operand(cpu, left_op, is_wide, left_val);
+
+            break;
+        }
+        case Mneumonic_cmp: {
+            left_val -= right_val;
+
+            break;
+        }
+        // :Logical
+        case Mneumonic_xor: {// @todo: remove from here
+            left_val ^= right_val;
+            set_data_to_operand(cpu, left_op, is_wide, left_val);
+            break;
+        }
+        // :Flow
+        case Mneumonic_jmp: {
+            ip_after += i->operands[0].immediate;
+            break;
+        }
+        case Mneumonic_jz: {
+            if (cpu->flags & F_ZERO) {
+                ip_after += i->operands[0].immediate;
+            }
+            break;
+        }
+        case Mneumonic_jnz: {
+            if (!(cpu->flags & F_ZERO)) {
+                ip_after += i->operands[0].immediate;
+            }
+            break;
+        }
+        case Mneumonic_ja: {
+            if (!(cpu->flags & F_ZERO) && !(cpu->flags & F_CARRY)) {
+                ip_after += i->operands[0].immediate;
+            }
+            break;
+        }
+        case Mneumonic_loop: {
+            // loop instruction is always using the cx register value which will be decremented by one
+            // every time when loop instruction are called
+            Register_Access *reg_access = register_access_by_enum(Register_cx);
+            s16 cx_data = get_data_from_register(cpu, reg_access);
+            cx_data -= 1;
+            set_data_to_register(cpu, reg_access, cx_data);
+
+            if (cx_data != 0) {
+                ip_after += i->operands[0].immediate;
+            }
+
+            break;
+        }
+        // :Stack
+        case Mneumonic_push: {
+            s32 data = get_data_from_operand(cpu, left_op, 1);
+
+            u16 sp_val = GET_FROM_REGISTER(cpu, Register_sp);
+            sp_val -= 2;
+            SET_TO_REGISTER(cpu, Register_sp, sp_val);
+
+            u32 absolute_address = calc_stack_pointer_address(cpu);
+            set_data_to_memory(cpu->memory, absolute_address, 1, data);
+
+            break;
+        }
+        case Mneumonic_pushf: {
+            u16 data = cpu->flags;
+
+            u16 sp_val = GET_FROM_REGISTER(cpu, Register_sp);
+            sp_val -= 2;
+            SET_TO_REGISTER(cpu, Register_sp, sp_val);
+
+            u32 absolute_address = calc_stack_pointer_address(cpu);
+            set_data_to_memory(cpu->memory, absolute_address, 1, data);
+
+            break;
+        }
+        case Mneumonic_pop: {
+            u32 absolute_address = calc_stack_pointer_address(cpu);
+            s32 data = get_data_from_memory(cpu->memory, absolute_address, 1);
+
+            set_data_to_operand(cpu, left_op, 1, data);
+
+            u16 sp_val = GET_FROM_REGISTER(cpu, Register_sp);
+            sp_val += 2;
+            SET_TO_REGISTER(cpu, Register_sp, sp_val);
+
+            break;
+        }
+        case Mneumonic_popf: {
+            u32 absolute_address = calc_stack_pointer_address(cpu);
+            s32 data = get_data_from_memory(cpu->memory, absolute_address, 1);
+            cpu->flags = data;
+
+            u16 sp_val = GET_FROM_REGISTER(cpu, Register_sp);
+            sp_val += 2;
+            SET_TO_REGISTER(cpu, Register_sp, sp_val);
+
+            break;
+        }
+        // ???
+        case Mneumonic_cld: {
+            cpu->flags &= ~F_DIRECTION;
+            break;
+        }
+        // :String
+        case Mneumonic_stosw: {
+            // @Todo: Repeat if the repeat Prefix (REP/REPE/REPZ or REPNE/REPNZ)
+            //  (repeated based on the value in the CX register)
+            assert(!(i->flags & Inst_Repnz)); // @Todo
+
+            u16 cx = 1;
+            if (i->flags & Inst_Repz) {
+                cx = GET_FROM_REGISTER(cpu, Register_cx);
+            }
+
+            while (cx != 0) {
+                Effective_Address_Expression expr = {.base=Effective_Address_di};
+                u32 absolute_address = calc_absolute_memory_address(cpu, &expr);
+
+                s32 ax = GET_FROM_REGISTER(cpu, Register_ax);
+                set_data_to_memory(cpu->memory, absolute_address, 1, ax);
+
+                u16 di = GET_FROM_REGISTER(cpu, Register_di);
+                if (cpu->flags & F_DIRECTION) di -= 2;
+                else                          di += 2;
+
+                SET_TO_REGISTER(cpu, Register_di, di);
+
+                cx -= 1;
+            };
+
+            if (i->flags & Inst_Repz) {
+                SET_TO_REGISTER(cpu, Register_cx, cx);
+            }
+
+            break;
+        }
+        case Mneumonic_stosb: {
+            // @Todo: Repeat if the repeat Prefix (REP/REPE/REPZ or REPNE/REPNZ)
+            //  (repeated based on the value in the CX register)
+            assert(!(i->flags & Inst_Repnz)); // @Todo
+
+            u16 cx = 1;
+            if (i->flags & Inst_Repz) {
+                cx = GET_FROM_REGISTER(cpu, Register_cx);
+            }
+
+            while (cx != 0) {
+                Effective_Address_Expression expr = {.base=Effective_Address_di};
+                u32 absolute_address = calc_absolute_memory_address(cpu, &expr);
+
+                s32 al = GET_FROM_REGISTER(cpu, Register_al);
+                set_data_to_memory(cpu->memory, absolute_address, 0, al);
+
+                u16 di = GET_FROM_REGISTER(cpu, Register_di);
+                if (cpu->flags & F_DIRECTION) di -= 1;
+                else                          di += 1;
+
+                SET_TO_REGISTER(cpu, Register_di, di);
+
+                cx -= 1;
+            };
+
+            if (i->flags & Inst_Repz) {
+                SET_TO_REGISTER(cpu, Register_cx, cx);
+            }
+
+            break;
+        }
+        // :IO
+        case Mneumonic_out: {
+            // @Todo:
+            break;
+        }
+        default: {
+            printf("[WARNING]: This instruction: %s is have not handled yet!\n", mnemonic_name(i->mnemonic));
             assert(0);
         }
-        Instruction_Operand src_op = i->operands[1];
-        u16 src_data = get_data_from_operand(cpu, &src_op, is_16bit);
-        set_data_to_operand(cpu, &dest_op, is_16bit, src_data);
-    }
-    else if (i->type == Instruction_Type_arithmetic) {
-        Instruction_Operand src_op = i->operands[1];
-        u16 src_data = get_data_from_operand(cpu, &src_op, is_16bit);
-        s32 dest_data = get_data_from_operand(cpu, &dest_op, is_16bit);
-
-        switch (i->mnemonic) {
-            case Mneumonic_add:
-                dest_data += src_data;
-                set_data_to_operand(cpu, &dest_op, is_16bit, dest_data);
-                break;
-            case Mneumonic_sub:
-                dest_data -= src_data;
-                set_data_to_operand(cpu, &dest_op, is_16bit, dest_data);
-                break;
-            case Mneumonic_cmp:
-                dest_data -= src_data;
-                break;
-            case Mneumonic_xor:
-                dest_data ^= src_data;
-                break;
-            default:
-                printf("[WARNING]: This instruction: %s is have not handled yet!\n", mnemonic_name(i->mnemonic));
-                assert(0);
-        }
-
-        u16 new_flags = cpu->flags;
-        new_flags &= (~(F_SIGNED|F_ZERO)); // clear flags
-
-        if (dest_data == 0) {
-            new_flags |= F_ZERO;
-        }
-        else if (dest_data >> 15) {
-            new_flags |= F_SIGNED;
-        }
-
-        printf(" flags: [");
-        print_flags(cpu->flags);
-        printf("] -> [");
-        print_flags(new_flags);
-        printf("]");
-
-        cpu->flags = new_flags;
-    }
-    else if (i->type == Instruction_Type_flow) {
-        switch (i->mnemonic) {
-            case Mneumonic_jmp: {
-                ip_after += i->operands[0].immediate;
-                inc_ip_after = 0;
-                break;
-            }
-            case Mneumonic_jz: {
-                if (cpu->flags & F_ZERO) {
-                    ip_after += i->operands[0].immediate;
-                }
-                break;
-            }
-            case Mneumonic_jnz: {
-                if (!(cpu->flags & F_ZERO)) {
-                    ip_after += i->operands[0].immediate;
-                }
-                break;
-            }
-            case Mneumonic_loop: {
-                // loop instruction is always using the cx register value which will be decremented by one
-                // every time when loop instruction are called
-                Register_Access *reg_access = register_access_by_enum(Register_cx);
-                s16 cx_data = get_data_from_register(cpu, reg_access);
-                cx_data -= 1;
-                set_data_to_register(cpu, reg_access, cx_data);
-
-                if (cx_data != 0) {
-                    ip_after += i->operands[0].immediate;
-                }
-
-                break;
-            }
-            default:
-                printf("\n[ERROR]: This instruction: '%s' is have not handled yet!\n", mnemonic_name(i->mnemonic));
-                assert(0);
-        }
-    }
-    else if (i->type == Instruction_Type_stack) {
-        Instruction_Operand *op = &i->operands[0];
-
-        u16 ss = get_data_from_register_by_enum(cpu, Register_ss);
-        u16 sp = get_data_from_register_by_enum(cpu, Register_sp);
-        u32 absolute_address = (ss << 4) + sp; // stack stegment address calc
-
-        switch (i->mnemonic) {
-            case Mneumonic_push: {
-                s32 data = get_data_from_operand(cpu, op, 1);
-
-                sp -= 2; // @Todo: Can be larger?
-                set_data_to_register_by_enum(cpu, Register_sp, sp);
-
-                absolute_address = (ss << 4) + sp;
-                set_data_to_memory(cpu->memory, absolute_address, 1, data);
-
-                break;
-            }
-            case Mneumonic_pushf: {
-                u16 data = cpu->flags;
-
-                sp -= 2; // @Todo: Can be larger?
-                set_data_to_register_by_enum(cpu, Register_sp, sp);
-
-                absolute_address = (ss << 4) + sp;
-                set_data_to_memory(cpu->memory, absolute_address, 1, data);
-
-                break;
-            }
-            case Mneumonic_pop: {
-                s32 data = get_data_from_memory(cpu->memory, absolute_address, 1);
-                set_data_to_operand(cpu, op, 1, data);
-
-                sp += 2; // @Todo: can be larger?
-                set_data_to_register_by_enum(cpu, Register_sp, sp);
-
-                break;
-            }
-            case Mneumonic_popf: {
-                s32 data = get_data_from_memory(cpu->memory, absolute_address, 1);
-                cpu->flags = data;
-
-                sp += 2; // @Todo: can be larger?
-                set_data_to_register_by_enum(cpu, Register_sp, sp);
-
-                break;
-            }
-            default: {
-                printf("[WARNING]: This type of STACK instruction is not handled yet!\n");
-                assert(0);
-            }
-        }
-
-    }
-    else if (i->type == Instruction_Type_string) {
-
-        switch (i->mnemonic) {
-            case Mneumonic_stosw: {
-                // @Todo: Repeat if the repeat Prefix (REP/REPE/REPZ or REPNE/REPNZ)
-                //  (repeated based on the value in the CX register)
-                assert(!(i->flags & Inst_Repnz)); // @Todo
-
-                u16 cx = 1;
-                if (i->flags & Inst_Repz) {
-                    cx = GET_FROM_REGISTER(cpu, Register_cx);
-                }
-
-                while (cx != 0) {
-                    Effective_Address_Expression expr = {.base=Effective_Address_di};
-                    u32 absolute_address = calc_absolute_memory_address(cpu, &expr);
-
-                    s32 ax = GET_FROM_REGISTER(cpu, Register_ax);
-                    set_data_to_memory(cpu->memory, absolute_address, 1, ax);
-
-                    u16 di = GET_FROM_REGISTER(cpu, Register_di);
-                    if (cpu->flags & F_DIRECTION) di -= 2;
-                    else                          di += 2;
-
-                    SET_TO_REGISTER(cpu, Register_di, di);
-
-                    cx -= 1;
-                };
-
-                if (i->flags & Inst_Repz) {
-                    SET_TO_REGISTER(cpu, Register_cx, cx);
-                }
-
-                break;
-            }
-            case Mneumonic_stosb: {
-                // @Todo: Repeat if the repeat Prefix (REP/REPE/REPZ or REPNE/REPNZ)
-                //  (repeated based on the value in the CX register)
-                assert(!(i->flags & Inst_Repnz)); // @Todo
-
-                u16 cx = 1;
-                if (i->flags & Inst_Repz) {
-                    cx = GET_FROM_REGISTER(cpu, Register_cx);
-                }
-
-                while (cx != 0) {
-                    Effective_Address_Expression expr = {.base=Effective_Address_di};
-                    u32 absolute_address = calc_absolute_memory_address(cpu, &expr);
-
-                    s32 al = GET_FROM_REGISTER(cpu, Register_al);
-                    set_data_to_memory(cpu->memory, absolute_address, 0, al);
-
-                    u16 di = GET_FROM_REGISTER(cpu, Register_di);
-                    if (cpu->flags & F_DIRECTION) di -= 1;
-                    else                          di += 1;
-
-                    SET_TO_REGISTER(cpu, Register_di, di);
-
-                    cx -= 1;
-                };
-
-                if (i->flags & Inst_Repz) {
-                    SET_TO_REGISTER(cpu, Register_cx, cx);
-                }
-
-                break;
-            }
-            default:
-                printf("[WARNING]: This type of STRING instruction is not handled yet!\n");
-                assert(0);
-        }
-
-    }
-    else if (i->type == Instruction_Type_bit) {
-        // @Todo: print out the before and after flags?
-        switch (i->mnemonic) {
-            case Mneumonic_cld:
-                cpu->flags &= ~F_DIRECTION;
-                break;
-            default:
-                printf("[WARNING]: This type of FLAG instruction is not handled yet!\n");
-                assert(0);
-        }
-    }
-    else if (i->type == Instruction_Type_io) {
-        switch (i->mnemonic) {
-            case Mneumonic_out: {
-                Register_Access *reg_access = register_access(i->operands[0].reg, Inst_Wide);
-                assert(reg_access->reg == Register_dx);
-                u16 io_port = GET_FROM_REGISTER(cpu, Register_dx);
-
-                Instruction_Operand *src_op = &i->operands[1];
-                u8 is_wide = src_op->flags & Inst_Wide;
-                s32 data = get_data_from_operand(cpu, src_op, is_wide);
-
-                // @Todo: OUTPUT
-                break;
-            }
-            default:
-                printf("[WARNING]: This type of IO instruction is not handled yet!\n");
-                assert(0);
-        }
-    }
-    else {
-        printf("[WARNING]: This type of instruction is not handled yet!\n");
-        assert(0);
     }
 
     // This instruction pointer data will provide us the next instruction location from the cpu->instructions array which indexed
     // based on the instruction byte index at loaded binary file.
-    //if (inc_ip_after)
     ip_after += i->size;
     cpu->ip = ip_after;
 
@@ -458,6 +470,7 @@ void load_executable(CPU *cpu, char *filename)
     fclose(fp);
 
     cpu->loaded_executable_size = fsize;
+    cpu->exec_end = inst_absolute_address + fsize;
 }
 
 void boot(CPU *cpu)
@@ -468,6 +481,7 @@ void boot(CPU *cpu)
 
     // @Cleanup: This is a little-bit wierdo, two different register set
     SET_TO_REGISTER(cpu, Register_cs, 0xF000);
+    printf("\n");
     cpu->ip = 0x0100;
 }
 
@@ -525,7 +539,6 @@ __de:;
         }
 
     // @Todo: Another option to check end of the executable?
-    } while (cpu->ip <= cpu->loaded_executable_size);
+    } while (calc_inst_pointer_address(cpu) < cpu->exec_end);
 
-    //printf("cpu->ip: %d; cpu->loaded_exec_size: %d\n", cpu->ip, cpu->loaded_executable_size);
 }
