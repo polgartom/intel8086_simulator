@@ -76,7 +76,7 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
         return;
     }
 
-    if (arg[0] == 'e' || arg[STR_LEN(arg)-1] == 'X') {
+    if (arg[0] == 'e' || arg[STR_LEN(arg)-1] == 'X' || arg[STR_LEN(arg)-1] == 'I') {
         inst->flags |= Inst_Wide;
         op->flags |= Inst_Wide;
     }

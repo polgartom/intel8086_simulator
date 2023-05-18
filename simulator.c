@@ -5,6 +5,7 @@
 #define SIGN_BIT(__wide) (__wide ? (1 << 15) : (1 << 7))
 #define MASK_BY_WIDTH(__wide) (__wide ? 0xffff : 0xff)
 
+// @Cleanup: remove this register_access mess
 u16 get_data_from_register(CPU *cpu, Register_Access *src_reg)
 {
     u16 lower_mem_index = src_reg->index;
@@ -18,6 +19,7 @@ u16 get_data_from_register(CPU *cpu, Register_Access *src_reg)
     return cpu->regmem[lower_mem_index];
 }
 
+// @Cleanup: remove this register_access mess
 void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data)
 {
     // @Debug
@@ -37,7 +39,6 @@ void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data)
 
 #define get_from_register(_cpu, _reg_enum) get_data_from_register(_cpu, register_access_by_enum(_reg_enum))
 #define set_to_register(_cpu, _reg_enum, _data) set_data_to_register(_cpu, register_access_by_enum(_reg_enum), _data)
-
 
 u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
 {
@@ -111,49 +112,49 @@ u32 calc_stack_pointer_address(CPU *cpu)
     return (segment << 4) + offset;
 }
 
-s32 get_data_from_memory(u8 *memory, u32 address, u8 is_16bit)
+u16 get_data_from_memory(CPU *cpu, u32 address)
 {
-    s16 data = (u8)memory[address];
-    if (is_16bit) {
-        data = BYTE_LOHI_TO_HILO(data, (u8)memory[address+1]);
+    s16 data = (u8)cpu->memory[address];
+    if (cpu->instruction.flags & Inst_Wide) {
+        data = BYTE_LOHI_TO_HILO(data, (u8)cpu->memory[address+1]);
     }
 
     return data;
 }
 
-void set_data_to_memory(u8 *memory, u32 address, u8 is_16bit, u16 data)
+void set_data_to_memory(CPU *cpu, u32 address, u16 data)
 {
-    s32 current_data = get_data_from_memory(memory, address, is_16bit); // @Debug
+    u16 current_data = get_data_from_memory(cpu, address); // @Debug
 
     // @Todo: @Debug: Print out the memory address in this format 0000:0xFFF, so with the segment and the offset
     printf("\n\t\t[%d]: %#02x -> %#02x", address, current_data, data);
 
-    memory[address] = (u8)(data & 0x00FF);
-    if (is_16bit) {
-        memory[address+1] = (u8)((data >> 8) & 0x00FF);
+    cpu->memory[address] = (u8)(data & 0x00FF);
+    if (cpu->instruction.flags & Inst_Wide) {
+        cpu->memory[address+1] = (u8)((data >> 8) & 0x00FF);
     }
 }
 
-s32 get_data_from_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit)
+u16 get_from_operand(CPU *cpu, Instruction_Operand *op)
 {
-    s32 src_data = 0;
+    u16 data = 0;
 
     if (op->type == Operand_Register) {
-        Register_Access *src_reg = register_access(op->reg, op->flags);
-        src_data = get_data_from_register(cpu, src_reg);
+        Register_Access *reg = register_access(op->reg, op->flags);
+        data = get_data_from_register(cpu, reg);
     }
     else if (op->type == Operand_Immediate) {
-        src_data = op->immediate;
+        data = op->immediate;
     }
     else if (op->type == Operand_Memory) {
         u16 address = calc_absolute_memory_address(cpu, &op->address);
-        src_data = get_data_from_memory(cpu->memory, address, is_16bit);
+        data = get_data_from_memory(cpu, address);
     }
 
-    return src_data;
+    return data;
 }
 
-void set_data_to_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit, u16 data)
+void set_to_operand(CPU *cpu, Instruction_Operand *op, u16 data)
 {
     if (op->type == Operand_Register) {
         Register_Access *dest_reg = register_access(op->reg, op->flags);
@@ -161,12 +162,62 @@ void set_data_to_operand(CPU *cpu, Instruction_Operand *op, u8 is_16bit, u16 dat
     }
     else if (op->type == Operand_Memory) {
         u16 address = calc_absolute_memory_address(cpu, &op->address);
-        set_data_to_memory(cpu->memory, address, is_16bit, data);
+        set_data_to_memory(cpu, address, data);
     }
     else {
         printf("[ERROR]: How do you wannna put value in the immediate?\n");
         assert(0);
     }
+}
+
+void stack_push(CPU *cpu, u16 data)
+{
+    u16 sp_val = get_from_register(cpu, Register_sp);
+    sp_val -= 2;
+    set_to_register(cpu, Register_sp, sp_val);
+
+    u32 absolute_address = calc_stack_pointer_address(cpu);
+    set_data_to_memory(cpu, absolute_address, data);
+}
+
+u16 stack_pop(CPU *cpu)
+{
+    u32 absolute_address = calc_stack_pointer_address(cpu);
+    u16 data = get_data_from_memory(cpu, absolute_address);
+
+    u16 sp_val = get_from_register(cpu, Register_sp);
+    sp_val += 2;
+    set_to_register(cpu, Register_sp, sp_val);
+
+    return data;
+}
+
+void stack_push_flags(CPU *cpu)
+{
+    stack_push(cpu, cpu->flags);
+}
+
+void stack_pop_flags(CPU *cpu)
+{
+    cpu->flags = 0;
+    cpu->flags |= stack_pop(cpu);
+}
+
+void execute_interrupt(CPU *cpu, u16 interrupt_type)
+{
+    stack_push_flags(cpu);
+    stack_push(cpu, get_from_register(cpu, Register_cs));
+    stack_push(cpu, cpu->ip);
+    cpu->flags &= ~(F_TRAP|F_INTERRUPT);
+
+    // The interrupt pointer address is 4 byte, the first 2 byte refer to the offset (ip)
+    // and the remained 2 byte is the segment (cs) of the address.
+    u16 interrupt_address = interrupt_type * 4;
+    u16 ip_val = get_data_from_memory(cpu, interrupt_address);
+    u16 cs_val = get_data_from_memory(cpu, interrupt_address+2);
+
+    cpu->ip = ip_val;
+    set_to_register(cpu, Register_cs, cs_val);
 }
 
 void update_parity_flag(CPU *cpu, u32 result)
@@ -227,8 +278,8 @@ void execute_instruction(CPU *cpu)
     Instruction_Operand *left_op  = &i->operands[0];
     Instruction_Operand *right_op = &i->operands[1];
 
-    s32 left_val  = get_data_from_operand(cpu, left_op, is_wide);
-    s32 right_val = get_data_from_operand(cpu, right_op, is_wide);
+    s32 left_val  = get_from_operand(cpu, left_op);
+    s32 right_val = get_from_operand(cpu, right_op);
 
     u32 sign_bit = SIGN_BIT(is_wide);
     u32 mask = MASK_BY_WIDTH(is_wide);
@@ -240,7 +291,7 @@ void execute_instruction(CPU *cpu)
     switch (i->mnemonic) {
         // :Arithmatic
         case Mneumonic_mov: {
-            set_data_to_operand(cpu, left_op, is_wide, right_val);
+            set_to_operand(cpu, left_op, right_val);
             break;
         }
         case Mneumonic_add: {
@@ -261,13 +312,13 @@ void execute_instruction(CPU *cpu)
             u32 AF = ((left_val & 0xf) + (right_val & 0xf)) & 0x10;
 
             update_arith_flags(cpu, result, OF, AF);
-            set_data_to_operand(cpu, left_op, is_wide, result);
+            set_to_operand(cpu, left_op, result);
 
             break;
         }
         case Mneumonic_sub: {
             u32 result = left_val - right_val;
-            set_data_to_operand(cpu, left_op, is_wide, result);
+            set_to_operand(cpu, left_op, result);
 
             u32 OF = ((left_val ^ right_val) & (left_val ^ result)) & sign_bit;
             u32 AF = ((left_val & 0xf) - (right_val & 0xf)) & 0x10;
@@ -291,7 +342,7 @@ void execute_instruction(CPU *cpu)
                 assert(0);
             } else {
                 u32 result = left_val / right_val;
-                set_data_to_operand(cpu, left_op, is_wide, result);
+                set_to_operand(cpu, left_op, result);
                 update_arith_flags(cpu, result, 0, 0);
             }
 
@@ -299,19 +350,19 @@ void execute_instruction(CPU *cpu)
         }
         case Mneumonic_inc: {
             u32 result = left_val+1;
-            set_data_to_operand(cpu, left_op, is_wide, result);
+            set_to_operand(cpu, left_op, result);
             update_arith_flags(cpu, result, 0, 0);
             break;
         }
         case Mneumonic_dec: {
             u32 result = left_val-1;
-            set_data_to_operand(cpu, left_op, is_wide, result);
+            set_to_operand(cpu, left_op, result);
             update_arith_flags(cpu, result, 0, 0);
             break;
         }
         case Mneumonic_mul: {
             u32 result = left_val * right_val;
-            set_data_to_operand(cpu, left_op, is_wide, result);
+            set_to_operand(cpu, left_op, result);
             update_arith_flags(cpu, result, 0, 0);
             break;
         }
@@ -323,24 +374,24 @@ void execute_instruction(CPU *cpu)
         }
         case Mneumonic_and: {
             u32 result = left_val &= right_val;
-            set_data_to_operand(cpu, left_op, is_wide, result);
+            set_to_operand(cpu, left_op, result);
             update_log_flags(cpu, result);
             break;
         }
         case Mneumonic_not: {
             u32 result = ~left_val;
-            set_data_to_operand(cpu, left_op, is_wide, result);
+            set_to_operand(cpu, left_op, result);
             break;
         }
         case Mneumonic_or: {
             u32 result = left_val |= right_val;
-            set_data_to_operand(cpu, left_op, is_wide, result);
+            set_to_operand(cpu, left_op, result);
             update_log_flags(cpu, result);
             break;
         }
         case Mneumonic_xor: {
             u32 result = left_val ^= right_val;
-            set_data_to_operand(cpu, left_op, is_wide, result);
+            set_to_operand(cpu, left_op, result);
             update_log_flags(cpu, result);
             break;
         }
@@ -369,12 +420,9 @@ void execute_instruction(CPU *cpu)
             break;
         }
         case Mneumonic_loop: {
-            // loop instruction is always using the cx register value which will be decremented by one
-            // every time when loop instruction are called
-            Register_Access *reg_access = register_access_by_enum(Register_cx);
-            s16 cx_data = get_data_from_register(cpu, reg_access);
+            u16 cx_data = get_from_register(cpu, Register_cx);
             cx_data -= 1;
-            set_data_to_register(cpu, reg_access, cx_data);
+            set_to_register(cpu, Register_cx, cx_data);
 
             if (cx_data != 0) {
                 ip_after += i->operands[0].immediate;
@@ -384,55 +432,48 @@ void execute_instruction(CPU *cpu)
         }
         // :Stack
         case Mneumonic_push: {
-            s32 data = get_data_from_operand(cpu, left_op, 1);
-
-            u16 sp_val = get_from_register(cpu, Register_sp);
-            sp_val -= 2;
-            set_to_register(cpu, Register_sp, sp_val);
-
-            u32 absolute_address = calc_stack_pointer_address(cpu);
-            set_data_to_memory(cpu->memory, absolute_address, 1, data);
-
+            u16 data = get_from_operand(cpu, left_op);
+            stack_push(cpu, data);
             break;
         }
         case Mneumonic_pushf: {
-            u16 data = cpu->flags;
-
-            u16 sp_val = get_from_register(cpu, Register_sp);
-            sp_val -= 2;
-            set_to_register(cpu, Register_sp, sp_val);
-
-            u32 absolute_address = calc_stack_pointer_address(cpu);
-            set_data_to_memory(cpu->memory, absolute_address, 1, data);
-
+            stack_push_flags(cpu);
             break;
         }
         case Mneumonic_pop: {
-            u32 absolute_address = calc_stack_pointer_address(cpu);
-            s32 data = get_data_from_memory(cpu->memory, absolute_address, 1);
-
-            set_data_to_operand(cpu, left_op, 1, data);
-
-            u16 sp_val = get_from_register(cpu, Register_sp);
-            sp_val += 2;
-            set_to_register(cpu, Register_sp, sp_val);
-
+            u16 data = stack_pop(cpu);
+            set_to_operand(cpu, left_op, data);
             break;
         }
         case Mneumonic_popf: {
-            u32 absolute_address = calc_stack_pointer_address(cpu);
-            s32 data = get_data_from_memory(cpu->memory, absolute_address, 1);
-            cpu->flags = data;
-
-            u16 sp_val = get_from_register(cpu, Register_sp);
-            sp_val += 2;
-            set_to_register(cpu, Register_sp, sp_val);
-
+            stack_pop_flags(cpu);
             break;
         }
         // ???
         case Mneumonic_cld: {
             cpu->flags &= ~F_DIRECTION;
+            break;
+        }
+        // :Interrupt
+        // case Mneumonic_int3: // We're decoding the int3 as int and 3 immediate value
+        case Mneumonic_int: {
+            u16 interrupt_type = get_from_operand(cpu, left_op);
+            execute_interrupt(cpu, interrupt_type);
+            break;
+        }
+        case Mneumonic_into: {
+            if (cpu->flags & F_OVERFLOW) {
+                execute_interrupt(cpu, 4);
+            }
+            break;
+        }
+        case Mneumonic_iret: {
+            cpu->ip = stack_pop(cpu);
+            u16 cs_val = stack_pop(cpu);
+            set_to_register(cpu, Register_cs, cs_val);
+
+            stack_pop_flags(cpu);
+
             break;
         }
         // :String
@@ -451,7 +492,7 @@ void execute_instruction(CPU *cpu)
                 u32 absolute_address = calc_absolute_memory_address(cpu, &expr);
 
                 s32 ax = get_from_register(cpu, Register_ax);
-                set_data_to_memory(cpu->memory, absolute_address, 1, ax);
+                set_data_to_memory(cpu, absolute_address, ax);
 
                 u16 di = get_from_register(cpu, Register_di);
                 if (cpu->flags & F_DIRECTION) di -= 2;
@@ -483,7 +524,7 @@ void execute_instruction(CPU *cpu)
                 u32 absolute_address = calc_absolute_memory_address(cpu, &expr);
 
                 s32 al = get_from_register(cpu, Register_al);
-                set_data_to_memory(cpu->memory, absolute_address, 0, al);
+                set_data_to_memory(cpu, absolute_address, al);
 
                 u16 di = get_from_register(cpu, Register_di);
                 if (cpu->flags & F_DIRECTION) di -= 1;
@@ -517,6 +558,7 @@ void execute_instruction(CPU *cpu)
     cpu->ip = ip_after;
 
     printf("\n\t\t@ip: %#02x -> %#02x\n", ip_before, cpu->ip);
+    printf("\n");
 }
 
 void load_executable(CPU *cpu, char *filename)
