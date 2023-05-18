@@ -4,6 +4,8 @@
 
 #define SIGN_BIT(__wide) (__wide ? (1 << 15) : (1 << 7))
 #define MASK_BY_WIDTH(__wide) (__wide ? 0xffff : 0xff)
+#define SEGMENT_MASK 0xFFFFF // 20bit
+
 
 // @Cleanup: remove this register_access mess
 u16 get_data_from_register(CPU *cpu, Register_Access *src_reg)
@@ -44,10 +46,12 @@ u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
 {
     u16 address = 0;
     u16 segment = expr->segment; // This a constant segment value like in the asm: jmp 5312:2891
+    u32 mask = 0xFFFF; // 16bit mask
 
     if ((cpu->instruction.flags & Inst_Segment) && cpu->extend_with_this_segment != Register_none) {
         Register_Access *reg_access = register_access_by_enum(cpu->extend_with_this_segment);
         segment = get_data_from_register(cpu, reg_access);
+        mask = SEGMENT_MASK;
     }
 
     switch (expr->base) {
@@ -93,7 +97,7 @@ u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
             assert(0);
     }
 
-    return (segment << 4) + address + expr->displacement;
+    return ((segment << 4) + address + expr->displacement) & mask;
 }
 
 u32 calc_inst_pointer_address(CPU *cpu)
@@ -101,7 +105,7 @@ u32 calc_inst_pointer_address(CPU *cpu)
     u16 segment = get_from_register(cpu, Register_cs);
     u16 offset  = cpu->ip;
 
-    return (segment << 4) + offset;
+    return ((segment << 4) + offset)) & SEGMENT_MASK;
 }
 
 u32 calc_stack_pointer_address(CPU *cpu)
@@ -109,12 +113,12 @@ u32 calc_stack_pointer_address(CPU *cpu)
     u16 segment = get_from_register(cpu, Register_ss);
     u16 offset  = get_from_register(cpu, Register_sp);
 
-    return (segment << 4) + offset;
+    return (((segment << 4) + offset)) & SEGMENT_MASK; // 20 bit mask
 }
 
 u16 get_data_from_memory(CPU *cpu, u32 address)
 {
-    s16 data = (u8)cpu->memory[address];
+    u16 data = (u8)cpu->memory[address];
     if (cpu->instruction.flags & Inst_Wide) {
         data = BYTE_LOHI_TO_HILO(data, (u8)cpu->memory[address+1]);
     }
@@ -124,9 +128,8 @@ u16 get_data_from_memory(CPU *cpu, u32 address)
 
 void set_data_to_memory(CPU *cpu, u32 address, u16 data)
 {
-    u16 current_data = get_data_from_memory(cpu, address); // @Debug
-
     // @Todo: @Debug: Print out the memory address in this format 0000:0xFFF, so with the segment and the offset
+    u16 current_data = get_data_from_memory(cpu, address); // @Debug
     printf("\n\t\t[%d]: %#02x -> %#02x", address, current_data, data);
 
     cpu->memory[address] = (u8)(data & 0x00FF);
@@ -554,6 +557,8 @@ void execute_instruction(CPU *cpu)
 
     // This instruction pointer data will provide us the next instruction location from the cpu->instructions array which indexed
     // based on the instruction byte index at loaded binary file.
+    // @Bug @Todo: This will cause a bug if the ip address overflow, because if we incremented the ip value,
+    //  then the cs register value has to be incremented too if the ip register value is left his range.
     ip_after += i->size;
     cpu->ip = ip_after;
 
@@ -604,7 +609,6 @@ void run(CPU *cpu)
     }
 
     do {
-decode_next:;
         decode_next_instruction(cpu);
 
         // @Todo: The i8086 contains the debug flag so later we simulate this too
@@ -627,7 +631,7 @@ __de:;
             u16 cs_segment = get_from_register(cpu, Register_cs);
             cpu->ip = cpu->decoder_cursor - (cs_segment << 4);
 
-            goto decode_next;
+            continue;
         }
 
         if (cpu->decode_only) {
