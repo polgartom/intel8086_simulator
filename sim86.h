@@ -73,14 +73,13 @@ typedef enum {
 
   Register_sp,
   Register_bp,
-
   Register_si,
   Register_di,
 
-  Register_cs, // code segment
-  Register_ds, // data segment
-  Register_ss, // stack segment
   Register_es, // extra segment
+  Register_cs, // code segment
+  Register_ss, // stack segment
+  Register_ds, // data segment
 
   Register_ip, // ip register
 
@@ -199,7 +198,6 @@ typedef struct {
     u16 ip;
     u16 flags;
     u8 regmem[64]; // The "accessible" register values are stored here
-    Register extend_with_this_segment;
 
     u8* memory;
 

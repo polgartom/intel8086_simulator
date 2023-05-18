@@ -21,7 +21,7 @@ Register_Access *register_access(u32 reg, u32 flags)
             {Register_sp, 8, 2}, {Register_bp, 10, 2}, {Register_si, 12, 2}, {Register_di, 14, 2}
         },
         {
-            {Register_cs, 16, 2}, {Register_ds, 18, 2}, {Register_ss, 20, 2}, {Register_es, 22, 2},
+            {Register_es, 16, 2}, {Register_cs, 18, 2}, {Register_ss, 20, 2}, {Register_ds, 22, 2},
             {Register_count, 24, 2}, {Register_count, 26, 2}, {Register_count, 28, 2}, {Register_count, 30, 2} // Empty
         }
     };

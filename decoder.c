@@ -218,17 +218,28 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
 
             op->type = Operand_Memory;
             op->address.base = Effective_Address_direct;
-            op->address.displacement = (s32)BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu));
+            
+            char next_char = arg[++i];
+            
+            u32 mask = 0xFF;
+            if (next_char == 'v' || next_char == 'w') {
+                mask = 0xFFFF;
+                inst->flags |= Inst_Wide; // @Todo: investigate, because I guess this is not required
+            }
+
+            u16 displacement = (u16)BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu));
+            op->address.displacement = displacement;
 
         } else if (arg[i] == 'S') {
             // The reg field of the ModR/M byte selects a segment register.
 
             mod_reg_rm(cpu, inst);
 
-            inst->flags |= Inst_Segment;
             op->flags |= Inst_Segment;
             op->type = Operand_Register;
             op->reg  = inst->reg;
+
+            printf("segreg: %d\n", inst->reg);
 
         } else if (arg[i] == 'M') {
             // The ModR/M byte may refer only to memory. Applicable, e.g., to LES and LDS.
@@ -291,7 +302,6 @@ void decode_next_instruction(CPU *cpu)
 {
     Instruction *inst = &cpu->instruction;
     cpu->decoder_cursor = calc_inst_pointer_address(cpu);
-    //printf(" $ cs:ip: %#08X | dc: %#08X\n", calc_inst_pointer_address(cpu), cpu->decoder_cursor);
 
     if (!inst->is_prefix) {
         ZERO_MEMORY(inst, sizeof(Instruction));
@@ -307,7 +317,7 @@ void decode_next_instruction(CPU *cpu)
     inst->mnemonic = x.mnemonic;
     inst->type = x.type;
 
-    //printf("## opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", x.opcode, mnemonic_name(x.mnemonic), x.arg1, x.arg2);
+    //printf("> opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", x.opcode, mnemonic_name(x.mnemonic), x.arg1, x.arg2);
 
     // Overwrite the arguments if the extenstion table lookup is find something
     if (x.mnemonic >= Mneumonic_grp1) {

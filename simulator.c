@@ -7,8 +7,6 @@
 #include <sys/timeb.h>
 #include <memory.h>
 #include "SDL.h"
-#define IO_PORT_COUNT 0x10000
-#define GRAPHICS_UPDATE_DELAY 360000
 
 #define SIGN_BIT(__wide) (__wide ? (1 << 15) : (1 << 7))
 #define MASK_BY_WIDTH(__wide) (__wide ? 0xffff : 0xff)
@@ -56,9 +54,9 @@ u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
     u16 segment = expr->segment; // This a constant segment value like in the asm: jmp 5312:2891
     u32 mask = 0xFFFF; // 16bit mask
 
-    if ((cpu->instruction.flags & Inst_Segment) && cpu->extend_with_this_segment != Register_none) {
-        Register_Access *reg_access = register_access_by_enum(cpu->extend_with_this_segment);
-        segment = get_data_from_register(cpu, reg_access);
+    Register extended_with_this_segment_reg = cpu->instruction.extend_with_this_segment;
+    if ((cpu->instruction.flags & Inst_Segment) && extended_with_this_segment_reg != Register_none) {
+        segment = get_from_register(cpu, extended_with_this_segment_reg);
         mask = SEGMENT_MASK;
     }
 
@@ -105,7 +103,10 @@ u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
             assert(0);
     }
 
-    return ((segment << 4) + address + expr->displacement) & mask;
+    u32 result = ((segment << 4) + address + expr->displacement) & mask;
+
+    //printf("\n\t\t*[%#02x]", result);
+    return result;
 }
 
 u32 calc_inst_pointer_address(CPU *cpu)
@@ -158,7 +159,7 @@ u16 get_from_operand(CPU *cpu, Instruction_Operand *op)
         data = op->immediate;
     }
     else if (op->type == Operand_Memory) {
-        u16 address = calc_absolute_memory_address(cpu, &op->address);
+        u32 address = calc_absolute_memory_address(cpu, &op->address);
         data = get_data_from_memory(cpu, address);
     }
 
@@ -172,7 +173,7 @@ void set_to_operand(CPU *cpu, Instruction_Operand *op, u16 data)
         set_data_to_register(cpu, dest_reg, data);
     }
     else if (op->type == Operand_Memory) {
-        u16 address = calc_absolute_memory_address(cpu, &op->address);
+        u32 address = calc_absolute_memory_address(cpu, &op->address);
         set_data_to_memory(cpu, address, data);
     }
     else {
@@ -614,15 +615,33 @@ void boot(CPU *cpu)
     ZERO_MEMORY(cpu->regmem, 64);
 
     // @Cleanup: This is a little-bit wierdo, two different register set
-    set_to_register(cpu, Register_cs, 0xF000);
+    set_to_register(cpu, Register_cs, 0xf000);
     printf("\n");
     cpu->ip = 0x0100;
 }
-/* 
-#define GRAPHICS_X 200
-#define GRAPHICS_Y 200
+
 #define VIDEO_RAM_SIZE 0x10000
-*/
+#define GRAPHICS_UPDATE_DELAY 360000
+
+void swapFramebufferVertically(u32* framebuffer, int width, int height) {
+    int rowSize = width * sizeof(u32);
+    u32 tempRow[rowSize];
+
+    for (int row = 0; row < height / 2; row++) {
+        int topRow = row;
+        int bottomRow = height - 1 - row;
+
+        // Calculate the start indices of the rows
+        int topRowStart = topRow * width;
+        int bottomRowStart = bottomRow * width;
+
+        // Swap the rows
+        memcpy(tempRow, &framebuffer[topRowStart], rowSize);
+        memcpy(&framebuffer[topRowStart], &framebuffer[bottomRowStart], rowSize);
+        memcpy(&framebuffer[bottomRowStart], tempRow, rowSize);
+    }
+
+}
 
 void run(CPU *cpu)
 {
@@ -632,20 +651,22 @@ void run(CPU *cpu)
         printf("bits 16\n\n");
     }
 
-    /* 
+    u16 GRAPHICS_X = 64;
+    u16 GRAPHICS_Y = GRAPHICS_X;
+
     SDL_Surface *sdl_screen;
     SDL_Event sdl_event;
 
     SDL_Init(SDL_INIT_VIDEO);
-    sdl_screen = SDL_SetVideoMode(GRAPHICS_X, GRAPHICS_Y, 8, 0);
+    sdl_screen = SDL_SetVideoMode(GRAPHICS_X, GRAPHICS_Y, 8*4, 0);
     SDL_EnableUNICODE(1);
     SDL_EnableKeyRepeat(500, 30);
 
     int pixel_colors[16];
     int vid_addr_lookup[VIDEO_RAM_SIZE];
-    u8 *vid_mem_base; 
+    u32 *vid_mem_base; 
 
-    vid_mem_base = &cpu->memory[0];
+    vid_mem_base = (u32*)&cpu->memory[0];
 
 	for (int i = 0; i < 16; i++) {
         pixel_colors[i] = 0xFF*(((i & 1) << 24) + ((i & 2) << 15) + ((i & 4) << 6) + ((i & 8) >> 3));
@@ -653,9 +674,12 @@ void run(CPU *cpu)
 
 	for (int i = 0; i < GRAPHICS_X * GRAPHICS_Y / 4; i++) {
 		vid_addr_lookup[i] = i / GRAPHICS_X * (GRAPHICS_X / 8) + (i / 2) % (GRAPHICS_X / 8) + 0x2000*((4 * i / GRAPHICS_X) % 4);
-    } */
+    }
+
+    u32 timer = 0;
 
     do {
+        timer++;
         decode_next_instruction(cpu);
 
         // @Todo: The i8086 contains the debug flag so later we simulate this too
@@ -702,13 +726,17 @@ __de:;
             execute_instruction(cpu);
         }
 
-        /*
-        for (int i = 0; i < GRAPHICS_X * GRAPHICS_Y / 4; i++) {
-            ((unsigned*)sdl_screen->pixels)[i] = vid_mem_base[i];
+        if (!(timer % GRAPHICS_UPDATE_DELAY)) {
+            u32 size = GRAPHICS_X * GRAPHICS_Y;
+            for (u32 i = 0; i < size; i++) {
+                ((u32*)sdl_screen->pixels)[i] = ((u32*)vid_mem_base)[i];
+            }
+
+            swapFramebufferVertically((u32*)sdl_screen->pixels, GRAPHICS_X, GRAPHICS_Y);
+
+            SDL_Flip(sdl_screen);
         }
 
-        SDL_Flip(sdl_screen);
-        */
 
     // @Todo: Another option to check end of the executable?
     } while (calc_inst_pointer_address(cpu) < cpu->exec_end);

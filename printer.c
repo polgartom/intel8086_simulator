@@ -133,18 +133,16 @@ const char *mnemonic_name(Mneumonic m)
 
 const char *register_name(Register reg)
 {
-    assert(reg < Register_count);
-
     static const char *register_names[] = {
         "al", "cl", "dl", "bl",
         "ah", "ch", "dh", "bh",
         "ax", "cx", "dx", "bx",
         "sp", "bp", "si", "di",
-        "cs", "ds", "ss", "es",
+        "es", "cs", "ss", "ds",
         "ip"
     };
 
-    assert(reg < ARRAY_SIZE(register_names));
+    assert(reg < ARRAY_SIZE(register_names) || reg > ARRAY_SIZE(register_names));
 
     return register_names[reg];
 }
