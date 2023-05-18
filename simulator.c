@@ -105,7 +105,7 @@ u32 calc_inst_pointer_address(CPU *cpu)
     u16 segment = get_from_register(cpu, Register_cs);
     u16 offset  = cpu->ip;
 
-    return ((segment << 4) + offset)) & SEGMENT_MASK;
+    return (((segment << 4) + offset)) & SEGMENT_MASK;
 }
 
 u32 calc_stack_pointer_address(CPU *cpu)
@@ -113,7 +113,7 @@ u32 calc_stack_pointer_address(CPU *cpu)
     u16 segment = get_from_register(cpu, Register_ss);
     u16 offset  = get_from_register(cpu, Register_sp);
 
-    return (((segment << 4) + offset)) & SEGMENT_MASK; // 20 bit mask
+    return (((segment << 4) + offset)) & SEGMENT_MASK;
 }
 
 u16 get_data_from_memory(CPU *cpu, u32 address)
@@ -202,8 +202,12 @@ void stack_push_flags(CPU *cpu)
 
 void stack_pop_flags(CPU *cpu)
 {
+    u16 old_flags = cpu->flags;
+
     cpu->flags = 0;
     cpu->flags |= stack_pop(cpu);
+
+    print_out_formated_flags(old_flags, cpu->flags);
 }
 
 void execute_interrupt(CPU *cpu, u16 interrupt_type)

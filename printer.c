@@ -182,7 +182,7 @@ void print_flags(u16 flags)
 
 void print_out_formated_flags(u16 old_flags, u16 new_flags)
 {
-    printf(" flags: [");
+    printf("\n\t\t@flags: [");
     print_flags(old_flags);
     printf(" ] -> [");
     print_flags(new_flags);
