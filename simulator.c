@@ -2,6 +2,14 @@
 #include "decoder.h"
 #include "printer.h"
 
+
+#include <time.h>
+#include <sys/timeb.h>
+#include <memory.h>
+#include "SDL.h"
+#define IO_PORT_COUNT 0x10000
+#define GRAPHICS_UPDATE_DELAY 360000
+
 #define SIGN_BIT(__wide) (__wide ? (1 << 15) : (1 << 7))
 #define MASK_BY_WIDTH(__wide) (__wide ? 0xffff : 0xff)
 #define SEGMENT_MASK 0xFFFFF // 20bit
@@ -233,7 +241,6 @@ void update_parity_flag(CPU *cpu, u32 result)
 
     u8 ones = 0;
     u8 size = (cpu->instruction.flags & Inst_Wide) ? 16 : 8;
-    u8 i = size;
     for (u8 i = 0; i < size; i++) {
         if (result & (1<<i)) ones++;
     }
@@ -407,6 +414,14 @@ void execute_instruction(CPU *cpu)
             assert(!(i->flags & Inst_Far)); // @Todo: Unimplemented
             ip_after += i->operands[0].immediate;
             break;
+        }
+        case Mneumonic_jle: {
+            u8 SF = !!(cpu->flags & F_SIGNED);
+            u8 OF = !!(cpu->flags & F_OVERFLOW);
+            u8 ZF = !!(cpu->flags & F_ZERO);
+            if (((SF ^ OF) | ZF) == 1) {
+                ip_after += i->operands[0].immediate;
+            }
         }
         case Mneumonic_jz: {
             if (cpu->flags & F_ZERO) {
@@ -603,6 +618,11 @@ void boot(CPU *cpu)
     printf("\n");
     cpu->ip = 0x0100;
 }
+/* 
+#define GRAPHICS_X 200
+#define GRAPHICS_Y 200
+#define VIDEO_RAM_SIZE 0x10000
+*/
 
 void run(CPU *cpu)
 {
@@ -611,6 +631,29 @@ void run(CPU *cpu)
     if (cpu->decode_only) {
         printf("bits 16\n\n");
     }
+
+    /* 
+    SDL_Surface *sdl_screen;
+    SDL_Event sdl_event;
+
+    SDL_Init(SDL_INIT_VIDEO);
+    sdl_screen = SDL_SetVideoMode(GRAPHICS_X, GRAPHICS_Y, 8, 0);
+    SDL_EnableUNICODE(1);
+    SDL_EnableKeyRepeat(500, 30);
+
+    int pixel_colors[16];
+    int vid_addr_lookup[VIDEO_RAM_SIZE];
+    u8 *vid_mem_base; 
+
+    vid_mem_base = &cpu->memory[0];
+
+	for (int i = 0; i < 16; i++) {
+        pixel_colors[i] = 0xFF*(((i & 1) << 24) + ((i & 2) << 15) + ((i & 4) << 6) + ((i & 8) >> 3));
+    }
+
+	for (int i = 0; i < GRAPHICS_X * GRAPHICS_Y / 4; i++) {
+		vid_addr_lookup[i] = i / GRAPHICS_X * (GRAPHICS_X / 8) + (i / 2) % (GRAPHICS_X / 8) + 0x2000*((4 * i / GRAPHICS_X) % 4);
+    } */
 
     do {
         decode_next_instruction(cpu);
@@ -621,6 +664,9 @@ void run(CPU *cpu)
             //printf(">> Press enter to the next instruction\n");
 __de:;
             fgets(input, sizeof(input), stdin);
+            if (STR_EQUAL("exit\n", input) || input[0] == 'q') {
+                return;
+            }
             if (input[0] != '\n') {
                 goto __de;
             }
@@ -655,6 +701,14 @@ __de:;
             print_instruction(cpu, 0);
             execute_instruction(cpu);
         }
+
+        /*
+        for (int i = 0; i < GRAPHICS_X * GRAPHICS_Y / 4; i++) {
+            ((unsigned*)sdl_screen->pixels)[i] = vid_mem_base[i];
+        }
+
+        SDL_Flip(sdl_screen);
+        */
 
     // @Todo: Another option to check end of the executable?
     } while (calc_inst_pointer_address(cpu) < cpu->exec_end);

@@ -11,6 +11,7 @@ void print_out_formated_flags(u16 old_flags, u16 new_flags);
 
 void print_instruction(CPU *cpu, u8 with_end_line);
 
+/*
 static void int_to_bin_str(u64 val, u8 size)
 {
     printf("0b");
@@ -20,6 +21,7 @@ static void int_to_bin_str(u64 val, u8 size)
     }
     printf("\n");
 }
+*/
 
 
 #endif
