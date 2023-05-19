@@ -116,12 +116,12 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
     } else if (STR_EQUAL("CS", arg)) {
         op->type = Operand_Register;
         op->flags |= Inst_Segment;
-        op->reg = 0;
+        op->reg = 1;
         return;
     } else if (STR_EQUAL("DS", arg)) {
         op->type = Operand_Register;
         op->flags |= Inst_Segment;
-        op->reg = 1;
+        op->reg = 3;
         return;
     } else if (STR_EQUAL("SS", arg)) {
         op->type = Operand_Register;
@@ -131,7 +131,7 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
     } else if (STR_EQUAL("ES", arg)) {
         op->type = Operand_Register;
         op->flags |= Inst_Segment;
-        op->reg = 3;
+        op->reg = 0;
         return;
     }
 
@@ -221,9 +221,7 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
             
             char next_char = arg[++i];
             
-            u32 mask = 0xFF;
             if (next_char == 'v' || next_char == 'w') {
-                mask = 0xFFFF;
                 inst->flags |= Inst_Wide; // @Todo: investigate, because I guess this is not required
             }
 
@@ -235,11 +233,9 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
 
             mod_reg_rm(cpu, inst);
 
-            op->flags |= Inst_Segment;
             op->type = Operand_Register;
+            op->flags |= Inst_Segment;
             op->reg  = inst->reg;
-
-            printf("segreg: %d\n", inst->reg);
 
         } else if (arg[i] == 'M') {
             // The ModR/M byte may refer only to memory. Applicable, e.g., to LES and LDS.
@@ -317,7 +313,7 @@ void decode_next_instruction(CPU *cpu)
     inst->mnemonic = x.mnemonic;
     inst->type = x.type;
 
-    //printf("> opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", x.opcode, mnemonic_name(x.mnemonic), x.arg1, x.arg2);
+    printf("> opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", x.opcode, mnemonic_name(x.mnemonic), x.arg1, x.arg2);
 
     // Overwrite the arguments if the extenstion table lookup is find something
     if (x.mnemonic >= Mneumonic_grp1) {

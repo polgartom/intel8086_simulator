@@ -201,6 +201,8 @@ typedef struct {
 
     u8* memory;
 
+    u8 terminate;
+
     // Options
     u8 dump_out;
     u8 decode_only;

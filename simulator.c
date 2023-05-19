@@ -500,6 +500,29 @@ void execute_instruction(CPU *cpu)
             break;
         }
         // :String
+        case Mneumonic_movsb: {
+            // @Todo: rep
+            u16 ds_val = get_from_register(cpu, Register_ds);
+            u16 si_val = get_from_register(cpu, Register_si);
+            u32 src_address = (ds_val << 4) + si_val;
+
+            u16 di_val = get_from_register(cpu, Register_di);
+            u16 es_val = get_from_register(cpu, Register_es);
+            u32 dest_adress = (es_val << 4) + di_val;
+
+            u16 data = get_data_from_memory(cpu, src_address);
+            set_data_to_memory(cpu, dest_adress, data);
+
+            if (cpu->flags & F_DIRECTION) {
+                si_val -= 1;
+                di_val -= 1;
+            } else {
+                si_val += 1;
+                di_val += 1;
+            }
+
+            break;
+        }
         case Mneumonic_stosw: {
             // @Todo: Repeat if the repeat Prefix (REP/REPE/REPZ or REPNE/REPNZ)
             //  (repeated based on the value in the CX register)
@@ -571,7 +594,7 @@ void execute_instruction(CPU *cpu)
         }
         default: {
             printf("[WARNING]: This instruction: %s is have not handled yet!\n", mnemonic_name(i->mnemonic));
-            assert(0);
+            cpu->terminate = 1; // @Temporary
         }
     }
 
@@ -651,6 +674,7 @@ void run(CPU *cpu)
         printf("bits 16\n\n");
     }
 
+/*
     u16 GRAPHICS_X = 64;
     u16 GRAPHICS_Y = GRAPHICS_X;
 
@@ -675,6 +699,7 @@ void run(CPU *cpu)
 	for (int i = 0; i < GRAPHICS_X * GRAPHICS_Y / 4; i++) {
 		vid_addr_lookup[i] = i / GRAPHICS_X * (GRAPHICS_X / 8) + (i / 2) % (GRAPHICS_X / 8) + 0x2000*((4 * i / GRAPHICS_X) % 4);
     }
+    */
 
     u32 timer = 0;
 
@@ -724,8 +749,14 @@ __de:;
         } else {
             print_instruction(cpu, 0);
             execute_instruction(cpu);
+
+            // @Temporary
+            if (cpu->terminate) {
+                return;
+            }
         }
 
+        /*
         if (!(timer % GRAPHICS_UPDATE_DELAY)) {
             u32 size = GRAPHICS_X * GRAPHICS_Y;
             for (u32 i = 0; i < size; i++) {
@@ -736,6 +767,7 @@ __de:;
 
             SDL_Flip(sdl_screen);
         }
+        */
 
 
     // @Todo: Another option to check end of the executable?
