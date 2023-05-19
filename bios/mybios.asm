@@ -7,7 +7,7 @@ org 0x0100
 start:
 mov bx, cs:[screen_size]
 mov bx, title_screen
-mov cx, cs:[frame_buffer_num_pixels]
+mov cx, cs:[frame_buffer_num_bytes]
 mov di, 0
 copy_title_screen_loop:
     mov ax, cs:[bx + di]
@@ -22,7 +22,7 @@ jmp start
 
 screen_size dw SCREEN_WIDTH
 frame_buffer_index db 0
-frame_buffer_num_pixels dw 65535
+frame_buffer_num_bytes dw 65535
 
 
 title_screen:

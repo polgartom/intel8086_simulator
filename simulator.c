@@ -646,7 +646,7 @@ void boot(CPU *cpu)
 #define VIDEO_RAM_SIZE 0x10000
 #define GRAPHICS_UPDATE_DELAY 360000
 
-void swapFramebufferVertically(u32* framebuffer, int width, int height) {
+void swapFramebufferVertically(u16* framebuffer, int width, int height) {
     int rowSize = width * sizeof(u32);
     u32 tempRow[rowSize];
 
@@ -674,15 +674,14 @@ void run(CPU *cpu)
         printf("bits 16\n\n");
     }
 
-/*
-    u16 GRAPHICS_X = 64;
+    u16 GRAPHICS_X = 128;
     u16 GRAPHICS_Y = GRAPHICS_X;
 
     SDL_Surface *sdl_screen;
     SDL_Event sdl_event;
 
     SDL_Init(SDL_INIT_VIDEO);
-    sdl_screen = SDL_SetVideoMode(GRAPHICS_X, GRAPHICS_Y, 8*4, 0);
+    sdl_screen = SDL_SetVideoMode(GRAPHICS_X, GRAPHICS_Y, 8*2, 0);
     SDL_EnableUNICODE(1);
     SDL_EnableKeyRepeat(500, 30);
 
@@ -699,7 +698,6 @@ void run(CPU *cpu)
 	for (int i = 0; i < GRAPHICS_X * GRAPHICS_Y / 4; i++) {
 		vid_addr_lookup[i] = i / GRAPHICS_X * (GRAPHICS_X / 8) + (i / 2) % (GRAPHICS_X / 8) + 0x2000*((4 * i / GRAPHICS_X) % 4);
     }
-    */
 
     u32 timer = 0;
 
@@ -756,18 +754,39 @@ __de:;
             }
         }
 
-        /*
-        if (!(timer % GRAPHICS_UPDATE_DELAY)) {
-            u32 size = GRAPHICS_X * GRAPHICS_Y;
-            for (u32 i = 0; i < size; i++) {
-                ((u32*)sdl_screen->pixels)[i] = ((u32*)vid_mem_base)[i];
+        if (1 || !(timer % GRAPHICS_UPDATE_DELAY)) {
+            u32 pixels = GRAPHICS_X*GRAPHICS_Y;
+
+            for (u32 i = 0; i < pixels; i++) {
+                u16 *pxptr = ((u16*)sdl_screen->pixels); 
+                u16 color = ((u16*)vid_mem_base)[i];
+
+                pxptr[i] = (color);
+            } 
+
+            /*
+            u32 y = 0;
+            u32 j = 0; 
+            for (u32 i = 0; i < 64*64; i++) {
+                u32 *pxptr = ((u32*)sdl_screen->pixels); 
+                u32 color = ((u32*)vid_mem_base)[i];
+
+                if (j!=0 && ((j) % GRAPHICS_X) == 0) {
+                    j += GRAPHICS_X;
+                }
+
+                pxptr[j] = color;
+                pxptr[j+1] = color;
+                pxptr[j+GRAPHICS_X] = color;
+                pxptr[j+GRAPHICS_X+1] = color;
+
+                j+=2;
             }
+            */
 
-            swapFramebufferVertically((u32*)sdl_screen->pixels, GRAPHICS_X, GRAPHICS_Y);
-
+            swapFramebufferVertically((u16*)sdl_screen->pixels, GRAPHICS_X, GRAPHICS_Y);
             SDL_Flip(sdl_screen);
         }
-        */
 
 
     // @Todo: Another option to check end of the executable?
