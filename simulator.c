@@ -2,15 +2,53 @@
 #include "decoder.h"
 #include "printer.h"
 
-
 #include <time.h>
 #include <sys/timeb.h>
 #include <memory.h>
-#include "SDL.h"
+
+#ifdef GRAPHICS_ENABLED
+    #include "SDL.h"
+    #define VIDEO_RAM_SIZE 0x10000
+    #define GRAPHICS_UPDATE_DELAY 360000
+#endif
 
 #define SIGN_BIT(__wide) (__wide ? (1 << 15) : (1 << 7))
 #define MASK_BY_WIDTH(__wide) (__wide ? 0xffff : 0xff)
 #define SEGMENT_MASK 0xFFFFF // 20bit
+
+// @Cleanup: remove this register_access mess
+u16 get_data_from_register(CPU *cpu, Register_Access *src_reg)
+{
+    u16 index = src_reg->index;
+    if (src_reg->size == 2) {
+        u16 data = ((u16 *)cpu->regmem)[index];
+        return BYTE_SWAP(data);
+    }
+
+    return cpu->regmem[index];
+}
+
+// @Cleanup: remove this register_access mess
+void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data)
+{
+    // @Debug
+    u16 current_data = get_data_from_register(cpu, dest_reg);
+    printf(" \n\t\t@%s: %#02x -> %#02x ", register_name(dest_reg->reg), current_data, data);
+
+    u16 index = dest_reg->index;
+    if (dest_reg->size == 2) {
+        ((u8 *)cpu->regmem)[index] = BYTE_SWAP(data);
+        return;
+    }
+
+    cpu->regmem[index] = (u8)data;
+}
+
+#define get_from_register(_cpu, _reg_enum) \
+    get_data_from_register(_cpu, register_access_by_enum(_reg_enum))
+    
+#define set_to_register(_cpu, _reg_enum, _data) \
+    set_data_to_register(_cpu, register_access_by_enum(_reg_enum), _data)
 
 u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
 {
@@ -89,40 +127,6 @@ u32 calc_stack_pointer_address(CPU *cpu)
     return (((segment << 4) + offset)) & SEGMENT_MASK;
 }
 
-// @Cleanup: remove this register_access mess
-u16 get_data_from_register(CPU *cpu, Register_Access *src_reg)
-{
-    u16 index = src_reg->index;
-    if (src_reg->size == 2) {
-        u16 data = ((u16 *)cpu->regmem)[index];
-        return BYTE_SWAP(data);
-    }
-
-    return cpu->regmem[lower_mem_index];
-}
-
-// @Cleanup: remove this register_access mess
-void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data)
-{
-    // @Debug
-    u16 current_data = get_data_from_register(cpu, dest_reg);
-    printf(" \n\t\t@%s: %#02x -> %#02x ", register_name(dest_reg->reg), current_data, data);
-
-    u16 index = dest_reg->index;
-    if (dest_reg->size == 2) {
-        ((u8 *)cpu->regmem)[index] = BYTE_SWAP(data);
-        return;
-    }
-
-    cpu->regmem[index] = (u8)data;
-}
-
-#define get_from_register(_cpu, _reg_enum) \
-    get_data_from_register(_cpu, register_access_by_enum(_reg_enum))
-    
-#define set_to_register(_cpu, _reg_enum, _data) \
-    set_data_to_register(_cpu, register_access_by_enum(_reg_enum), _data)
-
 u16 get_data_from_memory(CPU *cpu, u32 address)
 {
     address = address & SEGMENT_MASK; // @Todo: give memory size in fn params instead of this? 
@@ -181,7 +185,7 @@ void set_to_operand(CPU *cpu, Instruction_Operand *op, u16 data)
         set_data_to_memory(cpu, address, data);
     }
     else {
-        printf("[ERROR]: How do you wannna put value in the immediate?\n");
+        printf("\n[ERROR]: How do you wannna put value in the immediate?\n");
         assert(0);
     }
 }
@@ -356,13 +360,35 @@ void execute_instruction(CPU *cpu)
             break;
         }
         case Mneumonic_div: {
-            if (left_val == 0) {
+            u16 divisior = left_val;
+            
+            if (divisior == 0) {
                 // @Todo: execute an interrupt? @Incomplete
                 assert(0);
+            } 
+
+            // @Todo @Bug?: At this case we have to check the divisior (left operand) size instead of the
+            // instruction size flag, thus if divisior size is byte then the arith flags update will
+            // cause bug because we're checking the instruction flags to get the size, so in the flag updates 
+            // functions this will cause a bug...?
+            if (left_op->flags & Inst_Wide) {
+                u16 divident = get_from_register(cpu, Register_ax);
+                u32 unmasked_result = divident / divisior;
+                u16 remainder = divident % divisior;
+                
+                set_to_register(cpu, Register_ax, unmasked_result);
+                set_to_register(cpu, Register_dx, remainder);
+                
+                update_arith_flags(cpu, unmasked_result, 0, 0);
             } else {
-                u32 result = left_val / right_val;
-                set_to_operand(cpu, left_op, result);
-                update_arith_flags(cpu, result, 0, 0);
+                u16 divident = get_from_register(cpu, Register_ax);
+                u32 unmasked_result = divident / divisior;
+                u8 remainder = divident % divisior;
+                
+                set_to_register(cpu, Register_al, unmasked_result);
+                set_to_register(cpu, Register_ah, remainder);
+                
+                update_arith_flags(cpu, unmasked_result, 0, 0);
             }
 
             break;
@@ -597,7 +623,7 @@ void execute_instruction(CPU *cpu)
             break;
         }
         default: {
-            printf("[WARNING]: This instruction: %s is have not handled yet!\n", mnemonic_name(i->mnemonic));
+            printf("\n[WARNING]: This instruction: %s is not handled yet!\n", mnemonic_name(i->mnemonic));
             cpu->terminate = 1; // @Temporary
         }
     }
@@ -617,7 +643,7 @@ void load_executable(CPU *cpu, char *filename)
 {
     FILE *fp = fopen(filename, "rb");
     if (fp == NULL) {
-        printf("[ERROR]: Failed to open %s file. Probably it is not exists.\n", filename);
+        printf("\n[ERROR]: Failed to open %s file. Probably it is not exists.\n", filename);
         assert(0);
     }
 
@@ -647,9 +673,7 @@ void boot(CPU *cpu)
     cpu->ip = 0x0100;
 }
 
-#define VIDEO_RAM_SIZE 0x10000
-#define GRAPHICS_UPDATE_DELAY 360000
-
+#ifdef GRAPHICS_ENABLED
 void swapFramebufferVertically(u16* framebuffer, int width, int height) {
     int rowSize = width * sizeof(u32);
     u32 tempRow[rowSize];
@@ -667,8 +691,8 @@ void swapFramebufferVertically(u16* framebuffer, int width, int height) {
         memcpy(&framebuffer[topRowStart], &framebuffer[bottomRowStart], rowSize);
         memcpy(&framebuffer[bottomRowStart], tempRow, rowSize);
     }
-
 }
+#endif
 
 void run(CPU *cpu)
 {
@@ -678,6 +702,7 @@ void run(CPU *cpu)
         printf("bits 16\n\n");
     }
 
+#ifdef GRAPHICS_ENABLED
     u16 GRAPHICS_X = 128;
     u16 GRAPHICS_Y = GRAPHICS_X;
 
@@ -702,6 +727,7 @@ void run(CPU *cpu)
 	for (int i = 0; i < GRAPHICS_X * GRAPHICS_Y / 4; i++) {
 		vid_addr_lookup[i] = i / GRAPHICS_X * (GRAPHICS_X / 8) + (i / 2) % (GRAPHICS_X / 8) + 0x2000*((4 * i / GRAPHICS_X) % 4);
     }
+#endif
 
     u32 timer = 0;
 
@@ -758,7 +784,8 @@ __de:;
             }
         }
 
-        if (1 || !(timer % GRAPHICS_UPDATE_DELAY)) {
+#ifdef GRAPHICS_ENABLED
+        if (GRAPHICS_UPDATE_DELAY && !(timer % GRAPHICS_UPDATE_DELAY)) {
             u32 pixels = GRAPHICS_X*GRAPHICS_Y;
 
             for (u32 i = 0; i < pixels; i++) {
@@ -791,6 +818,7 @@ __de:;
             swapFramebufferVertically((u16*)sdl_screen->pixels, GRAPHICS_X, GRAPHICS_Y);
             SDL_Flip(sdl_screen);
         }
+#endif
 
 
     // @Todo: Another option to check end of the executable?
