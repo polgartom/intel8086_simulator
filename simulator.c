@@ -22,7 +22,7 @@ u16 get_data_from_register(CPU *cpu, Register_Access *src_reg)
     u16 index = src_reg->index;
     if (src_reg->size == 2) {
         u16 data = ((u16 *)cpu->regmem)[index];
-        return BYTE_SWAP(data);
+        return data;
     }
 
     return cpu->regmem[index];
@@ -37,7 +37,7 @@ void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data)
 
     u16 index = dest_reg->index;
     if (dest_reg->size == 2) {
-        ((u8 *)cpu->regmem)[index] = BYTE_SWAP(data);
+        ((u8 *)cpu->regmem)[index] = data;
         return;
     }
 
@@ -367,13 +367,9 @@ void execute_instruction(CPU *cpu)
                 assert(0);
             } 
 
-            // @Todo @Bug?: At this case we have to check the divisior (left operand) size instead of the
-            // instruction size flag, thus if divisior size is byte then the arith flags update will
-            // cause bug because we're checking the instruction flags to get the size, so in the flag updates 
-            // functions this will cause a bug...?
-            if (left_op->flags & Inst_Wide) {
+            if (is_wide) {
                 u16 divident = get_from_register(cpu, Register_ax);
-                u32 unmasked_result = divident / divisior;
+                u32 unmasked_result = (u32)divident / (u32)divisior;
                 u16 remainder = divident % divisior;
                 
                 set_to_register(cpu, Register_ax, unmasked_result);
@@ -382,7 +378,7 @@ void execute_instruction(CPU *cpu)
                 update_arith_flags(cpu, unmasked_result, 0, 0);
             } else {
                 u16 divident = get_from_register(cpu, Register_ax);
-                u32 unmasked_result = divident / divisior;
+                u32 unmasked_result = (u32)divident / (u32)divisior;
                 u8 remainder = divident % divisior;
                 
                 set_to_register(cpu, Register_al, unmasked_result);

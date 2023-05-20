@@ -32,7 +32,11 @@ typedef unsigned long u64;
 #define BYTE_SWAP(__val) (((__val >> 8) & 0x00FF) | ((__val << 8) & 0xFF00))
 
 #define XSTR(x) #x
-#define _DEBUG_BREAK(text) {char _dummy_input[12]; printf(#text"\n"); fgets(_dummy_input, sizeof(_dummy_input), stdin);}
+#define _DEBUG_BREAK(text) { \
+    char _dummy_input[12]; \
+    printf(#text"\n"); \
+    fgets(_dummy_input, sizeof(_dummy_input), stdin); \
+}
 
 ///////////////////////////////////////////////////
 
