@@ -12,42 +12,6 @@
 #define MASK_BY_WIDTH(__wide) (__wide ? 0xffff : 0xff)
 #define SEGMENT_MASK 0xFFFFF // 20bit
 
-
-// @Cleanup: remove this register_access mess
-u16 get_data_from_register(CPU *cpu, Register_Access *src_reg)
-{
-    u16 lower_mem_index = src_reg->index;
-    if (src_reg->size == 2) {
-        s16 val_lo = cpu->regmem[lower_mem_index] << 0;
-        s16 val_hi = cpu->regmem[lower_mem_index+1] << 8;
-
-        return (val_hi | val_lo);
-    }
-
-    return cpu->regmem[lower_mem_index];
-}
-
-// @Cleanup: remove this register_access mess
-void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data)
-{
-    // @Debug
-    u16 current_data = get_data_from_register(cpu, dest_reg);
-    printf(" \n\t\t@%s: %#02x -> %#02x ", register_name(dest_reg->reg), current_data, data);
-
-    u16 lower_mem_index = dest_reg->index;
-    if (dest_reg->size == 2) {
-        cpu->regmem[lower_mem_index] = ((data >> 0) & 0xFF);
-        cpu->regmem[lower_mem_index+1] = ((data >> 8) & 0xFF);
-
-        return;
-    }
-
-    cpu->regmem[lower_mem_index] = data;
-}
-
-#define get_from_register(_cpu, _reg_enum) get_data_from_register(_cpu, register_access_by_enum(_reg_enum))
-#define set_to_register(_cpu, _reg_enum, _data) set_data_to_register(_cpu, register_access_by_enum(_reg_enum), _data)
-
 u32 calc_absolute_memory_address(CPU *cpu, Effective_Address_Expression *expr)
 {
     u16 address = 0;
@@ -125,26 +89,66 @@ u32 calc_stack_pointer_address(CPU *cpu)
     return (((segment << 4) + offset)) & SEGMENT_MASK;
 }
 
-u16 get_data_from_memory(CPU *cpu, u32 address)
+// @Cleanup: remove this register_access mess
+u16 get_data_from_register(CPU *cpu, Register_Access *src_reg)
 {
-    u16 data = (u8)cpu->memory[address];
-    if (cpu->instruction.flags & Inst_Wide) {
-        data = BYTE_LOHI_TO_HILO(data, (u8)cpu->memory[address+1]);
+    u16 index = src_reg->index;
+    if (src_reg->size == 2) {
+        u16 data = ((u16 *)cpu->regmem)[index];
+        return BYTE_SWAP(data);
     }
 
-    return data;
+    return cpu->regmem[lower_mem_index];
+}
+
+// @Cleanup: remove this register_access mess
+void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data)
+{
+    // @Debug
+    u16 current_data = get_data_from_register(cpu, dest_reg);
+    printf(" \n\t\t@%s: %#02x -> %#02x ", register_name(dest_reg->reg), current_data, data);
+
+    u16 index = dest_reg->index;
+    if (dest_reg->size == 2) {
+        ((u8 *)cpu->regmem)[index] = BYTE_SWAP(data);
+        return;
+    }
+
+    cpu->regmem[index] = (u8)data;
+}
+
+#define get_from_register(_cpu, _reg_enum) \
+    get_data_from_register(_cpu, register_access_by_enum(_reg_enum))
+    
+#define set_to_register(_cpu, _reg_enum, _data) \
+    set_data_to_register(_cpu, register_access_by_enum(_reg_enum), _data)
+
+u16 get_data_from_memory(CPU *cpu, u32 address)
+{
+    address = address & SEGMENT_MASK; // @Todo: give memory size in fn params instead of this? 
+
+    if (cpu->instruction.flags & Inst_Wide) {
+        u16 data = ((u16 *)cpu->memory)[address];
+        return BYTE_SWAP(data);
+    }
+
+    return cpu->memory[address];
 }
 
 void set_data_to_memory(CPU *cpu, u32 address, u16 data)
 {
+    address = address & SEGMENT_MASK; // @Todo: give memory size in fn params instead of this? 
+    
     // @Todo: @Debug: Print out the memory address in this format 0000:0xFFF, so with the segment and the offset
     u16 current_data = get_data_from_memory(cpu, address); // @Debug
     printf("\n\t\t[%d]: %#02x -> %#02x", address, current_data, data);
 
-    cpu->memory[address] = (u8)(data & 0x00FF);
     if (cpu->instruction.flags & Inst_Wide) {
-        cpu->memory[address+1] = (u8)((data >> 8) & 0x00FF);
+        ((u16 *)cpu->memory)[address] = BYTE_SWAP(data);
+        return;
     }
+
+    cpu->memory[address] = (u8)data;
 }
 
 u16 get_from_operand(CPU *cpu, Instruction_Operand *op)
