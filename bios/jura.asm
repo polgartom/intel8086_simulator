@@ -11,7 +11,7 @@ mov di, 0
 copy_title_screen_loop:
     mov al, cs:[bx + di]
     mov [di], al
-    mov ah, cs:[bx + di+1]
+    mov ah, cs:[bx + di + 1]
     mov [di+1], ah
     add di, 2
     loop copy_title_screen_loop

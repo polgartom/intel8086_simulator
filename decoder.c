@@ -7,6 +7,24 @@ u8 ASMD_NEXT_BYTE(CPU *_d) { return _d->memory[++_d->decoder_cursor]; }
 #define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) _d->memory[_d->decoder_cursor+1]
 #define ASMD_CURR_BYTE_INDEX(_d) _d->decoder_cursor
 
+static Mneumonic extended_mneumonic_lookup[][8] = {
+    [Mneumonic_grp1]  = {Mneumonic_add, Mneumonic_or, Mneumonic_adc, Mneumonic_sbb, Mneumonic_and, Mneumonic_sub, Mneumonic_xor, Mneumonic_cmp},
+    [Mneumonic_grp2]  = {Mneumonic_rol, Mneumonic_ror, Mneumonic_rcl, Mneumonic_rcr, Mneumonic_shl, Mneumonic_shr, Mneumonic_invalid, Mneumonic_sar},
+    [Mneumonic_grp3b] = {Mneumonic_test, Mneumonic_invalid, Mneumonic_not, Mneumonic_neg, Mneumonic_mul, Mneumonic_imul, Mneumonic_div, Mneumonic_idiv},
+    [Mneumonic_grp3a] = {Mneumonic_test, Mneumonic_invalid, Mneumonic_not, Mneumonic_neg, Mneumonic_mul, Mneumonic_imul, Mneumonic_div, Mneumonic_idiv},
+    [Mneumonic_grp4]  = {Mneumonic_inc, Mneumonic_dec, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid},
+    [Mneumonic_grp5]  = {Mneumonic_inc, Mneumonic_dec, Mneumonic_call, Mneumonic_call, Mneumonic_jmp, Mneumonic_jmp, Mneumonic_push, Mneumonic_invalid}
+};
+
+static const char *i8086_inst_ext_table[][8][2] = {
+    [Mneumonic_grp1]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
+    [Mneumonic_grp2]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
+    [Mneumonic_grp3a] = {{"Eb", "Ib"}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
+    [Mneumonic_grp3b] = {{"Ev", "Iv"}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
+    [Mneumonic_grp4]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
+    [Mneumonic_grp5]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {"Mp", NULL}, {NULL, NULL}, {"Mp", NULL}, {NULL, NULL}, {NULL, NULL}},
+};
+
 Effective_Address_Base get_address_base(u8 r_m, u8 mod)
 {
     switch (r_m) {
@@ -31,7 +49,7 @@ Effective_Address_Base get_address_base(u8 r_m, u8 mod)
 }
 
 
-void decode_memory_address_displacement(CPU *cpu, Instruction_Operand *operand)
+void decode_memory_address_with_displacement(CPU *cpu, Instruction_Operand *operand)
 {
     Instruction *inst = &cpu->instruction;
 
@@ -40,18 +58,10 @@ void decode_memory_address_displacement(CPU *cpu, Instruction_Operand *operand)
     operand->address.displacement = 0;
 
     if ((inst->mod == 0x00 && inst->r_m == 0x06) || inst->mod == 0x02) {
-        if (operand->address.base == Effective_Address_direct) {
-            operand->address.displacement = (u16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
-        } else {
-            operand->address.displacement = (s16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
-        }
+        operand->address.displacement = (u16)(BYTE_LOHI_TO_HILO(ASMD_NEXT_BYTE(cpu), ASMD_NEXT_BYTE(cpu)));
     }
     else if (inst->mod == 0x01) {
-        if (operand->address.base == Effective_Address_direct) {
-            operand->address.displacement = (u8)ASMD_NEXT_BYTE(cpu);
-        } else {
-            operand->address.displacement = (s8)ASMD_NEXT_BYTE(cpu);
-        }
+        operand->address.displacement = (u8)ASMD_NEXT_BYTE(cpu);
     }
 }
 
@@ -176,7 +186,7 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
                 op->type = Operand_Register;
                 op->reg = inst->r_m;
             } else {
-                decode_memory_address_displacement(cpu, op);
+                decode_memory_address_with_displacement(cpu, op);
             }
 
         } else if (arg[i] == 'G') {
@@ -241,7 +251,7 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
             // The ModR/M byte may refer only to memory. Applicable, e.g., to LES and LDS.
 
             mod_reg_rm(cpu, inst);
-            decode_memory_address_displacement(cpu, op);
+            decode_memory_address_with_displacement(cpu, op);
 
         } else if (arg[i] == 'v' || arg[i] == 'w') {
             // Word argument. (The 'v' code has a more complex meaning in later x86 opcode maps,
@@ -276,24 +286,6 @@ void decode_arg(CPU *cpu, Instruction_Operand *op, const char *arg)
 
 }
 
-static Mneumonic extended_mneumonic_lookup[][8] = {
-    [Mneumonic_grp1]  = {Mneumonic_add, Mneumonic_or, Mneumonic_adc, Mneumonic_sbb, Mneumonic_and, Mneumonic_sub, Mneumonic_xor, Mneumonic_cmp},
-    [Mneumonic_grp2]  = {Mneumonic_rol, Mneumonic_ror, Mneumonic_rcl, Mneumonic_rcr, Mneumonic_shl, Mneumonic_shr, Mneumonic_invalid, Mneumonic_sar},
-    [Mneumonic_grp3b] = {Mneumonic_test, Mneumonic_invalid, Mneumonic_not, Mneumonic_neg, Mneumonic_mul, Mneumonic_imul, Mneumonic_div, Mneumonic_idiv},
-    [Mneumonic_grp3a] = {Mneumonic_test, Mneumonic_invalid, Mneumonic_not, Mneumonic_neg, Mneumonic_mul, Mneumonic_imul, Mneumonic_div, Mneumonic_idiv},
-    [Mneumonic_grp4]  = {Mneumonic_inc, Mneumonic_dec, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid},
-    [Mneumonic_grp5]  = {Mneumonic_inc, Mneumonic_dec, Mneumonic_call, Mneumonic_call, Mneumonic_jmp, Mneumonic_jmp, Mneumonic_push, Mneumonic_invalid}
-};
-
-static const char *i8086_inst_ext_table[][8][2] = {
-    [Mneumonic_grp1]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
-    [Mneumonic_grp2]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
-    [Mneumonic_grp3a] = {{"Eb", "Ib"}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
-    [Mneumonic_grp3b] = {{"Ev", "Iv"}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
-    [Mneumonic_grp4]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
-    [Mneumonic_grp5]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {"Mp", NULL}, {NULL, NULL}, {"Mp", NULL}, {NULL, NULL}, {NULL, NULL}},
-};
-
 void decode_next_instruction(CPU *cpu)
 {
     Instruction *inst = &cpu->instruction;
@@ -309,30 +301,28 @@ void decode_next_instruction(CPU *cpu)
     inst->mem_address = cpu->decoder_cursor;
     u32 instruction_byte_start_offset = cpu->decoder_cursor;
 
-    i8086_Inst_Table x = i8086_inst_table[byte];
-    inst->mnemonic = x.mnemonic;
-    inst->type = x.type;
+    i8086_Inst_Table lookup_result = i8086_inst_table[byte];
+    inst->mnemonic = lookup_result.mnemonic;
+    inst->type = lookup_result.type;
 
-    // printf("> opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", x.opcode, mnemonic_name(x.mnemonic), x.arg1, x.arg2);
+    // printf("> opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", lookup_result.opcode, mnemonic_name(lookup_result.mnemonic), lookup_result.arg1, lookup_result.arg2);
 
     // Overwrite the arguments if the extenstion table lookup is find something
-    if (x.mnemonic >= Mneumonic_grp1) {
+    if (lookup_result.mnemonic >= Mneumonic_grp1) {
         mod_reg_rm(cpu, inst);
 
-        inst->mnemonic = extended_mneumonic_lookup[x.mnemonic][inst->reg];
+        inst->mnemonic = extended_mneumonic_lookup[lookup_result.mnemonic][inst->reg];
 
-        const char *ext_arg1 = i8086_inst_ext_table[x.mnemonic][inst->reg][0];
-        const char *ext_arg2 = i8086_inst_ext_table[x.mnemonic][inst->reg][1];
+        const char *ext_arg1 = i8086_inst_ext_table[lookup_result.mnemonic][inst->reg][0];
+        const char *ext_arg2 = i8086_inst_ext_table[lookup_result.mnemonic][inst->reg][1];
         if (ext_arg1 || ext_arg2) {
-            x.arg1 = ext_arg1;
-            x.arg2 = ext_arg2;
+            lookup_result.arg1 = ext_arg1;
+            lookup_result.arg2 = ext_arg2;
         }
     }
 
-    //printf("\n%#02x ; %d ; %s ; %s -> \t|", x.opcode, x.mnemonic, x.arg1, x.arg2);
-
-    decode_arg(cpu, &inst->operands[0], x.arg1);
-    decode_arg(cpu, &inst->operands[1], x.arg2);
+    decode_arg(cpu, &inst->operands[0], lookup_result.arg1);
+    decode_arg(cpu, &inst->operands[1], lookup_result.arg2);
 
     // Set prefixes
     // @Todo: Handle more prefixes

@@ -39,6 +39,8 @@ int main(int argc, char **argv)
 
     printf("\nbinary: %s\n\n", input_filename);
 
+    cpu.out = fopen("./port.out", "w");
+
     boot(&cpu);
     load_executable(&cpu, input_filename);
     run(&cpu);

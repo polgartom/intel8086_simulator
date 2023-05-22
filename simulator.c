@@ -442,6 +442,14 @@ void execute_instruction(CPU *cpu)
             ip_after += i->operands[0].immediate;
             break;
         }
+        case Mneumonic_jl: {
+            u8 SF = !!(cpu->flags & F_SIGNED);
+            u8 OF = !!(cpu->flags & F_OVERFLOW);
+            if (SF ^ OF) {
+                ip_after += i->operands[0].immediate;
+            }
+            break;
+        }
         case Mneumonic_jle: {
             u8 SF = !!(cpu->flags & F_SIGNED);
             u8 OF = !!(cpu->flags & F_OVERFLOW);
@@ -615,7 +623,12 @@ void execute_instruction(CPU *cpu)
         }
         // :IO
         case Mneumonic_out: {
-            // @Todo:
+            u16 port = left_val;
+            u16 data = right_val;
+
+            // @Debug
+            fprintf(cpu->out, "%d : %d\n", port, data);
+        
             break;
         }
         default: {
@@ -815,7 +828,6 @@ __de:;
             SDL_Flip(sdl_screen);
         }
 #endif
-
 
     // @Todo: Another option to check end of the executable?
     } while (calc_inst_pointer_address(cpu) < cpu->exec_end);

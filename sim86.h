@@ -212,6 +212,8 @@ typedef struct {
     u8 decode_only;
     u8 debug_mode;
 
+    FILE *out; // @Debug
+
 } CPU;
 
 #define REG_ACCUMULATOR 0
