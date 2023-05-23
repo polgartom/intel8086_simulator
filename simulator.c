@@ -7,9 +7,11 @@
 #include <memory.h>
 
 #ifdef GRAPHICS_ENABLED
-    #include "SDL.h"
-    #define VIDEO_RAM_SIZE 0x10000
-    #define GRAPHICS_UPDATE_DELAY 360000
+
+#include "SDL.h"
+#define VIDEO_RAM_SIZE 0x10000
+#define GRAPHICS_UPDATE_DELAY 360000
+
 #endif
 
 #define SIGN_BIT(__wide) (__wide ? (1 << 15) : (1 << 7))
@@ -133,7 +135,7 @@ u16 get_data_from_memory(CPU *cpu, u32 address)
 
     if (cpu->instruction.flags & Inst_Wide) {
         u16 data = *(u16 *)(cpu->memory+address);
-        return (data); // @Decide: BYTE_SWAP?
+        return BYTE_SWAP(data);
     }
 
     return cpu->memory[address];
@@ -148,7 +150,7 @@ void set_data_to_memory(CPU *cpu, u32 address, u16 data)
     printf("\n\t\t[%d]: %#02x -> %#02x", address, current_data, data);
 
     if (cpu->instruction.flags & Inst_Wide) {
-        *(u16 *)(cpu->memory+address) = (data); // @Decide: BYTE_SWAP?
+        *(u16 *)(cpu->memory+address) = BYTE_SWAP(data);
         return;
     }
 
@@ -712,7 +714,7 @@ void run(CPU *cpu)
     }
 
 #ifdef GRAPHICS_ENABLED
-    u16 GRAPHICS_X = 128;
+    u16 GRAPHICS_X = 256;
     u16 GRAPHICS_Y = GRAPHICS_X;
 
     SDL_Surface *sdl_screen;
@@ -797,19 +799,21 @@ __de:;
         if ((timer % GRAPHICS_UPDATE_DELAY) == 0) {
             u32 pixels = GRAPHICS_X*GRAPHICS_Y;
 
+/*
+            // 1x scale
             for (u32 i = 0; i < pixels; i++) {
                 u16 *pxptr = ((u16*)sdl_screen->pixels); 
                 u16 color = ((u16*)vid_mem_base)[i];
-
-                pxptr[i] = (color);
+                pxptr[i] = BYTE_SWAP(color);
             } 
+*/
 
-            /*
+            // 2x scale
             u32 y = 0;
-            u32 j = 0; 
-            for (u32 i = 0; i < 64*64; i++) {
-                u32 *pxptr = ((u32*)sdl_screen->pixels); 
-                u32 color = ((u32*)vid_mem_base)[i];
+            u32 j = 0;
+            for (u32 i = 0; i < (GRAPHICS_X/2)*(GRAPHICS_Y/2); i++) {
+                u16 *pxptr = ((u16*)sdl_screen->pixels); 
+                u16 color = BYTE_SWAP(((u16*)vid_mem_base)[i]);
 
                 if (j!=0 && ((j) % GRAPHICS_X) == 0) {
                     j += GRAPHICS_X;
@@ -822,7 +826,6 @@ __de:;
 
                 j+=2;
             }
-            */
 
             swapFramebufferVertically((u16*)sdl_screen->pixels, GRAPHICS_X, GRAPHICS_Y);
             SDL_Flip(sdl_screen);

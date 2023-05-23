@@ -44,7 +44,7 @@ def read_rows(path):
         b1_num = ord(b1)
         b2_num = ord(b2)
 
-        r.append( ((b2_num<<8)|(b1_num)) & 0xFFFF )
+        r.append( ((b1_num<<8)|(b2_num)) & 0xFFFF )
 
         row.append(b1_num)
         row.append(b2_num)
