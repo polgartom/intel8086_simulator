@@ -305,7 +305,7 @@ void decode_next_instruction(CPU *cpu)
     inst->mnemonic = lookup_result.mnemonic;
     inst->type = lookup_result.type;
 
-    // printf("> opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", lookup_result.opcode, mnemonic_name(lookup_result.mnemonic), lookup_result.arg1, lookup_result.arg2);
+    //printf("> opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", lookup_result.opcode, mnemonic_name(lookup_result.mnemonic), lookup_result.arg1, lookup_result.arg2);
 
     // Overwrite the arguments if the extenstion table lookup is find something
     if (lookup_result.mnemonic >= Mneumonic_grp1) {

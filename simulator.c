@@ -129,11 +129,11 @@ u32 calc_stack_pointer_address(CPU *cpu)
 
 u16 get_data_from_memory(CPU *cpu, u32 address)
 {
-    address = address & SEGMENT_MASK; // @Todo: give memory size in fn params instead of this? 
+    address = address & SEGMENT_MASK;
 
     if (cpu->instruction.flags & Inst_Wide) {
         u16 data = *(u16 *)(cpu->memory+address);
-        return (data);
+        return (data); // @Decide: BYTE_SWAP?
     }
 
     return cpu->memory[address];
@@ -141,14 +141,14 @@ u16 get_data_from_memory(CPU *cpu, u32 address)
 
 void set_data_to_memory(CPU *cpu, u32 address, u16 data)
 {
-    address = address & SEGMENT_MASK; // @Todo: give memory size in fn params instead of this? 
+    address = address & SEGMENT_MASK; 
     
     // @Todo: @Debug: Print out the memory address in this format 0000:0xFFF, so with the segment and the offset
     u16 current_data = get_data_from_memory(cpu, address); // @Debug
     printf("\n\t\t[%d]: %#02x -> %#02x", address, current_data, data);
 
     if (cpu->instruction.flags & Inst_Wide) {
-        *(u16 *)(cpu->memory+address) = (data);
+        *(u16 *)(cpu->memory+address) = (data); // @Decide: BYTE_SWAP?
         return;
     }
 
@@ -793,7 +793,8 @@ __de:;
             }
         }
 
-        if (1 || (timer % GRAPHICS_UPDATE_DELAY) == 0) {
+#ifdef GRAPHICS_ENABLED
+        if ((timer % GRAPHICS_UPDATE_DELAY) == 0) {
             u32 pixels = GRAPHICS_X*GRAPHICS_Y;
 
             for (u32 i = 0; i < pixels; i++) {
@@ -826,6 +827,7 @@ __de:;
             swapFramebufferVertically((u16*)sdl_screen->pixels, GRAPHICS_X, GRAPHICS_Y);
             SDL_Flip(sdl_screen);
         }
+#endif
 
     // @Todo: Another option to check end of the executable?
     } while (calc_inst_pointer_address(cpu) < cpu->exec_end);
