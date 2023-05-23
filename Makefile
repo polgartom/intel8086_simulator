@@ -9,7 +9,7 @@ release: CCFLAGS += -O3
 release: build
 
 build: 
-	$(CC) $(CCFLAGS) $(OPTS_SDL) $(wildcard ./*.c) -o ./build/sim86.out
+	$(CC) $(CCFLAGS) -DGRAPHICS_ENABLED $(OPTS_SDL) $(wildcard ./*.c) -o ./build/sim86.out
 
 biosd:
 	nasm bios/mybios.asm

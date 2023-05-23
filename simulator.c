@@ -21,8 +21,8 @@ u16 get_data_from_register(CPU *cpu, Register_Access *src_reg)
 {
     u16 index = src_reg->index;
     if (src_reg->size == 2) {
-        u16 data = ((u16 *)cpu->regmem)[index];
-        return data;
+        u16 data = *(u16 *)(cpu->regmem+index);
+        return BYTE_SWAP(data);
     }
 
     return cpu->regmem[index];
@@ -37,11 +37,11 @@ void set_data_to_register(CPU *cpu, Register_Access *dest_reg, u16 data)
 
     u16 index = dest_reg->index;
     if (dest_reg->size == 2) {
-        ((u8 *)cpu->regmem)[index] = data;
+        *(u16 *)(cpu->regmem+index) = BYTE_SWAP(data);
         return;
     }
 
-    cpu->regmem[index] = (u8)data;
+    cpu->regmem[index] = data & 0xFF; 
 }
 
 #define get_from_register(_cpu, _reg_enum) \
@@ -132,8 +132,8 @@ u16 get_data_from_memory(CPU *cpu, u32 address)
     address = address & SEGMENT_MASK; // @Todo: give memory size in fn params instead of this? 
 
     if (cpu->instruction.flags & Inst_Wide) {
-        u16 data = ((u16 *)cpu->memory)[address];
-        return BYTE_SWAP(data);
+        u16 data = *(u16 *)(cpu->memory+address);
+        return (data);
     }
 
     return cpu->memory[address];
@@ -148,12 +148,12 @@ void set_data_to_memory(CPU *cpu, u32 address, u16 data)
     printf("\n\t\t[%d]: %#02x -> %#02x", address, current_data, data);
 
     if (cpu->instruction.flags & Inst_Wide) {
-        ((u16 *)cpu->memory)[address] = BYTE_SWAP(data);
+        *(u16 *)(cpu->memory+address) = (data);
         return;
     }
 
-    cpu->memory[address] = (u8)data;
-}
+    cpu->memory[address] = data & 0xFF;
+} 
 
 u16 get_from_operand(CPU *cpu, Instruction_Operand *op)
 {
@@ -684,7 +684,7 @@ void boot(CPU *cpu)
 
 #ifdef GRAPHICS_ENABLED
 void swapFramebufferVertically(u16* framebuffer, int width, int height) {
-    int rowSize = width * sizeof(u32);
+    int rowSize = width * sizeof(u16);
     u32 tempRow[rowSize];
 
     for (int row = 0; row < height / 2; row++) {
@@ -793,8 +793,7 @@ __de:;
             }
         }
 
-#ifdef GRAPHICS_ENABLED
-        if (GRAPHICS_UPDATE_DELAY && !(timer % GRAPHICS_UPDATE_DELAY)) {
+        if (1 || (timer % GRAPHICS_UPDATE_DELAY) == 0) {
             u32 pixels = GRAPHICS_X*GRAPHICS_Y;
 
             for (u32 i = 0; i < pixels; i++) {
@@ -827,7 +826,6 @@ __de:;
             swapFramebufferVertically((u16*)sdl_screen->pixels, GRAPHICS_X, GRAPHICS_Y);
             SDL_Flip(sdl_screen);
         }
-#endif
 
     // @Todo: Another option to check end of the executable?
     } while (calc_inst_pointer_address(cpu) < cpu->exec_end);

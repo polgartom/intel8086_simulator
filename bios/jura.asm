@@ -1,4 +1,4 @@
-bits 16
+cpu 8086
 
 org 0x0100
 
@@ -9,10 +9,12 @@ mov bx, title_screen
 mov cx, cs:[frame_buffer_bytes]
 mov di, 0
 copy_title_screen_loop:
-    mov al, cs:[bx + di]
-    mov [di], al
-    mov ah, cs:[bx + di + 1]
-    mov [di+1], ah
+    mov ax, cs:[bx + di]
+    mov [di], ax
+    ;mov ah, cs:[bx + di]
+    ;mov [di], ah
+    ;mov al, cs:[bx + di + 1]
+    ;mov [di+1], al
     add di, 2
     loop copy_title_screen_loop
 jmp start
