@@ -2,6 +2,10 @@
 #include "decoder.h"
 #include "simulator.h"
 
+#include "sim86.c"
+#include "simulator.c"
+#include "decoder.c"
+#include "printer.c"
 
 int main(int argc, char **argv)
 {

@@ -3,6 +3,6 @@
 mkdir .\build
 pushd .\build
 
-cl -Zi ..\sim86.c ..\simulator.c ..\decoder.c ..\printer.c ..\main.c
+cl -Zi ..\src\main.c
 
 popd .\build
