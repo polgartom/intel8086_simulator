@@ -38,4 +38,12 @@ inline String str_advance(String s, unsigned int step)
     return new_s;
 }
 
+inline char *str_to_c(String s)
+{
+    // @Leak:
+    char *c_str = memset(((char *)malloc(s.count+1)), 0, (s.count+1));
+    memcpy(c_str, s.data, s.count);
+    return c_str;
+}
+
 #endif

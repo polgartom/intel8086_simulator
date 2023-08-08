@@ -16,9 +16,17 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long u64;
 
-typedef char bool;
-#define true  1;
-#define false 0;
+typedef unsigned int bool;
+#define true  1
+#define false 0
+
+#define COLOR_DEFAULT "\033[0m"
+#define COLOR_RED "\033[0;31m"
+#define COLOR_GREEN "\033[0;32m"
+#define COLOR_YELLOW "\033[0;33m"
+#define COLOR_BLUE "\033[0;34m"
+#define COLOR_PURPLE "\033[0;35m"
+#define COLOR_CYAN "\033[0;36m"
 
 #define ZERO_MEMORY(dest, len) memset(((u8 *)dest), 0, (len))
 
@@ -31,6 +39,13 @@ typedef char bool;
 #define IS_DIGIT(c) (c >= '0' && c <= '9')
 #define IS_ALNUM(c) (IS_ALPHA(c) || IS_DIGIT(c) || c == '_')
 #define IS_SPACE(c) (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+
+#define ASSERT(__cond, __fmt_msg, ...) { \
+    if (!(__cond)) { \
+        printf(COLOR_RED __fmt_msg COLOR_DEFAULT "\n", ##__VA_ARGS__); \
+        assert(__cond); \
+    } \
+}
 
 String read_entire_file(char *filename)
 {
@@ -54,11 +69,37 @@ String read_entire_file(char *filename)
 
 typedef enum {
     UNKNOWN,
+    
     IDENTIFIER,
     REGISTER,
     DIRECTIVE,
     LABEL,
-    COMMENT
+    COMMENT,
+    STRING_LITERAL,
+    NUMERIC_LITERAL,
+    
+    HASH_SIGN,
+    EXCLAMATION_MARK,
+    PLUS_OP,
+    MINUS_OP,
+    MULTIPLY_OP,
+    DIVIDE_OP,
+    COMMA,
+    SEMICOLON,
+    COLON,
+    EQUAL,
+    COMPARE_OP,
+    GREATER_OP,
+    GREATER_THAN_EQUAL_OP,
+    LESS_OP,
+    LESS_THAN_EQUAL_OP,
+    LEFT_ROUND_BRACKET,
+    RIGHT_ROUND_BRACKET,
+    LEFT_BLOCK_BRACKET,
+    RIGHT_BLOCK_BRACKET,
+    LEFT_CURLY_BRACKET,
+    RIGHT_CURLY_BRACKET,
+    
 } Token_Type;
 
 typedef struct {
@@ -70,76 +111,225 @@ typedef struct {
     String str;
     int cl;  
     int cr;
-    Token tokens[1024]; // @XXX
+    
+    Token tokens[4096]; // @Incomplete
+    int ti;
 } Lexer;
 
 Lexer lexer; // @XXX: Multi-thread
 
-void inline eat_next_char()
+inline void add_token_to_lexer(String value, Token_Type type)
+{
+    // printf("ti: %d ; max_tokens: %lld\n", lexer.ti, ARRAY_SIZE(lexer.tokens));
+    assert(lexer.ti != ARRAY_SIZE(lexer.tokens));
+    
+    printf("[add_token] -> %s ; %d ; ti: %d\n", str_to_c(value), type, lexer.ti); 
+    
+    lexer.tokens[lexer.ti].value = value;
+    lexer.tokens[lexer.ti].type  = type;
+    
+    lexer.ti += 1;
+}
+
+inline void eat_next_char()
 {
     lexer.cr += 1;  
 }
 
-char inline peak_next_char()
+inline char peak_next_char()
 {
     assert(lexer.cr+1 <= lexer.str.count);
     return lexer.str.data[lexer.cr+1];
 }
 
-char inline current_char()
+inline char current_char()
 {
-    return *lexer.str.data;
+    return lexer.str.data[lexer.cr];
 }
 
-void inline keep_up_left_cursor()
+inline void keep_up_left_cursor()
 {
     lexer.cl = lexer.cr;
 }
 
-String inline get_lexer_cursor_range(bool closed_interval)
+#define eat_next_char_and_keep_up_left_cursor() { eat_next_char(); keep_up_left_cursor(); }
+
+inline String get_cursor_range(bool closed_interval)
 {
     String s = str_advance(lexer.str, lexer.cl);
     s.count = lexer.cl == lexer.cr ? 1 : (lexer.cr - lexer.cl) + (closed_interval ? 0 : 1);
+    s.data[s.count] = '\0';
     return s;
 }
 
-Token parse_identifier()
+Token_Type decide_single_char_token_type(char c)
+{
+    switch (c) {
+        case '#':   return HASH_SIGN;
+        case '!':   return EXCLAMATION_MARK;
+        case '+':   return PLUS_OP;
+        case '-':   return MINUS_OP;
+        case '*':   return MULTIPLY_OP;
+        case '/':   return DIVIDE_OP;
+        case ',':   return COMMA;
+        case ';':   return SEMICOLON;
+        case ':':   return COLON;
+        case '=':   return EQUAL;
+        case '>':   return GREATER_OP;
+        case '<':   return LESS_OP;
+        case '(':   return LEFT_ROUND_BRACKET;
+        case ')':   return RIGHT_ROUND_BRACKET;
+        case '[':   return LEFT_BLOCK_BRACKET;
+        case ']':   return RIGHT_BLOCK_BRACKET;
+        case '{':   return LEFT_CURLY_BRACKET;
+        case '}':   return RIGHT_CURLY_BRACKET;
+    }
+
+    return UNKNOWN;
+}
+
+void parse_identifier(bool expect_label)
 {
     char c;
     while ((c = current_char())) {
-        if (IS_ALNUM(c)) {
+        // @Temporary: this is temporary, so at some point we have to decide which chars can separate the identifiers
+
+        if (IS_ALNUM(c) && peak_next_char()) {
             eat_next_char();
             continue;
-        }
-        else if (IS_SPACE(c)) {
-            String identifier = get_lexer_cursor_range();
-            keep_up_left_cursor();
+        } else {
             
-            Token t = {};
-            t.value = identifier;
+            String identifier = get_cursor_range(true);
             
-            c = peak_next_char();
+            if (expect_label && !IS_SPACE(c)) {
+                ASSERT(false, "Invalid label -> %s", get_cursor_range(true).data);
+            }
+
+            Token_Type type = IDENTIFIER;
             if (c == ':') {
-                t.type = LABEL;
+                type = LABEL;
                 eat_next_char();
             }
-            
-            return t;
+
+            add_token_to_lexer(identifier, type);
+            eat_next_char_and_keep_up_left_cursor();
+
+            return;
         }
-        assert(false);
+        
+        ASSERT(false, "Invalid identifier -> %s", str_to_c(get_cursor_range(true)));
     }
     
-    assert(false);
 }
 
 void parse_string_literal()
 {
+    eat_next_char_and_keep_up_left_cursor(); // step from "
     
+    bool escaped = false;
+    
+    char c;
+    while ((c = current_char())) {
+        if (c == '\\') {
+            char next_char = peak_next_char(); 
+            ASSERT(next_char, "Unclosed string (escaped)!");
+            if (next_char == '\"') {
+                eat_next_char();
+                escaped = !escaped;
+            }
+            
+            // @Incomplete: Parse encoded stuffs
+            
+        } else if (c == '\"') {
+            ASSERT(escaped, "Unclosed string (escaped)!");
+            String literal = get_cursor_range(true);
+            add_token_to_lexer(literal, STRING_LITERAL);
+
+            eat_next_char_and_keep_up_left_cursor(); // step from "
+            return;
+        }
+
+        eat_next_char();
+    }
+    
+    ASSERT(false, "Invalid, unclosed string literal!");
 }
 
 void parse_numeric_literal()
 {
+    char c = current_char();
 
+    bool is_hex = c == '0' && peak_next_char() == 'x';
+    bool is_bin = c == '0' && peak_next_char() == 'b';
+    
+    while ((c = current_char())) {
+        if (IS_DIGIT(c)) {
+            eat_next_char();
+            continue;
+        }
+        else if (IS_SPACE(c) || decide_single_char_token_type(c) != UNKNOWN) {
+            // @Temporary: this is temporary, so at some point we have to decide which chars can separate the numeric literals
+            
+            String s = get_cursor_range(true);
+            keep_up_left_cursor();
+            
+            // @Incomplete: More validation
+            if (is_hex) ASSERT(s.count != 8, "Invalid hex decimal value -> %s", s.data);
+            if (is_bin) ASSERT(s.count != 6, "Invalid bin decimal value -> %s", s.data);
+            
+            add_token_to_lexer(s, NUMERIC_LITERAL);
+            
+            return;
+        }
+
+        ASSERT(false, "Invalid numeric value -> %s", get_cursor_range(true).data);
+    }
+
+    ASSERT(false, "Invalid numeric value -> %s", get_cursor_range(true).data);
+}
+
+void parse_comment()
+{
+    eat_next_char_and_keep_up_left_cursor(); // step from ;
+        
+    char c;
+    while (c = current_char()) {
+        if (IS_SPACE(c)) {
+            String s = get_cursor_range(true); 
+            keep_up_left_cursor();
+            
+            add_token_to_lexer(s, COMMENT);
+            return;
+        }
+        eat_next_char();
+    }    
+}
+
+void parse_simple_token()
+{
+    keep_up_left_cursor();
+    
+    char c          = current_char();
+    char next_char  = peak_next_char();
+    Token_Type type = decide_single_char_token_type(c);
+    
+    if (type == EQUAL && next_char == '=') {
+        eat_next_char();
+        type = COMPARE_OP;
+    } 
+    else if (type == GREATER_OP && next_char == '=') {
+        eat_next_char();
+        type = GREATER_THAN_EQUAL_OP;
+    } 
+    else if (type == LESS_OP && next_char == '=') {
+        eat_next_char();
+        type = LESS_THAN_EQUAL_OP;
+    }
+    
+    String t = get_cursor_range(false);
+    add_token_to_lexer(t, type);
+    
+    eat_next_char_and_keep_up_left_cursor();
 }
 
 int main(int argc, char **argv)
@@ -150,10 +340,14 @@ int main(int argc, char **argv)
     while ((c = current_char())) {
         if (IS_ALPHA(c) || c == '_') {
             // identifier, label
-            parse_identifier();
+            parse_identifier(false);
         }
         else if (c == '%') {
             // directive
+            parse_identifier(true);
+        }
+        else if (c == ';') {
+            parse_comment();
         }
         else if (IS_DIGIT(c)) {
             parse_numeric_literal();
@@ -162,10 +356,10 @@ int main(int argc, char **argv)
             eat_next_char();        
             keep_up_left_cursor();
         }
-
+        else {
+            parse_simple_token();
+        }
     }
-    
-    printf("END!!!\n");
     
     return 0;
 }
