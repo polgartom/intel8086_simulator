@@ -337,39 +337,41 @@ void parse_simple_token()
 }
 
 const char *token_type_name_as_cstr(Token_Type type) {
-    // @Cleanup: 
     switch (type) {
-        case UNKNOWN: return XSTR(UNKNOWN);
-        case IDENTIFIER: return XSTR(IDENTIFIER);
-        case REGISTER: return XSTR(REGISTER);
-        case DIRECTIVE: return XSTR(DIRECTIVE);
-        case LABEL: return XSTR(LABEL);
-        case COMMENT: return XSTR(COMMENT);
-        case STRING_LITERAL: return XSTR(STRING_LITERAL);
-        case NUMERIC_LITERAL: return XSTR(NUMERIC_LITERAL);
-        case HASH_SIGN: return XSTR(HASH_SIGN);
-        case EXCLAMATION_MARK: return XSTR(EXCLAMATION_MARK);
-        case PLUS_OP: return XSTR(PLUS_OP);
-        case MINUS_OP: return XSTR(MINUS_OP);
-        case MULTIPLY_OP: return XSTR(MULTIPLY_OP);
-        case DIVIDE_OP: return XSTR(DIVIDE_OP);
-        case COMMA: return XSTR(COMMA);
-        case SEMICOLON: return XSTR(SEMICOLON);
-        case COLON: return XSTR(COLON);
-        case EQUAL: return XSTR(EQUAL);
-        case COMPARE_OP: return XSTR(COMPARE_OP);
-        case GREATER_OP: return XSTR(GREATER_OP);
+        case UNKNOWN:               return XSTR(UNKNOWN);
+        case IDENTIFIER:            return XSTR(IDENTIFIER);
+        case REGISTER:              return XSTR(REGISTER);
+        case DIRECTIVE:             return XSTR(DIRECTIVE);
+        case LABEL:                 return XSTR(LABEL);
+        case COMMENT:               return XSTR(COMMENT);
+        case STRING_LITERAL:        return XSTR(STRING_LITERAL);
+        case NUMERIC_LITERAL:       return XSTR(NUMERIC_LITERAL);
+        
+        case HASH_SIGN:             return XSTR(HASH_SIGN);
+        case EXCLAMATION_MARK:      return XSTR(EXCLAMATION_MARK);
+        case PLUS_OP:               return XSTR(PLUS_OP);
+        case MINUS_OP:              return XSTR(MINUS_OP);
+        case MULTIPLY_OP:           return XSTR(MULTIPLY_OP);
+        case DIVIDE_OP:             return XSTR(DIVIDE_OP);
+        case COMMA:                 return XSTR(COMMA);
+        case SEMICOLON:             return XSTR(SEMICOLON);
+        case COLON:                 return XSTR(COLON);
+        case EQUAL:                 return XSTR(EQUAL);
+        case COMPARE_OP:            return XSTR(COMPARE_OP);
+        case GREATER_OP:            return XSTR(GREATER_OP);
         case GREATER_THAN_EQUAL_OP: return XSTR(GREATER_THAN_EQUAL_OP);
-        case LESS_OP: return XSTR(LESS_OP);
-        case LESS_THAN_EQUAL_OP: return XSTR(LESS_THAN_EQUAL_OP);
-        case LEFT_ROUND_BRACKET: return XSTR(LEFT_ROUND_BRACKET);
-        case RIGHT_ROUND_BRACKET: return XSTR(RIGHT_ROUND_BRACKET);
-        case LEFT_BLOCK_BRACKET: return XSTR(LEFT_BLOCK_BRACKET);
-        case RIGHT_BLOCK_BRACKET: return XSTR(RIGHT_BLOCK_BRACKET);
-        case LEFT_CURLY_BRACKET: return XSTR(LEFT_CURLY_BRACKET);
-        case RIGHT_CURLY_BRACKET: return XSTR(RIGHT_CURLY_BRACKET);
-        case LINE_BREAK:          return XSTR(LINE_BREAK);
-        default: assert(0);
+        case LESS_OP:               return XSTR(LESS_OP);
+        case LESS_THAN_EQUAL_OP:    return XSTR(LESS_THAN_EQUAL_OP);
+        case LEFT_ROUND_BRACKET:    return XSTR(LEFT_ROUND_BRACKET);
+        case RIGHT_ROUND_BRACKET:   return XSTR(RIGHT_ROUND_BRACKET);
+        case LEFT_BLOCK_BRACKET:    return XSTR(LEFT_BLOCK_BRACKET);
+        case RIGHT_BLOCK_BRACKET:   return XSTR(RIGHT_BLOCK_BRACKET);
+        case LEFT_CURLY_BRACKET:    return XSTR(LEFT_CURLY_BRACKET);
+        case RIGHT_CURLY_BRACKET:   return XSTR(RIGHT_CURLY_BRACKET);
+        
+        case LINE_BREAK:            return XSTR(LINE_BREAK);
+        
+        default:                           assert(0);
     }
     
     return "";
