@@ -1,6 +1,7 @@
 #ifndef H_NEW_STRING
 #define H_NEW_STRING
 
+#include <stdbool.h>
 #include <string.h>
 #include <assert.h>
 
@@ -12,7 +13,7 @@ typedef struct {
 #define SFMT "%.*s"
 #define SARG(__s) (int) (__s).count, (__s).data
 
-inline String str_make(char *data)
+inline String string_create(char *data)
 {
     String s;
     s.data  = data;
@@ -21,7 +22,7 @@ inline String str_make(char *data)
     return s;
 }
 
-inline String str_make_alloc(unsigned int size)
+inline String string_make_alloc(unsigned int size)
 {
     String s;
     s.data  = memset(((char *)malloc(size+1)), 0, (size+1));
@@ -30,7 +31,7 @@ inline String str_make_alloc(unsigned int size)
     return s;
 }
 
-inline String str_advance(String s, unsigned int step)
+inline String string_advance(String s, unsigned int step)
 {
     assert(s.count >= step && step >= 0);
 
@@ -48,5 +49,23 @@ inline char *string_to_cstr(String s)
     memcpy(c_str, s.data, s.count);
     return c_str;
 }
+
+inline bool string_equal(String a, String b)
+{
+    if (a.count != b.count) return false;
+    int max_count = a.count > b.count ? a.count : b.count;
+    for (int i = 0; i < max_count; i++) {
+        if (a.data[i] != b.data[i]) return false;
+    }
+    
+    return true;
+}
+
+inline bool *string_equal_nocase(String a, String b)
+{
+    // @Todo
+    assert(0);
+}
+
 
 #endif

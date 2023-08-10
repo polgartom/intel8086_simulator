@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "new_string.h"
 
@@ -16,10 +17,6 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long u64;
 
-typedef unsigned int bool;
-#define true  1
-#define false 0
-
 #define COLOR_DEFAULT "\033[0m"
 #define COLOR_RED "\033[0;31m"
 #define COLOR_GREEN "\033[0;32m"
@@ -31,7 +28,7 @@ typedef unsigned int bool;
 #define ZERO_MEMORY(dest, len) memset(((u8 *)dest), 0, (len))
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr)[0])
-#define STR_EQUAL(str1, str2) (strcmp(str1, str2) == 0)
+#define CSTR_EQUAL(str1, str2) (strcmp(str1, str2) == 0)
 #define STR_LEN(x) (x != NULL ? strlen(x) : 0)
 #define XSTR(x) #x
 
@@ -59,7 +56,7 @@ String read_entire_file(char *filename)
     u32 fsize = ftell(fp);
     rewind(fp);
     
-    String s = str_make_alloc(fsize+1); // +1, because we'll insert a line break to deal with the EOF easier
+    String s = string_make_alloc(fsize+1); // +1, because we'll insert a line break to deal with the EOF easier
     s.data[s.count-1] = '\n';
     
     fread(s.data, fsize, 1, fp);
@@ -100,6 +97,8 @@ typedef enum {
     RIGHT_BLOCK_BRACKET,
     LEFT_CURLY_BRACKET,
     RIGHT_CURLY_BRACKET,
+  
+    LINE_BREAK,
     
 } Token_Type;
 
@@ -119,7 +118,7 @@ typedef struct {
 
 Lexer lexer; // @XXX: Multi-thread
 
-inline void add_token_to_lexer(String value, Token_Type type)
+inline void lexer_add_token(String value, Token_Type type)
 {
     // printf("ti: %d ; max_tokens: %lld\n", lexer.ti, ARRAY_SIZE(lexer.tokens));
     assert(lexer.ti != ARRAY_SIZE(lexer.tokens));
@@ -130,6 +129,12 @@ inline void add_token_to_lexer(String value, Token_Type type)
     lexer.tokens[lexer.ti].type  = type;
     
     lexer.ti += 1;
+}
+
+inline Token *lexer_prev_token()
+{
+    if (lexer.ti == 0) return NULL;
+    return &lexer.tokens[lexer.ti-1];
 }
 
 inline void eat_next_char()
@@ -157,7 +162,7 @@ inline void keep_up_left_cursor()
 
 inline String get_cursor_range(bool closed_interval)
 {
-    String s = str_advance(lexer.str, lexer.cl);
+    String s = string_advance(lexer.str, lexer.cl);
     s.count = lexer.cl == lexer.cr ? 1 : (lexer.cr - lexer.cl) + (closed_interval ? 0 : 1);
     return s;
 }
@@ -210,7 +215,7 @@ void parse_identifier(bool expect_label)
                 eat_next_char();
             }
 
-            add_token_to_lexer(identifier, type);
+            lexer_add_token(identifier, type);
             keep_up_left_cursor();
 
             return;
@@ -243,7 +248,7 @@ void parse_string_literal()
             ASSERT(!escaped, "Unclosed string (escaped)!");
             
             String literal = get_cursor_range(true);
-            add_token_to_lexer(literal, STRING_LITERAL);
+            lexer_add_token(literal, STRING_LITERAL);
 
             eat_next_char_and_keep_up_left_cursor(); // step from "
             return;
@@ -277,7 +282,7 @@ void parse_numeric_literal()
             if (is_hex) ASSERT(s.count > 2, "Invalid hex decimal value -> "SFMT, SARG(s));
             if (is_bin) ASSERT(s.count > 2, "Invalid bin decimal value -> "SFMT, SARG(s));
             
-            add_token_to_lexer(s, NUMERIC_LITERAL);
+            lexer_add_token(s, NUMERIC_LITERAL);
             
             return;
         }
@@ -296,7 +301,7 @@ void parse_comment()
             String s = get_cursor_range(true); 
             keep_up_left_cursor();
             
-            // add_token_to_lexer(s, COMMENT);
+            // lexer_add_token(s, COMMENT);
             return;
         }
         eat_next_char();
@@ -326,7 +331,7 @@ void parse_simple_token()
     }
     
     String t = get_cursor_range(false);
-    add_token_to_lexer(t, type);
+    lexer_add_token(t, type);
     
     eat_next_char_and_keep_up_left_cursor();
 }
@@ -363,8 +368,11 @@ const char *token_type_name_as_cstr(Token_Type type) {
         case RIGHT_BLOCK_BRACKET: return XSTR(RIGHT_BLOCK_BRACKET);
         case LEFT_CURLY_BRACKET: return XSTR(LEFT_CURLY_BRACKET);
         case RIGHT_CURLY_BRACKET: return XSTR(RIGHT_CURLY_BRACKET);
+        case LINE_BREAK:          return XSTR(LINE_BREAK);
         default: assert(0);
     }
+    
+    return "";
 }
 
 void dump_tokens_out(Lexer *l)
@@ -396,8 +404,16 @@ int main(int argc, char **argv)
             parse_numeric_literal();
         }
         else if (IS_SPACE(c)) {
-            eat_next_char();        
-            keep_up_left_cursor();
+            if (c == '\n') {
+                // Instructions separated by at least one new line
+                Token *prev_token = lexer_prev_token();
+                if (prev_token && prev_token->type != LINE_BREAK) {
+                    keep_up_left_cursor();
+                    String value = string_create("");
+                    lexer_add_token(value, LINE_BREAK);
+                }
+            }
+            eat_next_char_and_keep_up_left_cursor();
         }
         else {
             parse_simple_token();
