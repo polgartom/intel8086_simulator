@@ -1,6 +1,6 @@
 dev/
 
-out.txt
+*.txt
 
 # Prerequisites
 *.d
