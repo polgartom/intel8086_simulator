@@ -197,19 +197,18 @@ void parse_identifier(bool expect_label)
         if (IS_ALNUM(c) && peak_next_char()) {
             eat_next_char();
             continue;
-        } else {
-                        
+        } else {                        
             if (expect_label && !IS_SPACE(c)) {
                 ASSERT(false, "Invalid label -> "SFMT, SARG(get_cursor_range(true)));
             }
+
+            String identifier = get_cursor_range(true);
 
             Token_Type type = IDENTIFIER;
             if (c == ':') {
                 type = LABEL;
                 eat_next_char();
             }
-
-            String identifier = get_cursor_range(true);
 
             add_token_to_lexer(identifier, type);
             keep_up_left_cursor();
@@ -275,8 +274,8 @@ void parse_numeric_literal()
             keep_up_left_cursor();
             
             // @Incomplete: More validation
-            if (is_hex) ASSERT(s.count != 8, "Invalid hex decimal value -> "SFMT, SARG(s));
-            if (is_bin) ASSERT(s.count != 6, "Invalid bin decimal value -> "SFMT, SARG(s));
+            if (is_hex) ASSERT(s.count > 2, "Invalid hex decimal value -> "SFMT, SARG(s));
+            if (is_bin) ASSERT(s.count > 2, "Invalid bin decimal value -> "SFMT, SARG(s));
             
             add_token_to_lexer(s, NUMERIC_LITERAL);
             
@@ -309,9 +308,10 @@ void parse_simple_token()
     keep_up_left_cursor();
     
     char c          = current_char();
-    char next_char  = peak_next_char();
     Token_Type type = decide_single_char_token_type(c);
-    
+    ASSERT(type != UNKNOWN, "UNKNOWN token -> %c", c);
+
+    char next_char  = peak_next_char();
     if (type == EQUAL && next_char == '=') {
         eat_next_char();
         type = COMPARE_OP;
@@ -329,6 +329,50 @@ void parse_simple_token()
     add_token_to_lexer(t, type);
     
     eat_next_char_and_keep_up_left_cursor();
+}
+
+const char *token_type_name_as_cstr(Token_Type type) {
+    // @Cleanup: 
+    switch (type) {
+        case UNKNOWN: return XSTR(UNKNOWN);
+        case IDENTIFIER: return XSTR(IDENTIFIER);
+        case REGISTER: return XSTR(REGISTER);
+        case DIRECTIVE: return XSTR(DIRECTIVE);
+        case LABEL: return XSTR(LABEL);
+        case COMMENT: return XSTR(COMMENT);
+        case STRING_LITERAL: return XSTR(STRING_LITERAL);
+        case NUMERIC_LITERAL: return XSTR(NUMERIC_LITERAL);
+        case HASH_SIGN: return XSTR(HASH_SIGN);
+        case EXCLAMATION_MARK: return XSTR(EXCLAMATION_MARK);
+        case PLUS_OP: return XSTR(PLUS_OP);
+        case MINUS_OP: return XSTR(MINUS_OP);
+        case MULTIPLY_OP: return XSTR(MULTIPLY_OP);
+        case DIVIDE_OP: return XSTR(DIVIDE_OP);
+        case COMMA: return XSTR(COMMA);
+        case SEMICOLON: return XSTR(SEMICOLON);
+        case COLON: return XSTR(COLON);
+        case EQUAL: return XSTR(EQUAL);
+        case COMPARE_OP: return XSTR(COMPARE_OP);
+        case GREATER_OP: return XSTR(GREATER_OP);
+        case GREATER_THAN_EQUAL_OP: return XSTR(GREATER_THAN_EQUAL_OP);
+        case LESS_OP: return XSTR(LESS_OP);
+        case LESS_THAN_EQUAL_OP: return XSTR(LESS_THAN_EQUAL_OP);
+        case LEFT_ROUND_BRACKET: return XSTR(LEFT_ROUND_BRACKET);
+        case RIGHT_ROUND_BRACKET: return XSTR(RIGHT_ROUND_BRACKET);
+        case LEFT_BLOCK_BRACKET: return XSTR(LEFT_BLOCK_BRACKET);
+        case RIGHT_BLOCK_BRACKET: return XSTR(RIGHT_BLOCK_BRACKET);
+        case LEFT_CURLY_BRACKET: return XSTR(LEFT_CURLY_BRACKET);
+        case RIGHT_CURLY_BRACKET: return XSTR(RIGHT_CURLY_BRACKET);
+        default: assert(0);
+    }
+}
+
+void dump_tokens_out(Lexer *l)
+{
+    for (int i = 0; i < l->ti; i++) {
+        Token t = l->tokens[i];
+        printf("{type: \"%s\", value: \""SFMT"\"}\n", token_type_name_as_cstr(t.type), SARG(t.value));
+    }
 }
 
 int main(int argc, char **argv)
@@ -359,6 +403,8 @@ int main(int argc, char **argv)
             parse_simple_token();
         }
     }
+    
+    dump_tokens_out(&lexer);
     
     return 0;
 }
