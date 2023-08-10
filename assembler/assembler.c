@@ -59,7 +59,8 @@ String read_entire_file(char *filename)
     u32 fsize = ftell(fp);
     rewind(fp);
     
-    String s = str_make_alloc(fsize);
+    String s = str_make_alloc(fsize+1); // +1, because we'll insert a line break to deal with the EOF easier
+    s.data[s.count-1] = '\n';
     
     fread(s.data, fsize, 1, fp);
     fclose(fp);
@@ -123,7 +124,7 @@ inline void add_token_to_lexer(String value, Token_Type type)
     // printf("ti: %d ; max_tokens: %lld\n", lexer.ti, ARRAY_SIZE(lexer.tokens));
     assert(lexer.ti != ARRAY_SIZE(lexer.tokens));
     
-    printf("[add_token] -> %s ; %d ; ti: %d\n", str_to_c(value), type, lexer.ti); 
+    // printf("[add_token] -> " SFMT " ; %d ; ti: %d\n", SARG(value), type, lexer.ti); 
     
     lexer.tokens[lexer.ti].value = value;
     lexer.tokens[lexer.ti].type  = type;
@@ -158,7 +159,6 @@ inline String get_cursor_range(bool closed_interval)
 {
     String s = str_advance(lexer.str, lexer.cl);
     s.count = lexer.cl == lexer.cr ? 1 : (lexer.cr - lexer.cl) + (closed_interval ? 0 : 1);
-    s.data[s.count] = '\0';
     return s;
 }
 
@@ -198,11 +198,9 @@ void parse_identifier(bool expect_label)
             eat_next_char();
             continue;
         } else {
-            
-            String identifier = get_cursor_range(true);
-            
+                        
             if (expect_label && !IS_SPACE(c)) {
-                ASSERT(false, "Invalid label -> %s", get_cursor_range(true).data);
+                ASSERT(false, "Invalid label -> "SFMT, SARG(get_cursor_range(true)));
             }
 
             Token_Type type = IDENTIFIER;
@@ -211,13 +209,15 @@ void parse_identifier(bool expect_label)
                 eat_next_char();
             }
 
+            String identifier = get_cursor_range(true);
+
             add_token_to_lexer(identifier, type);
-            eat_next_char_and_keep_up_left_cursor();
+            keep_up_left_cursor();
 
             return;
         }
         
-        ASSERT(false, "Invalid identifier -> %s", str_to_c(get_cursor_range(true)));
+        ASSERT(false, "Invalid identifier -> "SFMT, SARG(get_cursor_range(true)));
     }
     
 }
@@ -241,7 +241,8 @@ void parse_string_literal()
             // @Incomplete: Parse encoded stuffs
             
         } else if (c == '\"') {
-            ASSERT(escaped, "Unclosed string (escaped)!");
+            ASSERT(!escaped, "Unclosed string (escaped)!");
+            
             String literal = get_cursor_range(true);
             add_token_to_lexer(literal, STRING_LITERAL);
 
@@ -274,18 +275,16 @@ void parse_numeric_literal()
             keep_up_left_cursor();
             
             // @Incomplete: More validation
-            if (is_hex) ASSERT(s.count != 8, "Invalid hex decimal value -> %s", s.data);
-            if (is_bin) ASSERT(s.count != 6, "Invalid bin decimal value -> %s", s.data);
+            if (is_hex) ASSERT(s.count != 8, "Invalid hex decimal value -> "SFMT, SARG(s));
+            if (is_bin) ASSERT(s.count != 6, "Invalid bin decimal value -> "SFMT, SARG(s));
             
             add_token_to_lexer(s, NUMERIC_LITERAL);
             
             return;
         }
 
-        ASSERT(false, "Invalid numeric value -> %s", get_cursor_range(true).data);
+        ASSERT(false, "Invalid numeric value -> "SFMT, SARG(get_cursor_range(true)));
     }
-
-    ASSERT(false, "Invalid numeric value -> %s", get_cursor_range(true).data);
 }
 
 void parse_comment()
@@ -294,15 +293,15 @@ void parse_comment()
         
     char c;
     while (c = current_char()) {
-        if (IS_SPACE(c)) {
+        if (c == '\n' || c == '\r') {
             String s = get_cursor_range(true); 
             keep_up_left_cursor();
             
-            add_token_to_lexer(s, COMMENT);
+            // add_token_to_lexer(s, COMMENT);
             return;
         }
         eat_next_char();
-    }    
+    }
 }
 
 void parse_simple_token()

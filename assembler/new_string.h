@@ -9,6 +9,9 @@ typedef struct {
     int count;
 } String;
 
+#define SFMT "%.*s"
+#define SARG(__s) (int) (__s).count, (__s).data
+
 inline String str_make(char *data)
 {
     String s;
@@ -38,7 +41,7 @@ inline String str_advance(String s, unsigned int step)
     return new_s;
 }
 
-inline char *str_to_c(String s)
+inline char *string_to_cstr(String s)
 {
     // @Leak:
     char *c_str = memset(((char *)malloc(s.count+1)), 0, (s.count+1));
