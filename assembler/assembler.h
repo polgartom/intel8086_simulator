@@ -161,35 +161,6 @@ typedef struct {
 
 } Instruction;
 
-Register decide_register(char *s)
-{
-    if (CSTR_EQUAL(s, "al")) return REG_AL;
-    if (CSTR_EQUAL(s, "cl")) return REG_CL;
-    if (CSTR_EQUAL(s, "dl")) return REG_DL;
-    if (CSTR_EQUAL(s, "bl")) return REG_BL;
-    if (CSTR_EQUAL(s, "ah")) return REG_AH;
-    if (CSTR_EQUAL(s, "ch")) return REG_CH;
-    if (CSTR_EQUAL(s, "dh")) return REG_DH;
-    if (CSTR_EQUAL(s, "bh")) return REG_BH;
-    if (CSTR_EQUAL(s, "ax")) return REG_AX;
-    if (CSTR_EQUAL(s, "cx")) return REG_CX;
-    if (CSTR_EQUAL(s, "dx")) return REG_DX;
-    if (CSTR_EQUAL(s, "bx")) return REG_BX;
-    if (CSTR_EQUAL(s, "sp")) return REG_SP;
-    if (CSTR_EQUAL(s, "bp")) return REG_BP;
-    if (CSTR_EQUAL(s, "si")) return REG_SI;
-    if (CSTR_EQUAL(s, "di")) return REG_DI;
-    if (CSTR_EQUAL(s, "es")) return REG_ES;
-    if (CSTR_EQUAL(s, "cs")) return REG_CS;
-    if (CSTR_EQUAL(s, "ss")) return REG_SS;
-    if (CSTR_EQUAL(s, "ds")) return REG_DS;
-    if (CSTR_EQUAL(s, "ip")) return REG_IP;
-
-    // @Todo: proper error report
-    ASSERT(0, "Unknown register -> %s\n", s);
-    return REG_NONE;
-}
-
 inline Width register_size(Register r)
 {
     // @Cleanup

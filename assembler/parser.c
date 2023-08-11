@@ -47,6 +47,35 @@ inline Token *peak_prev_token()
     return parser.tokens-1;
 }
 
+Register decide_register(String s)
+{
+    if (string_equal_cstr(s, "al")) return REG_AL;
+    if (string_equal_cstr(s, "cl")) return REG_CL;
+    if (string_equal_cstr(s, "dl")) return REG_DL;
+    if (string_equal_cstr(s, "bl")) return REG_BL;
+    if (string_equal_cstr(s, "ah")) return REG_AH;
+    if (string_equal_cstr(s, "ch")) return REG_CH;
+    if (string_equal_cstr(s, "dh")) return REG_DH;
+    if (string_equal_cstr(s, "bh")) return REG_BH;
+    if (string_equal_cstr(s, "ax")) return REG_AX;
+    if (string_equal_cstr(s, "cx")) return REG_CX;
+    if (string_equal_cstr(s, "dx")) return REG_DX;
+    if (string_equal_cstr(s, "bx")) return REG_BX;
+    if (string_equal_cstr(s, "sp")) return REG_SP;
+    if (string_equal_cstr(s, "bp")) return REG_BP;
+    if (string_equal_cstr(s, "si")) return REG_SI;
+    if (string_equal_cstr(s, "di")) return REG_DI;
+    if (string_equal_cstr(s, "es")) return REG_ES;
+    if (string_equal_cstr(s, "cs")) return REG_CS;
+    if (string_equal_cstr(s, "ss")) return REG_SS;
+    if (string_equal_cstr(s, "ds")) return REG_DS;
+    if (string_equal_cstr(s, "ip")) return REG_IP;
+
+    // @Todo: proper error report
+    ASSERT(0, "Unknown register -> "SFMT, SARG(s));
+    return REG_NONE;
+}
+
 u32 eval_numeric_expr()
 {
     // @Todo:
@@ -148,7 +177,7 @@ void mov_inst()
         parse_effective_addr_expr(&inst->a);
     }
     else if (t->type == IDENTIFIER) {
-        inst->a.reg = decide_register(t->value.data);
+        inst->a.reg = decide_register(t->value);
     }
     else {
         ASSERT(0, "Unexpected identifier -> "SFMT, SARG(t->value));
