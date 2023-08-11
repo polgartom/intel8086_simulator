@@ -69,10 +69,15 @@ inline bool string_equal(String a, String b)
     return true;
 }
 
-inline bool *string_equal_nocase(String a, String b)
+// inline bool *string_equal_nocase(String a, String b)
+// {
+//     // @Todo
+//     assert(0);
+// }
+
+inline bool string_equal_cstr(String a, char *b)
 {
-    // @Todo
-    assert(0);
+    return string_equal(a, string_create(b));
 }
 
 inline String string_trim_white(String s)

@@ -214,6 +214,8 @@ void parse_string_literal()
 
 void parse_numeric_literal()
 {
+    // @Todo: Parse signed numbers
+
     char c = current_char();
 
     bool is_hex = c == '0' && peak_next_char() == 'x';
