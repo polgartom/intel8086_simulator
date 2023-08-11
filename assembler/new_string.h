@@ -5,13 +5,20 @@
 #include <string.h>
 #include <assert.h>
 
+#define IS_ALPHA(c) ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+#define IS_DIGIT(c) (c >= '0' && c <= '9')
+#define IS_ALNUM(c) (IS_ALPHA(c) || IS_DIGIT(c) || c == '_')
+#define IS_SPACE(c) ((c) == ' ' || (c) == '\t' || (c) == '\r' || (c) == '\n')
+
 typedef struct {
     char *data;
+    char *alloc_location; // If allocated on the heap
     int count;
 } String;
 
 #define SFMT "%.*s"
-#define SARG(__s) (int) (__s).count, (__s).data
+#define SARG(__s) (int) (__s).count, (__s).data 
+// Usage: printf("This is an example: " SFMT "\n", SARG(value));
 
 inline String string_create(char *data)
 {
@@ -25,8 +32,9 @@ inline String string_create(char *data)
 inline String string_make_alloc(unsigned int size)
 {
     String s;
-    s.data  = memset(((char *)malloc(size+1)), 0, (size+1));
-    s.count = size;
+    s.alloc_location = (char *)malloc(size+1);
+    s.data           = memset(s.alloc_location, 0, (size+1));
+    s.count          = size;
     
     return s;
 }
@@ -67,5 +75,20 @@ inline bool *string_equal_nocase(String a, String b)
     assert(0);
 }
 
+inline String string_trim_white(String s)
+{
+    // Trim left
+    while (s.count && IS_SPACE(*s.data)) {
+        s.data += 1;
+        s.count -= 1;
+    }
+    
+    // Trim Right
+    while (s.count && IS_SPACE(s.data[s.count-1])) {
+        s.count -= 1;
+    }
+    
+    return s;
+}
 
 #endif
