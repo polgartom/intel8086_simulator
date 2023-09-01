@@ -153,7 +153,9 @@ typedef enum {
 typedef struct {
     Mnemonic mnemonic;
     Instruction_Type type;
-    
+
+    MOD mod;
+
     Operand a;
     Operand b;
 

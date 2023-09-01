@@ -23,39 +23,39 @@ String read_entire_file(char *filename)
 }
 
 typedef enum {
-    UNKNOWN,
+    T_UNKNOWN,
     
-    IDENTIFIER,
-    REGISTER,
-    DIRECTIVE,
-    LABEL,
-    COMMENT,
-    STRING_LITERAL,
-    NUMERIC_LITERAL,
+    T_IDENTIFIER,
+    T_REGISTER,
+    T_DIRECTIVE,
+    T_LABEL,
+    T_COMMENT,
+    T_STRING_LITERAL,
+    T_NUMERIC_LITERAL,
     
-    HASH_SIGN,
-    EXCLAMATION_MARK,
-    PLUS_OP,
-    MINUS_OP,
-    MULTIPLY_OP,
-    DIVIDE_OP,
-    COMMA,
-    SEMICOLON,
-    COLON,
-    EQUAL,
-    COMPARE_OP,
-    GREATER_OP,
-    GREATER_THAN_EQUAL_OP,
-    LESS_OP,
-    LESS_THAN_EQUAL_OP,
-    LEFT_ROUND_BRACKET,
-    RIGHT_ROUND_BRACKET,
-    LEFT_BLOCK_BRACKET,
-    RIGHT_BLOCK_BRACKET,
-    LEFT_CURLY_BRACKET,
-    RIGHT_CURLY_BRACKET,
+    T_HASH_SIGN,
+    T_EXCLAMATION_MARK,
+    T_PLUS_OP,
+    T_MINUS_OP,
+    T_MULTIPLY_OP,
+    T_DIVIDE_OP,
+    T_COMMA,
+    T_SEMICOLON,
+    T_COLON,
+    T_EQUAL,
+    T_COMPARE_OP,
+    T_GREATER_OP,
+    T_GREATER_THAN_EQUAL_OP,
+    T_LESS_OP,
+    T_LESS_THAN_EQUAL_OP,
+    T_LEFT_ROUND_BRACKET,
+    T_RIGHT_ROUND_BRACKET,
+    T_LEFT_BLOCK_BRACKET,
+    T_RIGHT_BLOCK_BRACKET,
+    T_LEFT_CURLY_BRACKET,
+    T_RIGHT_CURLY_BRACKET,
   
-    LINE_BREAK,
+    T_LINE_BREAK,
     
 } Token_Type;
 
@@ -122,27 +122,27 @@ inline String get_cursor_range(bool closed_interval)
 Token_Type decide_single_char_token_type(char c)
 {
     switch (c) {
-        case '#':   return HASH_SIGN;
-        case '!':   return EXCLAMATION_MARK;
-        case '+':   return PLUS_OP;
-        case '-':   return MINUS_OP;
-        case '*':   return MULTIPLY_OP;
-        case '/':   return DIVIDE_OP;
-        case ',':   return COMMA;
-        case ';':   return SEMICOLON;
-        case ':':   return COLON;
-        case '=':   return EQUAL;
-        case '>':   return GREATER_OP;
-        case '<':   return LESS_OP;
-        case '(':   return LEFT_ROUND_BRACKET;
-        case ')':   return RIGHT_ROUND_BRACKET;
-        case '[':   return LEFT_BLOCK_BRACKET;
-        case ']':   return RIGHT_BLOCK_BRACKET;
-        case '{':   return LEFT_CURLY_BRACKET;
-        case '}':   return RIGHT_CURLY_BRACKET;
+        case '#':   return T_HASH_SIGN;
+        case '!':   return T_EXCLAMATION_MARK;
+        case '+':   return T_PLUS_OP;
+        case '-':   return T_MINUS_OP;
+        case '*':   return T_MULTIPLY_OP;
+        case '/':   return T_DIVIDE_OP;
+        case ',':   return T_COMMA;
+        case ';':   return T_SEMICOLON;
+        case ':':   return T_COLON;
+        case '=':   return T_EQUAL;
+        case '>':   return T_GREATER_OP;
+        case '<':   return T_LESS_OP;
+        case '(':   return T_LEFT_ROUND_BRACKET;
+        case ')':   return T_RIGHT_ROUND_BRACKET;
+        case '[':   return T_LEFT_BLOCK_BRACKET;
+        case ']':   return T_RIGHT_BLOCK_BRACKET;
+        case '{':   return T_LEFT_CURLY_BRACKET;
+        case '}':   return T_RIGHT_CURLY_BRACKET;
     }
 
-    return UNKNOWN;
+    return T_UNKNOWN;
 }
 
 void parse_identifier(bool expect_label)
@@ -161,9 +161,9 @@ void parse_identifier(bool expect_label)
 
             String identifier = get_cursor_range(true);
 
-            Token_Type type = IDENTIFIER;
+            Token_Type type = T_IDENTIFIER;
             if (c == ':') {
-                type = LABEL;
+                type = T_LABEL;
                 eat_next_char();
             }
 
@@ -200,7 +200,7 @@ void parse_string_literal()
             ASSERT(!escaped, "Unclosed string (escaped)!");
             
             String literal = get_cursor_range(true);
-            lexer_add_token(literal, STRING_LITERAL);
+            lexer_add_token(literal, T_STRING_LITERAL);
 
             eat_next_char_and_keep_up_left_cursor(); // step from "
             return;
@@ -226,7 +226,7 @@ void parse_numeric_literal()
             eat_next_char();
             continue;
         }
-        else if (IS_SPACE(c) || decide_single_char_token_type(c) != UNKNOWN) {
+        else if (IS_SPACE(c) || decide_single_char_token_type(c) != T_UNKNOWN) {
             // @Temporary: this is temporary, so at some point we have to decide which chars can separate the numeric literals
             
             String s = get_cursor_range(true);
@@ -236,7 +236,7 @@ void parse_numeric_literal()
             if (is_hex) ASSERT(s.count > 2, "Invalid hex decimal value -> "SFMT, SARG(s));
             if (is_bin) ASSERT(s.count > 2, "Invalid bin decimal value -> "SFMT, SARG(s));
             
-            lexer_add_token(s, NUMERIC_LITERAL);
+            lexer_add_token(s, T_NUMERIC_LITERAL);
             
             return;
         }
@@ -275,21 +275,21 @@ void parse_simple_token()
     
     char c          = current_char();
     Token_Type type = decide_single_char_token_type(c);
-    ASSERT(type != UNKNOWN, "UNKNOWN token -> %c", c);
+    ASSERT(type != T_UNKNOWN, "UNKNOWN token -> %c", c);
 
-    char next_char  = peak_next_char();
-    if (type == EQUAL && next_char == '=') {
-        eat_next_char();
-        type = COMPARE_OP;
-    } 
-    else if (type == GREATER_OP && next_char == '=') {
-        eat_next_char();
-        type = GREATER_THAN_EQUAL_OP;
-    } 
-    else if (type == LESS_OP && next_char == '=') {
-        eat_next_char();
-        type = LESS_THAN_EQUAL_OP;
-    }
+    // char next_char  = peak_next_char();
+    // if (type == EQUAL && next_char == '=') {
+    //     eat_next_char();
+    //     type = T_COMPARE_OP;
+    // } 
+    // else if (type == GREATER_OP && next_char == '=') {
+    //     eat_next_char();
+    //     type = T_GREATER_THAN_EQUAL_OP;
+    // } 
+    // else if (type == LESS_OP && next_char == '=') {
+    //     eat_next_char();
+    //     type = T_LESS_THAN_EQUAL_OP;
+    // }
     
     String t = get_cursor_range(false);
     lexer_add_token(t, type);
@@ -299,38 +299,38 @@ void parse_simple_token()
 
 const char *token_type_name_as_cstr(Token_Type type) {
     switch (type) {
-        case UNKNOWN:               return XSTR(UNKNOWN);
-        case IDENTIFIER:            return XSTR(IDENTIFIER);
-        case REGISTER:              return XSTR(REGISTER);
-        case DIRECTIVE:             return XSTR(DIRECTIVE);
-        case LABEL:                 return XSTR(LABEL);
-        case COMMENT:               return XSTR(COMMENT);
-        case STRING_LITERAL:        return XSTR(STRING_LITERAL);
-        case NUMERIC_LITERAL:       return XSTR(NUMERIC_LITERAL);
+        case T_UNKNOWN:               return XSTR(UNKNOWN);
+        case T_IDENTIFIER:            return XSTR(IDENTIFIER);
+        case T_REGISTER:              return XSTR(REGISTER);
+        case T_DIRECTIVE:             return XSTR(DIRECTIVE);
+        case T_LABEL:                 return XSTR(LABEL);
+        case T_COMMENT:               return XSTR(COMMENT);
+        case T_STRING_LITERAL:        return XSTR(STRING_LITERAL);
+        case T_NUMERIC_LITERAL:       return XSTR(NUMERIC_LITERAL);
         
-        case HASH_SIGN:             return XSTR(HASH_SIGN);
-        case EXCLAMATION_MARK:      return XSTR(EXCLAMATION_MARK);
-        case PLUS_OP:               return XSTR(PLUS_OP);
-        case MINUS_OP:              return XSTR(MINUS_OP);
-        case MULTIPLY_OP:           return XSTR(MULTIPLY_OP);
-        case DIVIDE_OP:             return XSTR(DIVIDE_OP);
-        case COMMA:                 return XSTR(COMMA);
-        case SEMICOLON:             return XSTR(SEMICOLON);
-        case COLON:                 return XSTR(COLON);
-        case EQUAL:                 return XSTR(EQUAL);
-        case COMPARE_OP:            return XSTR(COMPARE_OP);
-        case GREATER_OP:            return XSTR(GREATER_OP);
-        case GREATER_THAN_EQUAL_OP: return XSTR(GREATER_THAN_EQUAL_OP);
-        case LESS_OP:               return XSTR(LESS_OP);
-        case LESS_THAN_EQUAL_OP:    return XSTR(LESS_THAN_EQUAL_OP);
-        case LEFT_ROUND_BRACKET:    return XSTR(LEFT_ROUND_BRACKET);
-        case RIGHT_ROUND_BRACKET:   return XSTR(RIGHT_ROUND_BRACKET);
-        case LEFT_BLOCK_BRACKET:    return XSTR(LEFT_BLOCK_BRACKET);
-        case RIGHT_BLOCK_BRACKET:   return XSTR(RIGHT_BLOCK_BRACKET);
-        case LEFT_CURLY_BRACKET:    return XSTR(LEFT_CURLY_BRACKET);
-        case RIGHT_CURLY_BRACKET:   return XSTR(RIGHT_CURLY_BRACKET);
+        case T_HASH_SIGN:             return XSTR(T_HASH_SIGN);
+        case T_EXCLAMATION_MARK:      return XSTR(T_EXCLAMATION_MARK);
+        case T_PLUS_OP:               return XSTR(T_PLUS_OP);
+        case T_MINUS_OP:              return XSTR(T_MINUS_OP);
+        case T_MULTIPLY_OP:           return XSTR(T_MULTIPLY_OP);
+        case T_DIVIDE_OP:             return XSTR(T_DIVIDE_OP);
+        case T_COMMA:                 return XSTR(T_COMMA);
+        case T_SEMICOLON:             return XSTR(T_SEMICOLON);
+        case T_COLON:                 return XSTR(T_COLON);
+        case T_EQUAL:                 return XSTR(T_EQUAL);
+        case T_COMPARE_OP:            return XSTR(T_COMPARE_OP);
+        case T_GREATER_OP:            return XSTR(T_GREATER_OP);
+        case T_GREATER_THAN_EQUAL_OP: return XSTR(T_GREATER_THAN_EQUAL_OP);
+        case T_LESS_OP:               return XSTR(T_LESS_OP);
+        case T_LESS_THAN_EQUAL_OP:    return XSTR(T_LESS_THAN_EQUAL_OP);
+        case T_LEFT_ROUND_BRACKET:    return XSTR(T_LEFT_ROUND_BRACKET);
+        case T_RIGHT_ROUND_BRACKET:   return XSTR(T_RIGHT_ROUND_BRACKET);
+        case T_LEFT_BLOCK_BRACKET:    return XSTR(T_LEFT_BLOCK_BRACKET);
+        case T_RIGHT_BLOCK_BRACKET:   return XSTR(T_RIGHT_BLOCK_BRACKET);
+        case T_LEFT_CURLY_BRACKET:    return XSTR(T_LEFT_CURLY_BRACKET);
+        case T_RIGHT_CURLY_BRACKET:   return XSTR(T_RIGHT_CURLY_BRACKET);
         
-        case LINE_BREAK:            return XSTR(LINE_BREAK);
+        case T_LINE_BREAK:            return XSTR(T_LINE_BREAK);
         
         default:                           assert(0);
     }
@@ -373,9 +373,9 @@ void tokenize(String input)
         else if (IS_SPACE(c)) {
             if (c == '\n') {
                 // Instructions separated by at least one new line
-                if (lexer.ti > 0 && lexer.tokens[lexer.ti-1].type != LINE_BREAK) {
+                if (lexer.ti > 0 && lexer.tokens[lexer.ti-1].type != T_LINE_BREAK) {
                     keep_up_left_cursor();
-                    lexer_add_token(string_create(""), LINE_BREAK);
+                    lexer_add_token(string_create(""), T_LINE_BREAK);
                 }
             }
             eat_next_char_and_keep_up_left_cursor();

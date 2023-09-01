@@ -1,6 +1,13 @@
 #include "assembler.h"
 #include "new_string.h"
 
+// typedef struct Ast
+// {
+
+// };
+
+// #define NEW_AST() (Ast *)malloc(sizeof(Ast));
+
 typedef struct {
     int byte_offset; // we have to track this because of jumps
 
@@ -76,119 +83,172 @@ Register decide_register(String s)
     return REG_NONE;
 }
 
-u32 eval_numeric_expr()
+#define IS_NUM_16BIT(_num) (_num & 0xff00)
+
+int eval_numeric_expr()
 {
-    // @Todo:
-    
+    // @Incomplete: Precedence of parenthesis
+
     Token *t = current_token();
-    bool is_signed = t->type == MINUS_OP;
-    if (t->type != NUMERIC_LITERAL) eat_token();
-    
-    return 0;
+    bool is_signed = t->type == T_MINUS_OP;
+    if (t->type != T_NUMERIC_LITERAL) eat_token();
+
+    int num = 0;
+    while (t && t->type == T_NUMERIC_LITERAL) {
+        bool failed = false; 
+        int num = string_atoi(t->value, &failed);
+        if (failed) ASSERT(0, "Failed to convert '"SFMT"' to numeric value.", SARG(t->value));
+
+        t = eat_and_get_next_token();
+    }
+
+    return num;
 }
 
-void parse_effective_addr_expr(Operand *operand)
+void parse_effective_addr_expr(Instruction *inst, Operand *operand)
 {
-    assert(current_token()->type == LEFT_BLOCK_BRACKET);
+    #define GUESS_MOD(__num) (IS_NUM_16BIT(__num) ? MOD_MEM_16BIT_DISP : MOD_MEM_8BIT_DISP);
+
+    assert(current_token()->type == T_LEFT_BLOCK_BRACKET);
 
     operand->type = OPERAND_MEMORY;
 
     Token *t = eat_and_get_next_token();
-    if (t->type == IDENTIFIER) {
-    
+    if (t->type == T_IDENTIFIER) {
+
         if (string_equal_cstr(t->value, "bx")) {
             operand->address.base = EFFECTIVE_ADDR_BX;
 
             t = eat_and_get_next_token();
+            
             if (string_equal_cstr(t->value, "si")) {
                 operand->address.base = EFFECTIVE_ADDR_BX_SI;
-            } 
+                t = eat_and_get_next_token();
+            }
             else if (string_equal_cstr(t->value, "di")) {
                 operand->address.base = EFFECTIVE_ADDR_BX_DI;
-            } 
-            else if (t->type == RIGHT_BLOCK_BRACKET) {
-                return;
+                t = eat_and_get_next_token();
             }
-            else if (t->type == PLUS_OP || t->type == MINUS_OP) {
-                u32 displacement = eval_numeric_expr();
+
+            if (t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
+                operand->address.displacement = eval_numeric_expr();
             }
-            
-            ASSERT(0, "Unexpected token -> "SFMT"\n", SARG(t->value));
+
         }
         else if (string_equal_cstr(t->value, "bp")) {
             operand->address.base = EFFECTIVE_ADDR_BP;
-            
+
             t = eat_and_get_next_token();
+
             if (string_equal_cstr(t->value, "si")) {
                 operand->address.base = EFFECTIVE_ADDR_BP_SI;
-            } 
+                t = eat_and_get_next_token();
+            }
             else if (string_equal_cstr(t->value, "di")) {
                 operand->address.base = EFFECTIVE_ADDR_BP_DI;
-            } 
-            else if (t->type == RIGHT_BLOCK_BRACKET) {
-                return;
+                t = eat_and_get_next_token();
             }
-            else if (t->type == PLUS_OP || t->type == MINUS_OP) {
-                u32 displacement = eval_numeric_expr();
+
+            if (t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
+                operand->address.displacement = eval_numeric_expr();
+            } else {
+                ASSERT(operand->address.base != EFFECTIVE_ADDR_BP, "Invalid effective address");
             }
-            
-            ASSERT(0, "Unexpected token -> "SFMT"\n", SARG(t->value));
         }
         else if (string_equal_cstr(t->value, "si")) {
-            operand->address.base = EFFECTIVE_ADDR_BP_SI;
-            
+            operand->address.base = EFFECTIVE_ADDR_SI;
+
             t = eat_and_get_next_token();
-            if (t->type == RIGHT_BLOCK_BRACKET) return;
+            if (t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
+                eat_token();
+                operand->address.displacement = eval_numeric_expr();
+            }
         }
         else if (string_equal_cstr(t->value, "di")) {
-            operand->address.base = EFFECTIVE_ADDR_BP_DI;
-            
+            operand->address.base = EFFECTIVE_ADDR_BP;
+
             t = eat_and_get_next_token();
-            if (t->type == RIGHT_BLOCK_BRACKET) return;
-        } 
+            if (t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
+                eat_token();
+                operand->address.displacement = eval_numeric_expr();
+            }
+        }
         else {
             ASSERT(0, "Unexpected token -> "SFMT"\n", SARG(t->value));
         }
     }
-    else if (t->type == NUMERIC_LITERAL) {
+    else if (t->type == T_NUMERIC_LITERAL) {
         // expect direct address
         operand->address.base = EFFECTIVE_ADDR_DIRECT;
+        operand->address.displacement = eval_numeric_expr();
     }
+
+    t = current_token();
+    ASSERT(t->type == T_RIGHT_BLOCK_BRACKET, "Unexpected token -> "SFMT"\n", SARG(t->value));
+    return;
 }
 
 void mov_inst()
 {
     NEW_INST();
-    inst->mnemonic = M_MOV; 
+    inst->mnemonic = M_MOV;
     inst->type     = INST_MOVE;
 
     Token *t = eat_and_get_next_token();
 
-    if (t->type == IDENTIFIER) {
+    if (t->type == T_IDENTIFIER) {
+        // Specification of operand type
         if (string_equal_cstr(t->value, "byte")) {
-            inst->size = W_BYTE;            
+            inst->size = W_BYTE;
         }
         else if (string_equal_cstr(t->value, "word")) {
-            inst->size = W_WORD;            
+            inst->size = W_WORD;
         }
     }
 
-    if (t->type == LEFT_BLOCK_BRACKET) {
-        parse_effective_addr_expr(&inst->a);
+    if (t->type == T_LEFT_BLOCK_BRACKET) {
+        parse_effective_addr_expr(&inst, &inst->a);
     }
-    else if (t->type == IDENTIFIER) {
-        inst->a.reg = decide_register(t->value);
+    else if (t->type == T_IDENTIFIER) {
+        // @Incomplete: It can be macro?
+        inst->a.type = OPERAND_REGISTER;
+        inst->a.reg  = decide_register(t->value);
     }
     else {
         ASSERT(0, "Unexpected identifier -> "SFMT, SARG(t->value));
     }
 
     t = eat_and_get_next_token();
-    ASSERT(t->type == COMMA, "Expect ',' after first operand");
+    ASSERT(t->type == T_COMMA, "Expect ',' after first operand");
+
+    if (t->type == T_LEFT_BLOCK_BRACKET) {
+        ASSERT(inst->a.type != OPERAND_MEMORY, "Memory to memory is not allowed -> "SFMT, SARG(t->value));
+
+        parse_effective_addr_expr(&inst, &inst->b);
+    }
+    else if (t->type == T_IDENTIFIER) {
+        inst->b.type = OPERAND_REGISTER;
+        inst->b.reg  = decide_register(t->value);
+    }
+    else if (t->type == T_NUMERIC_LITERAL || t->type == T_PLUS || t->type == T_MINUS) {
+        ASSERT(inst->a.type != OPERAND_MEMORY, "Immediate to memory is not allowed! At first, you must move the immediate to a register -> "SFMT, SARG(t->value));
+
+        inst->b.type      = OPERAND_IMMEDIATE;
+        inst->b.immediate = eval_numeric_expr();
+        assert(!(inst->b.immediate & 0xFFFF0000), "The value can't be larger, than 65535");
+    }
     
+    if (inst->a.type == OPERAND_REGISTER) {
+        if (inst->b.type == OPERAND_REGISTER || inst->b.type == OPERAND_IMMEDIATE) {
+            inst->mod = MOD_REG;
+        }
+    }
+
+    // @Todo: Set the rm field
+
     t = eat_and_get_next_token();
-    ASSERT(t->type == LINE_BREAK, "Expect line break after instruction");
-    
+    ASSERT(t->type == T_LINE_BREAK, "Expect line break after instruction");
+
     ASSERT(inst->size != W_UNDEFINED, "Operation size is not specified!");
 }
 
@@ -201,16 +261,16 @@ void parse_tokens()
     while ((t = current_token()) && t != end) {
         print_token(t);
 
-        if (t->type == IDENTIFIER) {
+        if (t->type == T_IDENTIFIER) {
             if (string_equal_cstr(t->value, "mov")) {
                 mov_inst();
             }
 
             ASSERT(0, "Unexpected identifier -> "SFMT, SARG(t->value));
         }
-        else if (t->type == LABEL) {
+        else if (t->type == T_LABEL) {
         }
-        else if (t->type == COMMENT) {
+        else if (t->type == T_COMMENT) {
         }
 
         ASSERT(0, "Unexpected token -> "SFMT, SARG(t->value));

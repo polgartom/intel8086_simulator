@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #define IS_ALPHA(c) ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
 #define IS_DIGIT(c) (c >= '0' && c <= '9')
@@ -94,6 +95,15 @@ inline String string_trim_white(String s)
     }
     
     return s;
+}
+
+inline int string_atoi(String s, bool *failed)
+{
+    char *cstr = string_to_cstr(s);
+    int num    = atoi(cstr);
+    if (num == 0 && !string_equal_cstr(s, "0")) *failed = true;
+
+    return num; 
 }
 
 #endif
