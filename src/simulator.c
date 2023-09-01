@@ -129,6 +129,21 @@ u32 calc_stack_pointer_address(CPU *cpu)
     return (((segment << 4) + offset)) & SEGMENT_MASK;
 }
 
+u32 calc_segment_address_with_register_offset(CPU *cpu, Register segment_reg, Register offset_reg)
+{
+    u16 segment = get_from_register(cpu, segment_reg);
+    u16 offset  = get_from_register(cpu, offset_reg);
+
+    return (((segment << 4) + offset)) & SEGMENT_MASK;
+}
+
+u32 calc_segment_address_with_absolute_offset(CPU *cpu, Register segment_reg, u16 offset)
+{
+    u16 segment = get_from_register(cpu, segment_reg);
+
+    return (((segment << 4) + offset)) & SEGMENT_MASK;
+}
+
 u16 get_data_from_memory(CPU *cpu, u32 address)
 {
     address = address & SEGMENT_MASK;
@@ -570,11 +585,10 @@ void execute_instruction(CPU *cpu)
             }
 
             while (cx != 0) {
-                Effective_Address_Expression expr = {.base=Effective_Address_di};
-                u32 absolute_address = calc_absolute_memory_address(cpu, &expr);
+                u32 addresss = calc_segment_address_with_register_offset(cpu, Register_es, Register_di);
 
                 s32 ax = get_from_register(cpu, Register_ax);
-                set_data_to_memory(cpu, absolute_address, ax);
+                set_data_to_memory(cpu, addresss, ax);
 
                 u16 di = get_from_register(cpu, Register_di);
                 if (cpu->flags & F_DIRECTION) di -= 2;
