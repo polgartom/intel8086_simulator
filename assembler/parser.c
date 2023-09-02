@@ -207,7 +207,7 @@ void mov_inst()
     }
 
     if (t->type == T_LEFT_BLOCK_BRACKET) {
-        parse_effective_addr_expr(&inst, &inst->a);
+        parse_effective_addr_expr(inst, &inst->a);
     }
     else if (t->type == T_IDENTIFIER) {
         // @Incomplete: It can be macro?
@@ -224,18 +224,18 @@ void mov_inst()
     if (t->type == T_LEFT_BLOCK_BRACKET) {
         ASSERT(inst->a.type != OPERAND_MEMORY, "Memory to memory is not allowed -> "SFMT, SARG(t->value));
 
-        parse_effective_addr_expr(&inst, &inst->b);
+        parse_effective_addr_expr(inst, &inst->b);
     }
     else if (t->type == T_IDENTIFIER) {
         inst->b.type = OPERAND_REGISTER;
         inst->b.reg  = decide_register(t->value);
     }
-    else if (t->type == T_NUMERIC_LITERAL || t->type == T_PLUS || t->type == T_MINUS) {
+    else if (t->type == T_NUMERIC_LITERAL || t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
         ASSERT(inst->a.type != OPERAND_MEMORY, "Immediate to memory is not allowed! At first, you must move the immediate to a register -> "SFMT, SARG(t->value));
 
         inst->b.type      = OPERAND_IMMEDIATE;
         inst->b.immediate = eval_numeric_expr();
-        assert(!(inst->b.immediate & 0xFFFF0000), "The value can't be larger, than 65535");
+        ASSERT(!(inst->b.immediate & 0xFFFF0000), "The value can't be larger, than 65535");
     }
     
     if (inst->a.type == OPERAND_REGISTER) {
