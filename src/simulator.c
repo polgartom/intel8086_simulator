@@ -330,11 +330,11 @@ void execute_instruction(CPU *cpu)
 
     switch (i->mnemonic) {
         // :Arithmatic
-        case Mneumonic_mov: {
+        case Mnemonic_mov: {
             set_to_operand(cpu, left_op, right_val);
             break;
         }
-        case Mneumonic_add: {
+        case Mnemonic_add: {
             u32 result = (left_val & mask) + (right_val & mask);
 
             u32 OF = (~(left_val ^ right_val) & (left_val ^ result)) & sign_bit;
@@ -356,7 +356,7 @@ void execute_instruction(CPU *cpu)
 
             break;
         }
-        case Mneumonic_sub: {
+        case Mnemonic_sub: {
             u32 result = left_val - right_val;
             set_to_operand(cpu, left_op, result);
 
@@ -367,7 +367,7 @@ void execute_instruction(CPU *cpu)
 
             break;
         }
-        case Mneumonic_cmp: {
+        case Mnemonic_cmp: {
             u32 result = left_val - right_val;
 
             u32 OF = ((left_val ^ right_val) & (left_val ^ result)) & sign_bit;
@@ -376,7 +376,7 @@ void execute_instruction(CPU *cpu)
 
             break;
         }
-        case Mneumonic_div: {
+        case Mnemonic_div: {
             u16 divisior = left_val;
             
             if (divisior == 0) {
@@ -406,60 +406,60 @@ void execute_instruction(CPU *cpu)
 
             break;
         }
-        case Mneumonic_inc: {
+        case Mnemonic_inc: {
             u32 result = left_val+1;
             set_to_operand(cpu, left_op, result);
             update_arith_flags(cpu, result, 0, 0);
             break;
         }
-        case Mneumonic_dec: {
+        case Mnemonic_dec: {
             u32 result = left_val-1;
             set_to_operand(cpu, left_op, result);
             update_arith_flags(cpu, result, 0, 0);
             break;
         }
-        case Mneumonic_mul: {
+        case Mnemonic_mul: {
             u32 result = left_val * right_val;
             set_to_operand(cpu, left_op, result);
             update_arith_flags(cpu, result, 0, 0);
             break;
         }
         // :Logical
-        case Mneumonic_test: {
+        case Mnemonic_test: {
             u32 result = left_val &= right_val;
             update_log_flags(cpu, result);
             break;
         }
-        case Mneumonic_and: {
+        case Mnemonic_and: {
             u32 result = left_val &= right_val;
             set_to_operand(cpu, left_op, result);
             update_log_flags(cpu, result);
             break;
         }
-        case Mneumonic_not: {
+        case Mnemonic_not: {
             u32 result = ~left_val;
             set_to_operand(cpu, left_op, result);
             break;
         }
-        case Mneumonic_or: {
+        case Mnemonic_or: {
             u32 result = left_val |= right_val;
             set_to_operand(cpu, left_op, result);
             update_log_flags(cpu, result);
             break;
         }
-        case Mneumonic_xor: {
+        case Mnemonic_xor: {
             u32 result = left_val ^= right_val;
             set_to_operand(cpu, left_op, result);
             update_log_flags(cpu, result);
             break;
         }
         // :Flow
-        case Mneumonic_jmp: {
+        case Mnemonic_jmp: {
             assert(!(i->flags & Inst_Far)); // @Todo: Unimplemented
             ip_after += i->operands[0].immediate;
             break;
         }
-        case Mneumonic_jl: {
+        case Mnemonic_jl: {
             u8 SF = !!(cpu->flags & F_SIGNED);
             u8 OF = !!(cpu->flags & F_OVERFLOW);
             if (SF ^ OF) {
@@ -467,7 +467,7 @@ void execute_instruction(CPU *cpu)
             }
             break;
         }
-        case Mneumonic_jle: {
+        case Mnemonic_jle: {
             u8 SF = !!(cpu->flags & F_SIGNED);
             u8 OF = !!(cpu->flags & F_OVERFLOW);
             u8 ZF = !!(cpu->flags & F_ZERO);
@@ -475,25 +475,25 @@ void execute_instruction(CPU *cpu)
                 ip_after += i->operands[0].immediate;
             }
         }
-        case Mneumonic_jz: {
+        case Mnemonic_jz: {
             if (cpu->flags & F_ZERO) {
                 ip_after += i->operands[0].immediate;
             }
             break;
         }
-        case Mneumonic_jnz: {
+        case Mnemonic_jnz: {
             if (!(cpu->flags & F_ZERO)) {
                 ip_after += i->operands[0].immediate;
             }
             break;
         }
-        case Mneumonic_ja: {
+        case Mnemonic_ja: {
             if (!(cpu->flags & F_ZERO) && !(cpu->flags & F_CARRY)) {
                 ip_after += i->operands[0].immediate;
             }
             break;
         }
-        case Mneumonic_loop: {
+        case Mnemonic_loop: {
             u16 cx_data = get_from_register(cpu, Register_cx);
             cx_data -= 1;
             set_to_register(cpu, Register_cx, cx_data);
@@ -505,43 +505,43 @@ void execute_instruction(CPU *cpu)
             break;
         }
         // :Stack
-        case Mneumonic_push: {
+        case Mnemonic_push: {
             u16 data = get_from_operand(cpu, left_op);
             stack_push(cpu, data);
             break;
         }
-        case Mneumonic_pushf: {
+        case Mnemonic_pushf: {
             stack_push_flags(cpu);
             break;
         }
-        case Mneumonic_pop: {
+        case Mnemonic_pop: {
             u16 data = stack_pop(cpu);
             set_to_operand(cpu, left_op, data);
             break;
         }
-        case Mneumonic_popf: {
+        case Mnemonic_popf: {
             stack_pop_flags(cpu);
             break;
         }
         // ???
-        case Mneumonic_cld: {
+        case Mnemonic_cld: {
             cpu->flags &= ~F_DIRECTION;
             break;
         }
         // :Interrupt
-        // case Mneumonic_int3: // We're decoding the int3 as int and 3 immediate value
-        case Mneumonic_int: {
+        // case Mnemonic_int3: // We're decoding the int3 as int and 3 immediate value
+        case Mnemonic_int: {
             u16 interrupt_type = get_from_operand(cpu, left_op);
             execute_interrupt(cpu, interrupt_type);
             break;
         }
-        case Mneumonic_into: {
+        case Mnemonic_into: {
             if (cpu->flags & F_OVERFLOW) {
                 execute_interrupt(cpu, 4);
             }
             break;
         }
-        case Mneumonic_iret: {
+        case Mnemonic_iret: {
             cpu->ip = stack_pop(cpu);
             u16 cs_val = stack_pop(cpu);
             set_to_register(cpu, Register_cs, cs_val);
@@ -551,7 +551,7 @@ void execute_instruction(CPU *cpu)
             break;
         }
         // :String
-        case Mneumonic_movsb: {
+        case Mnemonic_movsb: {
             // @Todo: rep
             u16 ds_val = get_from_register(cpu, Register_ds);
             u16 si_val = get_from_register(cpu, Register_si);
@@ -574,7 +574,7 @@ void execute_instruction(CPU *cpu)
 
             break;
         }
-        case Mneumonic_stosw: {
+        case Mnemonic_stosw: {
             // @Todo: Repeat if the repeat Prefix (REP/REPE/REPZ or REPNE/REPNZ)
             //  (repeated based on the value in the CX register)
             assert(!(i->flags & Inst_Repnz)); // @Todo
@@ -605,7 +605,7 @@ void execute_instruction(CPU *cpu)
 
             break;
         }
-        case Mneumonic_stosb: {
+        case Mnemonic_stosb: {
             // @Todo: Repeat if the repeat Prefix (REP/REPE/REPZ or REPNE/REPNZ)
             //  (repeated based on the value in the CX register)
             assert(!(i->flags & Inst_Repnz)); // @Todo
@@ -638,7 +638,7 @@ void execute_instruction(CPU *cpu)
             break;
         }
         // :IO
-        case Mneumonic_out: {
+        case Mnemonic_out: {
             u16 port = left_val;
             u16 data = right_val;
 

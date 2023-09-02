@@ -7,22 +7,22 @@ u8 ASMD_NEXT_BYTE(CPU *_d) { return _d->memory[++_d->decoder_cursor]; }
 #define ASMD_NEXT_BYTE_WITHOUT_STEP(_d) _d->memory[_d->decoder_cursor+1]
 #define ASMD_CURR_BYTE_INDEX(_d) _d->decoder_cursor
 
-static Mneumonic extended_mneumonic_lookup[][8] = {
-    [Mneumonic_grp1]  = {Mneumonic_add, Mneumonic_or, Mneumonic_adc, Mneumonic_sbb, Mneumonic_and, Mneumonic_sub, Mneumonic_xor, Mneumonic_cmp},
-    [Mneumonic_grp2]  = {Mneumonic_rol, Mneumonic_ror, Mneumonic_rcl, Mneumonic_rcr, Mneumonic_shl, Mneumonic_shr, Mneumonic_invalid, Mneumonic_sar},
-    [Mneumonic_grp3b] = {Mneumonic_test, Mneumonic_invalid, Mneumonic_not, Mneumonic_neg, Mneumonic_mul, Mneumonic_imul, Mneumonic_div, Mneumonic_idiv},
-    [Mneumonic_grp3a] = {Mneumonic_test, Mneumonic_invalid, Mneumonic_not, Mneumonic_neg, Mneumonic_mul, Mneumonic_imul, Mneumonic_div, Mneumonic_idiv},
-    [Mneumonic_grp4]  = {Mneumonic_inc, Mneumonic_dec, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid, Mneumonic_invalid},
-    [Mneumonic_grp5]  = {Mneumonic_inc, Mneumonic_dec, Mneumonic_call, Mneumonic_call, Mneumonic_jmp, Mneumonic_jmp, Mneumonic_push, Mneumonic_invalid}
+static Mnemonic extended_mnemonic_lookup[][8] = {
+    [Mnemonic_grp1]  = {Mnemonic_add, Mnemonic_or, Mnemonic_adc, Mnemonic_sbb, Mnemonic_and, Mnemonic_sub, Mnemonic_xor, Mnemonic_cmp},
+    [Mnemonic_grp2]  = {Mnemonic_rol, Mnemonic_ror, Mnemonic_rcl, Mnemonic_rcr, Mnemonic_shl, Mnemonic_shr, Mnemonic_invalid, Mnemonic_sar},
+    [Mnemonic_grp3b] = {Mnemonic_test, Mnemonic_invalid, Mnemonic_not, Mnemonic_neg, Mnemonic_mul, Mnemonic_imul, Mnemonic_div, Mnemonic_idiv},
+    [Mnemonic_grp3a] = {Mnemonic_test, Mnemonic_invalid, Mnemonic_not, Mnemonic_neg, Mnemonic_mul, Mnemonic_imul, Mnemonic_div, Mnemonic_idiv},
+    [Mnemonic_grp4]  = {Mnemonic_inc, Mnemonic_dec, Mnemonic_invalid, Mnemonic_invalid, Mnemonic_invalid, Mnemonic_invalid, Mnemonic_invalid, Mnemonic_invalid},
+    [Mnemonic_grp5]  = {Mnemonic_inc, Mnemonic_dec, Mnemonic_call, Mnemonic_call, Mnemonic_jmp, Mnemonic_jmp, Mnemonic_push, Mnemonic_invalid}
 };
 
 static const char *i8086_inst_ext_table[][8][2] = {
-    [Mneumonic_grp1]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
-    [Mneumonic_grp2]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
-    [Mneumonic_grp3a] = {{"Eb", "Ib"}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
-    [Mneumonic_grp3b] = {{"Ev", "Iv"}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
-    [Mneumonic_grp4]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
-    [Mneumonic_grp5]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {"Mp", NULL}, {NULL, NULL}, {"Mp", NULL}, {NULL, NULL}, {NULL, NULL}},
+    [Mnemonic_grp1]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
+    [Mnemonic_grp2]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
+    [Mnemonic_grp3a] = {{"Eb", "Ib"}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
+    [Mnemonic_grp3b] = {{"Ev", "Iv"}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
+    [Mnemonic_grp4]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
+    [Mnemonic_grp5]  = {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {"Mp", NULL}, {NULL, NULL}, {"Mp", NULL}, {NULL, NULL}, {NULL, NULL}},
 };
 
 Effective_Address_Base get_address_base(u8 r_m, u8 mod)
@@ -309,10 +309,10 @@ void decode_next_instruction(CPU *cpu)
     //printf("> opcode: %#08X ; mnemonic: %s ; arg1: %s ; arg2: %s\n", lookup_result.opcode, mnemonic_name(lookup_result.mnemonic), lookup_result.arg1, lookup_result.arg2);
 
     // Overwrite the arguments if the extenstion table lookup is find something
-    if (lookup_result.mnemonic >= Mneumonic_grp1) {
+    if (lookup_result.mnemonic >= Mnemonic_grp1) {
         mod_reg_rm(cpu, inst);
 
-        inst->mnemonic = extended_mneumonic_lookup[lookup_result.mnemonic][inst->reg];
+        inst->mnemonic = extended_mnemonic_lookup[lookup_result.mnemonic][inst->reg];
 
         const char *ext_arg1 = i8086_inst_ext_table[lookup_result.mnemonic][inst->reg][0];
         const char *ext_arg2 = i8086_inst_ext_table[lookup_result.mnemonic][inst->reg][1];
@@ -327,34 +327,34 @@ void decode_next_instruction(CPU *cpu)
 
     // Set prefixes
     // @Todo: Handle more prefixes
-    if (inst->mnemonic == Mneumonic_repz) {
+    if (inst->mnemonic == Mnemonic_repz) {
         inst->is_prefix = 1;
         inst->flags = Inst_Repz;
     }
-    else if (inst->mnemonic == Mneumonic_repnz) {
+    else if (inst->mnemonic == Mnemonic_repnz) {
         inst->is_prefix = 1;
         inst->flags = Inst_Repnz;
     }
-    else if (inst->mnemonic == Mneumonic_lock) {
+    else if (inst->mnemonic == Mnemonic_lock) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Lock;
     }
-    else if (inst->mnemonic == Mneumonic_cs) {
+    else if (inst->mnemonic == Mnemonic_cs) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Segment;
         inst->extend_with_this_segment = Register_cs;
     }
-    else if (inst->mnemonic == Mneumonic_ds) {
+    else if (inst->mnemonic == Mnemonic_ds) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Segment;
         inst->extend_with_this_segment = Register_ds;
     }
-    else if (inst->mnemonic == Mneumonic_es) {
+    else if (inst->mnemonic == Mnemonic_es) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Segment;
         inst->extend_with_this_segment = Register_es;
     }
-    else if (inst->mnemonic == Mneumonic_ss) {
+    else if (inst->mnemonic == Mnemonic_ss) {
         inst->is_prefix = 1;
         inst->flags |= Inst_Segment;
         inst->extend_with_this_segment = Register_ss;

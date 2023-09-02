@@ -30,15 +30,15 @@ del lines; del ops
 
 
 class Instruction(object):
-    def __init__(self, addr, code, mneumonic, *args):
+    def __init__(self, addr, code, mnemonic, *args):
         self.addr    = addr
         self.code    = code
-        self.mneumonic    = mneumonic
+        self.mnemonic    = mnemonic
         self.args    = args
 
         for a in self.args: a.set_parent(self)
     def __str__(self):
-        core = ' '.join(map(str, (self.addr, self.code, self.mneumonic)))
+        core = ' '.join(map(str, (self.addr, self.code, self.mnemonic)))
         if (self.args): return core + ' ' + ', '.join(map(str, self.args))
         else: return core
 
@@ -63,7 +63,7 @@ class MachineCode(object):
     def get_opcode(self):
         return self.bytes[0]
 
-class Mneumonic(object):
+class Mnemonic(object):
     def __init__(self, name):
         self.name = name
     def __str__(self):
@@ -123,8 +123,8 @@ class Arg_Integer(Argument):
 class Arg_Dereference(Argument):
     q_opcodes        = set([    0x80, 0x81, 0x82, 0x83, 0xC6, 0xC7,
                     0xD0, 0xD1, 0xD2, 0xD3, 0xF6, 0xF7, 0xFE, 0xFF])
-    nq_mneumonics        = set(['PUSH', 'CALL', 'JMP'])
-    q_far_mneumonics    = set(['CALL', 'JMP'])
+    nq_mnemonics        = set(['PUSH', 'CALL', 'JMP'])
+    q_far_mnemonics    = set(['CALL', 'JMP'])
     q_lut            = {'b':'BYTE PTR', 'w':'WORD PTR', 'v':'WORD PTR', 'p':'FAR'}
     
     def __init__(self, type=None, base=None, index=None, disp=None, disp_size=None):
@@ -138,8 +138,8 @@ class Arg_Dereference(Argument):
         rv = []; n_terms = 0
         # Qualifier, if applicable
         if (self._parent.code.get_opcode() in self.q_opcodes):
-            if ((not str(self._parent.mneumonic).strip() in self.nq_mneumonics) or
-                ((str(self._parent.mneumonic).strip() in self.q_far_mneumonics) and (self.type == 'p'))):
+            if ((not str(self._parent.mnemonic).strip() in self.nq_mnemonics) or
+                ((str(self._parent.mnemonic).strip() in self.q_far_mnemonics) and (self.type == 'p'))):
                 rv.append(self.q_lut[self.type] + ' ')
         # Bracket
         rv.append('[')
@@ -225,21 +225,21 @@ class Disassembler(object):
 
     def read_opcode(self):
         opcode = ord(self.bytes[self.index]); self.index += 1
-        mneumonic = opcode_map[opcode][0]; arguments = opcode_map[opcode][1:]
+        mnemonic = opcode_map[opcode][0]; arguments = opcode_map[opcode][1:]
 
         # Handle group opcodes, and opcode extensions
-        if (mneumonic[:3] == 'GRP'):
+        if (mnemonic[:3] == 'GRP'):
             self.read_modrm()
-            extension = opcode_extension_map[(mneumonic, self.modrm['reg'])]
+            extension = opcode_extension_map[(mnemonic, self.modrm['reg'])]
             if (extension[0] == '--'):
-                # Special case - illegal extension, use the '???' pseudo-mneumonic
-                mneumonic = '???'
+                # Special case - illegal extension, use the '???' pseudo-mnemonic
+                mnemonic = '???'
             else:
-                mneumonic = extension[0]
+                mnemonic = extension[0]
             # Override the primary opcode's argument descriptors iff the extension's set is non-empty
             if (extension[1:]): arguments = extension[1:]
 
-        return mneumonic, arguments
+        return mnemonic, arguments
 
     size_lut = {'b':8, 'v':16, 'w':16}
     def make_argument(self, desc):
@@ -289,19 +289,19 @@ class Disassembler(object):
 
     def read_instruction(self):
         self.modrm = None; start = self.index
-        mneumonic, arguments = self.read_opcode()
+        mnemonic, arguments = self.read_opcode()
 
         address = self.first_addy.calc_relative_address(start)
-        if (mneumonic == '--'):
+        if (mnemonic == '--'):
             # Illegal opcode, use the 'DB' pseudo-instruction
-            mneumonic = Mneumonic('DB')
+            mnemonic = Mnemonic('DB')
             arguments = [Arg_Integer(ord(self.bytes[start]), 8)]
         else:
-            mneumonic = Mneumonic(mneumonic)
+            mnemonic = Mnemonic(mnemonic)
             arguments = filter(None, map(self.make_argument, arguments))
 
         code = MachineCode(map(ord, self.bytes[start:self.index]))
-        return Instruction(address, code, mneumonic, *arguments)
+        return Instruction(address, code, mnemonic, *arguments)
 
     def disassemble(self, bytes, segment=0, offset=0, trap=0, quiet=0):
         self.index    = 0

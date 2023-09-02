@@ -3,7 +3,7 @@
 
 #include "sim86.h"
 
-const char *mnemonic_name(Mneumonic m);
+const char *mnemonic_name(Mnemonic m);
 const char *register_name(Register reg);
 
 void print_flags(u16 flags);

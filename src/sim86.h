@@ -178,7 +178,7 @@ typedef struct {
   u32 mem_address;
   u8 size;
 
-  Mneumonic mnemonic;
+  Mnemonic mnemonic;
   Instruction_Type type;
   Instruction_Flag flags;
   Instruction_Operand operands[2];
