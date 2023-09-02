@@ -194,6 +194,14 @@ void print_instruction(CPU *cpu, u8 with_end_line)
     Instruction *instruction = &cpu->instruction;
 
     fprintf(dest, "%08X\t", instruction->mem_address);
+
+    if (instruction->flags & Inst_Repz) {
+        fprintf(dest, "repz ");
+    }
+    if (instruction->flags & Inst_Repnz) {
+        fprintf(dest, "repnz ");
+    }
+
     fprintf(dest, "%s", mnemonic_name(instruction->mnemonic));
 
     if (instruction->flags & Inst_Lock) {

@@ -43,17 +43,17 @@ int main(int argc, char **argv)
 
     printf("\nbinary: %s\n\n", input_filename);
 
-    cpu.out = fopen("./port.out", "w");
+    // cpu.out = fopen("./port.out", "w");
 
     boot(&cpu);
     load_executable(&cpu, input_filename);
     run(&cpu);
 
-    if (dump_out) {
-        FILE *fp = fopen("memory_dump.data", "w");
-        assert(fp != NULL);
-        fwrite(cpu.memory, 1, 65556, fp);
-    }
+    // if (dump_out) {
+    //     FILE *fp = fopen("memory_dump.data", "w");
+    //     assert(fp != NULL);
+    //     fwrite(cpu.memory, 1, 65556, fp);
+    // }
 
     return 0;
 }

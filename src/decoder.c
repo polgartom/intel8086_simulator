@@ -291,14 +291,15 @@ void decode_next_instruction(CPU *cpu)
     Instruction *inst = &cpu->instruction;
     cpu->decoder_cursor = calc_inst_pointer_address(cpu);
 
+    u8 byte = ASMD_CURR_BYTE(cpu);
+
     if (!inst->is_prefix) {
         ZERO_MEMORY(inst, sizeof(Instruction));
         inst->extend_with_this_segment = Register_none;
+        inst->mem_address = cpu->decoder_cursor;
     }
     inst->is_prefix = 0;
 
-    u8 byte = ASMD_CURR_BYTE(cpu);
-    inst->mem_address = cpu->decoder_cursor;
     u32 instruction_byte_start_offset = cpu->decoder_cursor;
 
     i8086_Inst_Table lookup_result = i8086_inst_table[byte];
