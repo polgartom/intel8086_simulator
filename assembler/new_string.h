@@ -101,6 +101,7 @@ inline int string_atoi(String s, bool *failed)
 {
     char *cstr = string_to_cstr(s);
     int num    = atoi(cstr);
+    free(cstr);
     if (num == 0 && !string_equal_cstr(s, "0")) *failed = true;
 
     return num; 

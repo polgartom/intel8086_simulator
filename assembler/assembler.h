@@ -40,6 +40,9 @@ typedef unsigned long u64;
     } \
 }
 
+#define REG_FIELD_IS_SRC  0
+#define REG_FIELD_IS_DEST 1
+
 typedef enum {
     W_UNDEFINED = 0,
     W_BYTE      = 1,
@@ -84,7 +87,7 @@ typedef enum {
 } Register;
 
 typedef enum {
-    MOD_MEM_MODE       = 0b00,
+    MOD_MEM            = 0b00,
     MOD_MEM_8BIT_DISP  = 0b01, // DISP: displacement
     MOD_MEM_16BIT_DISP = 0b10,
     MOD_REG            = 0b11,
@@ -154,12 +157,13 @@ typedef struct {
     Mnemonic mnemonic;
     Instruction_Type type;
 
-    MOD mod;
+    Width size;
+    bool d; // direction
+    MOD  mod;
+    u8   rm; 
 
     Operand a;
     Operand b;
-
-    Width size;
 
 } Instruction;
 

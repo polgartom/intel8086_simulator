@@ -698,27 +698,6 @@ void boot(CPU *cpu)
     cpu->ip = 0x0100;
 }
 
-#ifdef GRAPHICS_ENABLED
-void swapFramebufferVertically(u16* framebuffer, int width, int height) {
-    int rowSize = width * sizeof(u16);
-    u32 tempRow[rowSize];
-
-    for (int row = 0; row < height / 2; row++) {
-        int topRow = row;
-        int bottomRow = height - 1 - row;
-
-        // Calculate the start indices of the rows
-        int topRowStart = topRow * width;
-        int bottomRowStart = bottomRow * width;
-
-        // Swap the rows
-        memcpy(tempRow, &framebuffer[topRowStart], rowSize);
-        memcpy(&framebuffer[topRowStart], &framebuffer[bottomRowStart], rowSize);
-        memcpy(&framebuffer[bottomRowStart], tempRow, rowSize);
-    }
-}
-#endif
-
 void run(CPU *cpu)
 {
     char input[128] = {0};

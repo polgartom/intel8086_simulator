@@ -1,12 +1,7 @@
 #include "assembler.h"
 #include "new_string.h"
 
-// typedef struct Ast
-// {
-
-// };
-
-// #define NEW_AST() (Ast *)malloc(sizeof(Ast));
+#define NEW(_type) ((_type *)malloc(sizeof(_type)))
 
 typedef struct {
     int byte_offset; // we have to track this because of jumps
@@ -14,7 +9,9 @@ typedef struct {
     Instruction instructions[4096]; // @Incomplete
     int inst_index;
 
-    Token *tokens;
+    Array tokens;
+    u64 ti; // tokens iterator index
+    Token *last_token;
 } Parser;
 
 Parser parser; // @XXX: Multi-Thread
@@ -24,14 +21,13 @@ Parser parser; // @XXX: Multi-Thread
 
 inline Token *current_token()
 {
-    // @Todo: Dynamic tokens size
-    if (lexer.ti == 4096-1) return NULL;
-    return parser.tokens;
+    if (parser.ti >= parser.tokens.count) return NULL;
+    return (Token *)*parser.tokens.data;
 }
 
 inline void eat_token()
 {
-    parser.tokens += 1;
+    parser.ti += 1;
 }
 
 inline Token *eat_and_get_next_token()
@@ -40,19 +36,11 @@ inline Token *eat_and_get_next_token()
     return current_token();
 }
 
-inline Token *peak_next_token()
-{
-    // @Todo: Proper error message at assertion
-    // @Todo: Dynamic tokens size
-    if (lexer.ti == 4096-1) return NULL;
-    return parser.tokens+1;
-}
-
-inline Token *peak_prev_token()
-{
-    if (parser.tokens == lexer.tokens) return NULL;
-    return parser.tokens-1;
-}
+// inline Token *peak_next_token()
+// {
+//     if (*parser.tokens.data == *parser.last_token) return NULL;
+//     return *(parser.tokens.data+1);
+// }
 
 Register decide_register(String s)
 {
@@ -85,21 +73,34 @@ Register decide_register(String s)
 
 #define IS_NUM_16BIT(_num) (_num & 0xff00)
 
+int operator_scores[] = {
+    [T_PLUS_OP]  = 1,
+    [T_MINUS_OP] = 1,
+    [T_MULTIPLY_OP] = 2,
+    [T_DIVIDE_OP] = 2,
+};
+
 int eval_numeric_expr()
 {
-    // @Incomplete: Precedence of parenthesis
+    // @Incomplete
+
+    // #define VALID_NUM_T(_t) (_t == T_NUMERIC_LITERAL || _t == T_PLUS_OP || _t == T_MINUS_OP || _t == T_MULTIPLY_OP || _t == T_DIVIDE_OP || _t == T_LEFT_ROUND_BRACKET || _t == T_RIGHT_ROUND_BRACKET)
 
     Token *t = current_token();
     bool is_signed = t->type == T_MINUS_OP;
-    if (t->type != T_NUMERIC_LITERAL) eat_token();
-
-    int num = 0;
-    while (t && t->type == T_NUMERIC_LITERAL) {
-        bool failed = false; 
-        int num = string_atoi(t->value, &failed);
-        if (failed) ASSERT(0, "Failed to convert '"SFMT"' to numeric value.", SARG(t->value));
-
+    if (t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
         t = eat_and_get_next_token();
+    }
+
+    ASSERT(t && t->type == T_NUMERIC_LITERAL, "Invalid token!");
+
+    bool failed = false;
+    int num = string_atoi(t->value, &failed);
+    ASSERT(!failed, "Failed atoi() -> '"SFMT"'", SARG(t->value));
+
+    if (is_signed) {
+        int sign_ext = IS_NUM_16BIT(num) ? 16 : 8 - 1; 
+        num = num & (1 << sign_ext);
     }
 
     return num;
@@ -130,8 +131,9 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
                 t = eat_and_get_next_token();
             }
 
-            if (t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
+            if (t->type == T_PLUS_OP) {
                 operand->address.displacement = eval_numeric_expr();
+                inst->mod = GUESS_MOD(operand->address.displacement);
             }
 
         }
@@ -149,28 +151,27 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
                 t = eat_and_get_next_token();
             }
 
-            if (t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
+            if (t->type == T_PLUS_OP) {
                 operand->address.displacement = eval_numeric_expr();
-            } else {
-                ASSERT(operand->address.base != EFFECTIVE_ADDR_BP, "Invalid effective address");
+                inst->mod = GUESS_MOD(operand->address.displacement);
             }
         }
         else if (string_equal_cstr(t->value, "si")) {
             operand->address.base = EFFECTIVE_ADDR_SI;
 
             t = eat_and_get_next_token();
-            if (t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
-                eat_token();
+            if (t->type == T_PLUS_OP) {
                 operand->address.displacement = eval_numeric_expr();
+                inst->mod = GUESS_MOD(operand->address.displacement);
             }
         }
         else if (string_equal_cstr(t->value, "di")) {
             operand->address.base = EFFECTIVE_ADDR_BP;
 
             t = eat_and_get_next_token();
-            if (t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
-                eat_token();
+            if (t->type == T_PLUS_OP) {
                 operand->address.displacement = eval_numeric_expr();
+                inst->mod = GUESS_MOD(operand->address.displacement);
             }
         }
         else {
@@ -181,6 +182,7 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
         // expect direct address
         operand->address.base = EFFECTIVE_ADDR_DIRECT;
         operand->address.displacement = eval_numeric_expr();
+        inst->mod = MOD_MEM;
     }
 
     t = current_token();
@@ -238,16 +240,15 @@ void mov_inst()
         ASSERT(!(inst->b.immediate & 0xFFFF0000), "The value can't be larger, than 65535");
     }
     
-    if (inst->a.type == OPERAND_REGISTER) {
-        if (inst->b.type == OPERAND_REGISTER || inst->b.type == OPERAND_IMMEDIATE) {
-            inst->mod = MOD_REG;
-        }
-    }
-
-    // @Todo: Set the rm field
-
     t = eat_and_get_next_token();
     ASSERT(t->type == T_LINE_BREAK, "Expect line break after instruction");
+
+    if (inst->a.type == OPERAND_REGISTER && inst->b.type == OPERAND_REGISTER) {
+        ASSERT(register_size(inst->a.reg) != register_size(inst->b.reg), "Invalid combination of opcode and operands");
+        inst->size = register_size(inst->a.reg);
+        inst->d = REG_FIELD_IS_DEST;
+        inst->mod = MOD_REG;
+    }
 
     ASSERT(inst->size != W_UNDEFINED, "Operation size is not specified!");
 }
@@ -255,11 +256,10 @@ void mov_inst()
 void parse_tokens()
 {
     parser.tokens = lexer.tokens;
+    parser.last_token = (Token *)array_last_item(&lexer.tokens);
 
-    Token *end = lexer.tokens+lexer.ti;
     Token *t = NULL;
-    while ((t = current_token()) && t != end) {
-        print_token(t);
+    while (t = current_token()) {
 
         if (t->type == T_IDENTIFIER) {
             if (string_equal_cstr(t->value, "mov")) {
@@ -277,4 +277,5 @@ void parse_tokens()
 
         eat_token();
     };
+
 }

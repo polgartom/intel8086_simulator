@@ -1,4 +1,5 @@
 #include "assembler.h"
+#include "array.h"
 #include "new_string.h"
 
 String read_entire_file(char *filename)
@@ -69,23 +70,61 @@ typedef struct {
     int cl;  
     int cr;
     
-    Token tokens[4096]; // @Incomplete
+    Array tokens;
     int ti;
 } Lexer;
 
 Lexer lexer; // @XXX: Multi-thread
 
-inline void lexer_add_token(String value, Token_Type type)
+const char *token_type_name_as_cstr(Token_Type type) {
+    switch (type) {
+        case T_UNKNOWN:               return XSTR(UNKNOWN);
+        case T_IDENTIFIER:            return XSTR(IDENTIFIER);
+        case T_REGISTER:              return XSTR(REGISTER);
+        case T_DIRECTIVE:             return XSTR(DIRECTIVE);
+        case T_LABEL:                 return XSTR(LABEL);
+        case T_COMMENT:               return XSTR(COMMENT);
+        case T_STRING_LITERAL:        return XSTR(STRING_LITERAL);
+        case T_NUMERIC_LITERAL:       return XSTR(NUMERIC_LITERAL);
+        
+        case T_HASH_SIGN:             return XSTR(T_HASH_SIGN);
+        case T_EXCLAMATION_MARK:      return XSTR(T_EXCLAMATION_MARK);
+        case T_PLUS_OP:               return XSTR(T_PLUS_OP);
+        case T_MINUS_OP:              return XSTR(T_MINUS_OP);
+        case T_MULTIPLY_OP:           return XSTR(T_MULTIPLY_OP);
+        case T_DIVIDE_OP:             return XSTR(T_DIVIDE_OP);
+        case T_COMMA:                 return XSTR(T_COMMA);
+        case T_SEMICOLON:             return XSTR(T_SEMICOLON);
+        case T_COLON:                 return XSTR(T_COLON);
+        case T_EQUAL:                 return XSTR(T_EQUAL);
+        case T_COMPARE_OP:            return XSTR(T_COMPARE_OP);
+        case T_GREATER_OP:            return XSTR(T_GREATER_OP);
+        case T_GREATER_THAN_EQUAL_OP: return XSTR(T_GREATER_THAN_EQUAL_OP);
+        case T_LESS_OP:               return XSTR(T_LESS_OP);
+        case T_LESS_THAN_EQUAL_OP:    return XSTR(T_LESS_THAN_EQUAL_OP);
+        case T_LEFT_ROUND_BRACKET:    return XSTR(T_LEFT_ROUND_BRACKET);
+        case T_RIGHT_ROUND_BRACKET:   return XSTR(T_RIGHT_ROUND_BRACKET);
+        case T_LEFT_BLOCK_BRACKET:    return XSTR(T_LEFT_BLOCK_BRACKET);
+        case T_RIGHT_BLOCK_BRACKET:   return XSTR(T_RIGHT_BLOCK_BRACKET);
+        case T_LEFT_CURLY_BRACKET:    return XSTR(T_LEFT_CURLY_BRACKET);
+        case T_RIGHT_CURLY_BRACKET:   return XSTR(T_RIGHT_CURLY_BRACKET);
+        
+        case T_LINE_BREAK:            return XSTR(T_LINE_BREAK);
+        
+        default:                           assert(0);
+    }
+    
+    return "";
+}
+
+void lexer_add_token(String value, Token_Type type)
 {
-    // printf("ti: %d ; max_tokens: %lld\n", lexer.ti, ARRAY_SIZE(lexer.tokens));
-    assert(lexer.ti != ARRAY_SIZE(lexer.tokens));
+    //printf("[add_token] -> " SFMT " ; %s ; #%d\n", SARG(value), token_type_name_as_cstr(type), lexer.tokens.count); 
     
-    // printf("[add_token] -> " SFMT " ; %d ; ti: %d\n", SARG(value), type, lexer.ti); 
-    
-    lexer.tokens[lexer.ti].value = value;
-    lexer.tokens[lexer.ti].type  = type;
-    
-    lexer.ti += 1;
+    Token *token = (Token *)malloc(sizeof(Token));
+    token->value = value;
+    token->type = type;
+    array_add(&lexer.tokens, token);
 }
 
 inline void eat_next_char()
@@ -297,47 +336,6 @@ void parse_simple_token()
     eat_next_char_and_keep_up_left_cursor();
 }
 
-const char *token_type_name_as_cstr(Token_Type type) {
-    switch (type) {
-        case T_UNKNOWN:               return XSTR(UNKNOWN);
-        case T_IDENTIFIER:            return XSTR(IDENTIFIER);
-        case T_REGISTER:              return XSTR(REGISTER);
-        case T_DIRECTIVE:             return XSTR(DIRECTIVE);
-        case T_LABEL:                 return XSTR(LABEL);
-        case T_COMMENT:               return XSTR(COMMENT);
-        case T_STRING_LITERAL:        return XSTR(STRING_LITERAL);
-        case T_NUMERIC_LITERAL:       return XSTR(NUMERIC_LITERAL);
-        
-        case T_HASH_SIGN:             return XSTR(T_HASH_SIGN);
-        case T_EXCLAMATION_MARK:      return XSTR(T_EXCLAMATION_MARK);
-        case T_PLUS_OP:               return XSTR(T_PLUS_OP);
-        case T_MINUS_OP:              return XSTR(T_MINUS_OP);
-        case T_MULTIPLY_OP:           return XSTR(T_MULTIPLY_OP);
-        case T_DIVIDE_OP:             return XSTR(T_DIVIDE_OP);
-        case T_COMMA:                 return XSTR(T_COMMA);
-        case T_SEMICOLON:             return XSTR(T_SEMICOLON);
-        case T_COLON:                 return XSTR(T_COLON);
-        case T_EQUAL:                 return XSTR(T_EQUAL);
-        case T_COMPARE_OP:            return XSTR(T_COMPARE_OP);
-        case T_GREATER_OP:            return XSTR(T_GREATER_OP);
-        case T_GREATER_THAN_EQUAL_OP: return XSTR(T_GREATER_THAN_EQUAL_OP);
-        case T_LESS_OP:               return XSTR(T_LESS_OP);
-        case T_LESS_THAN_EQUAL_OP:    return XSTR(T_LESS_THAN_EQUAL_OP);
-        case T_LEFT_ROUND_BRACKET:    return XSTR(T_LEFT_ROUND_BRACKET);
-        case T_RIGHT_ROUND_BRACKET:   return XSTR(T_RIGHT_ROUND_BRACKET);
-        case T_LEFT_BLOCK_BRACKET:    return XSTR(T_LEFT_BLOCK_BRACKET);
-        case T_RIGHT_BLOCK_BRACKET:   return XSTR(T_RIGHT_BLOCK_BRACKET);
-        case T_LEFT_CURLY_BRACKET:    return XSTR(T_LEFT_CURLY_BRACKET);
-        case T_RIGHT_CURLY_BRACKET:   return XSTR(T_RIGHT_CURLY_BRACKET);
-        
-        case T_LINE_BREAK:            return XSTR(T_LINE_BREAK);
-        
-        default:                           assert(0);
-    }
-    
-    return "";
-}
-
 void print_token(Token *t)
 {
     printf("{type: \"%s\", value: \""SFMT"\"}\n", token_type_name_as_cstr(t->type), SARG(t->value));
@@ -345,14 +343,15 @@ void print_token(Token *t)
 
 void dump_tokens_out(Lexer *l)
 {
-    for (int i = 0; i < l->ti; i++) {
-        print_token(l->tokens+i);
+    for (int i = 0; i < l->tokens.count; i++) {
+        print_token((Token *)l->tokens.data[i]);
     }
 }
 
 void tokenize(String input)
 {
-    lexer.str = input;
+    lexer.str    = input;
+    lexer.tokens = array_create(1);
 
     char c;
     while ((c = current_char())) {
@@ -373,7 +372,8 @@ void tokenize(String input)
         else if (IS_SPACE(c)) {
             if (c == '\n') {
                 // Instructions separated by at least one new line
-                if (lexer.ti > 0 && lexer.tokens[lexer.ti-1].type != T_LINE_BREAK) {
+                Token *token = (Token *)lexer.tokens.data[lexer.tokens.count-1];
+                if (lexer.tokens.count > 0 && token->type != T_LINE_BREAK) {
                     keep_up_left_cursor();
                     lexer_add_token(string_create(""), T_LINE_BREAK);
                 }
