@@ -45,7 +45,7 @@ void *array_pop(Array *array)
 {
     if (array->count == 0) return NULL;
 
-    void *r = array->data+(array->count-1);
+    void *r = array->data[array->count-1];
     array->count -= 1;
 
     return (void *)r;
