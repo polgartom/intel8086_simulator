@@ -385,5 +385,5 @@ void tokenize(String input)
         }
     }
     
-    dump_tokens_out(&lexer);
+    // dump_tokens_out(&lexer);
 }

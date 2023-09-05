@@ -702,9 +702,9 @@ void run(CPU *cpu)
 {
     char input[128] = {0};
 
-    if (cpu->decode_only) {
-        printf("bits 16\n\n");
-    }
+    // if (cpu->decode_only) {
+    //     printf("bits 16\n\n");
+    // }
 
 #ifdef GRAPHICS_ENABLED
     u16 GRAPHICS_X = 256;

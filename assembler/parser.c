@@ -6,8 +6,7 @@
 typedef struct {
     int byte_offset; // we have to track this because of jumps
 
-    Instruction instructions[4096]; // @Incomplete
-    int inst_index;
+    Array instructions;
 
     Array tokens;
     u64 ti; // tokens iterator index
@@ -16,13 +15,14 @@ typedef struct {
 
 Parser parser; // @XXX: Multi-Thread
 
-// @Temporary
-#define NEW_INST() Instruction *inst = parser.instructions+(parser.inst_index++);
+#define NEW_INST() \
+    Instruction *inst = NEW(Instruction); \
+    array_add(&parser.instructions, inst); \
 
 inline Token *current_token()
 {
     if (parser.ti >= parser.tokens.count) return NULL;
-    return (Token *)*parser.tokens.data;
+    return (Token *)parser.tokens.data[parser.ti];
 }
 
 inline void eat_token()
@@ -71,7 +71,7 @@ Register decide_register(String s)
     return REG_NONE;
 }
 
-#define IS_NUM_16BIT(_num) (_num & 0xff00)
+#define IS_16BIT(_num) (_num & 0xff00)
 
 int operator_scores[] = {
     [T_PLUS_OP]  = 1,
@@ -99,8 +99,7 @@ int eval_numeric_expr()
     ASSERT(!failed, "Failed atoi() -> '"SFMT"'", SARG(t->value));
 
     if (is_signed) {
-        int sign_ext = IS_NUM_16BIT(num) ? 16 : 8 - 1; 
-        num = num & (1 << sign_ext);
+        ASSERT(!is_signed, "Signed numbers are not implemented yet!");
     }
 
     return num;
@@ -108,7 +107,7 @@ int eval_numeric_expr()
 
 void parse_effective_addr_expr(Instruction *inst, Operand *operand)
 {
-    #define GUESS_MOD(__num) (IS_NUM_16BIT(__num) ? MOD_MEM_16BIT_DISP : MOD_MEM_8BIT_DISP);
+    #define GUESS_MOD(__num) (IS_16BIT(__num) ? MOD_MEM_16BIT_DISP : MOD_MEM_8BIT_DISP);
 
     assert(current_token()->type == T_LEFT_BLOCK_BRACKET);
 
@@ -121,19 +120,33 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
             operand->address.base = EFFECTIVE_ADDR_BX;
 
             t = eat_and_get_next_token();
-            
-            if (string_equal_cstr(t->value, "si")) {
-                operand->address.base = EFFECTIVE_ADDR_BX_SI;
-                t = eat_and_get_next_token();
-            }
-            else if (string_equal_cstr(t->value, "di")) {
-                operand->address.base = EFFECTIVE_ADDR_BX_DI;
-                t = eat_and_get_next_token();
-            }
 
             if (t->type == T_PLUS_OP) {
-                operand->address.displacement = eval_numeric_expr();
-                inst->mod = GUESS_MOD(operand->address.displacement);
+                t = eat_and_get_next_token();
+
+                if (string_equal_cstr(t->value, "si")) {
+                    operand->address.base = EFFECTIVE_ADDR_BX_SI;
+                }
+                else if (string_equal_cstr(t->value, "di")) {
+                    operand->address.base = EFFECTIVE_ADDR_BX_DI;
+                } 
+                else if (t->type == T_NUMERIC_LITERAL) {
+                    operand->address.displacement = eval_numeric_expr();
+                    inst->mod = GUESS_MOD(operand->address.displacement);
+                }
+                else {
+                    ASSERT(0, "Invalid memory address at -> "SFMT " ; %s", SARG(t->value), token_type_name_as_cstr(t->type));
+                }
+
+                t = eat_and_get_next_token();
+                if (t->type == T_PLUS_OP) {
+                    t = eat_and_get_next_token();
+                    ASSERT(t->type == T_NUMERIC_LITERAL, "Expect number as displacement");
+
+                    operand->address.displacement = eval_numeric_expr();
+                    inst->mod = GUESS_MOD(operand->address.displacement);
+                    t = eat_and_get_next_token();
+                }
             }
 
         }
@@ -142,36 +155,54 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
 
             t = eat_and_get_next_token();
 
-            if (string_equal_cstr(t->value, "si")) {
-                operand->address.base = EFFECTIVE_ADDR_BP_SI;
-                t = eat_and_get_next_token();
-            }
-            else if (string_equal_cstr(t->value, "di")) {
-                operand->address.base = EFFECTIVE_ADDR_BP_DI;
-                t = eat_and_get_next_token();
-            }
-
             if (t->type == T_PLUS_OP) {
-                operand->address.displacement = eval_numeric_expr();
-                inst->mod = GUESS_MOD(operand->address.displacement);
+                t = eat_and_get_next_token();
+
+                if (string_equal_cstr(t->value, "si")) {
+                    operand->address.base = EFFECTIVE_ADDR_BP_SI;
+                }
+                else if (string_equal_cstr(t->value, "di")) {
+                    operand->address.base = EFFECTIVE_ADDR_BP_DI;
+                }
+                else if (t->type == T_NUMERIC_LITERAL) {
+                    operand->address.displacement = eval_numeric_expr();
+                    inst->mod = GUESS_MOD(operand->address.displacement);
+                }
+                else {
+                    ASSERT(0, "Invalid memory address at -> "SFMT " ; %s", SARG(t->value), token_type_name_as_cstr(t->type));
+                }
+
+                t = eat_and_get_next_token();
+                if (t->type == T_PLUS_OP) {
+                    t = eat_and_get_next_token();
+                    ASSERT(t->type == T_NUMERIC_LITERAL, "Expect number as displacement");
+
+                    operand->address.displacement = eval_numeric_expr();
+                    inst->mod = GUESS_MOD(operand->address.displacement);
+                    t = eat_and_get_next_token();
+                }
             }
         }
         else if (string_equal_cstr(t->value, "si")) {
             operand->address.base = EFFECTIVE_ADDR_SI;
 
             t = eat_and_get_next_token();
+
             if (t->type == T_PLUS_OP) {
                 operand->address.displacement = eval_numeric_expr();
                 inst->mod = GUESS_MOD(operand->address.displacement);
+                t = eat_and_get_next_token();
             }
         }
         else if (string_equal_cstr(t->value, "di")) {
             operand->address.base = EFFECTIVE_ADDR_BP;
 
             t = eat_and_get_next_token();
+
             if (t->type == T_PLUS_OP) {
                 operand->address.displacement = eval_numeric_expr();
                 inst->mod = GUESS_MOD(operand->address.displacement);
+                t = eat_and_get_next_token();
             }
         }
         else {
@@ -183,10 +214,16 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
         operand->address.base = EFFECTIVE_ADDR_DIRECT;
         operand->address.displacement = eval_numeric_expr();
         inst->mod = MOD_MEM;
+
+        t = eat_and_get_next_token();
+
+    } else {
+        ASSERT(0, "Unexpected token -> "SFMT" ; type: %s\n", SARG(t->value), token_type_name_as_cstr(t->type));
     }
 
     t = current_token();
-    ASSERT(t->type == T_RIGHT_BLOCK_BRACKET, "Unexpected token -> "SFMT"\n", SARG(t->value));
+    Token *pt = (Token *)parser.tokens.data[parser.ti-1];
+    ASSERT(t->type == T_RIGHT_BLOCK_BRACKET, "Unexpected token -> "SFMT"\n ; prev: "SFMT " , type: %s", SARG(t->value), SARG(pt->value), token_type_name_as_cstr(pt->type));
     return;
 }
 
@@ -202,19 +239,24 @@ void mov_inst()
         // Specification of operand type
         if (string_equal_cstr(t->value, "byte")) {
             inst->size = W_BYTE;
+            t = eat_and_get_next_token();
         }
         else if (string_equal_cstr(t->value, "word")) {
             inst->size = W_WORD;
+            t = eat_and_get_next_token();
         }
     }
 
     if (t->type == T_LEFT_BLOCK_BRACKET) {
+        inst->a.type = OPERAND_MEMORY;
         parse_effective_addr_expr(inst, &inst->a);
     }
     else if (t->type == T_IDENTIFIER) {
         // @Incomplete: It can be macro?
         inst->a.type = OPERAND_REGISTER;
         inst->a.reg  = decide_register(t->value);
+
+        inst->size = register_size(inst->a.reg);
     }
     else {
         ASSERT(0, "Unexpected identifier -> "SFMT, SARG(t->value));
@@ -223,14 +265,32 @@ void mov_inst()
     t = eat_and_get_next_token();
     ASSERT(t->type == T_COMMA, "Expect ',' after first operand");
 
+    t = eat_and_get_next_token();
+
     if (t->type == T_LEFT_BLOCK_BRACKET) {
-        ASSERT(inst->a.type != OPERAND_MEMORY, "Memory to memory is not allowed -> "SFMT, SARG(t->value));
+        ASSERT(inst->a.type == OPERAND_REGISTER, "Invalid combination of opcode and operands");
 
         parse_effective_addr_expr(inst, &inst->b);
     }
     else if (t->type == T_IDENTIFIER) {
         inst->b.type = OPERAND_REGISTER;
         inst->b.reg  = decide_register(t->value);
+
+        if (inst->a.type == OPERAND_REGISTER) {
+            ASSERT(register_size(inst->a.reg) == register_size(inst->b.reg), "Invalid combination of opcode and operands");
+            inst->d = REG_FIELD_IS_DEST;
+            inst->mod = MOD_REG;
+            inst->rm = reg_rm(inst->b.reg);
+        }
+        else if (inst->a.type == OPERAND_MEMORY) {
+            inst->size = register_size(inst->b.reg);
+            inst->d = REG_FIELD_IS_SRC;
+            inst->rm = mem_rm(inst->b.address.base, inst->mod);
+        }
+        else {
+            assert(0);
+        }
+
     }
     else if (t->type == T_NUMERIC_LITERAL || t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
         ASSERT(inst->a.type != OPERAND_MEMORY, "Immediate to memory is not allowed! At first, you must move the immediate to a register -> "SFMT, SARG(t->value));
@@ -238,23 +298,27 @@ void mov_inst()
         inst->b.type      = OPERAND_IMMEDIATE;
         inst->b.immediate = eval_numeric_expr();
         ASSERT(!(inst->b.immediate & 0xFFFF0000), "The value can't be larger, than 65535");
+
+        inst->d = REG_FIELD_IS_DEST;
+
+        if (inst->a.type == OPERAND_REGISTER) {
+            inst->size = register_size(inst->a.reg);
+        } 
+        else if (inst->a.type = OPERAND_MEMORY)  {
+            inst->size = IS_16BIT(inst->b.immediate) ? W_WORD : W_BYTE;
+        }
+        else {
+            assert(0);
+        }
     }
     
-    t = eat_and_get_next_token();
-    ASSERT(t->type == T_LINE_BREAK, "Expect line break after instruction");
-
-    if (inst->a.type == OPERAND_REGISTER && inst->b.type == OPERAND_REGISTER) {
-        ASSERT(register_size(inst->a.reg) != register_size(inst->b.reg), "Invalid combination of opcode and operands");
-        inst->size = register_size(inst->a.reg);
-        inst->d = REG_FIELD_IS_DEST;
-        inst->mod = MOD_REG;
-    }
-
     ASSERT(inst->size != W_UNDEFINED, "Operation size is not specified!");
 }
 
 void parse_tokens()
 {
+    parser.instructions = array_create(32);
+
     parser.tokens = lexer.tokens;
     parser.last_token = (Token *)array_last_item(&lexer.tokens);
 
@@ -264,18 +328,26 @@ void parse_tokens()
         if (t->type == T_IDENTIFIER) {
             if (string_equal_cstr(t->value, "mov")) {
                 mov_inst();
+            } else {
+                ASSERT(0, "Unexpected identifier -> "SFMT, SARG(t->value));
             }
-
-            ASSERT(0, "Unexpected identifier -> "SFMT, SARG(t->value));
         }
         else if (t->type == T_LABEL) {
         }
         else if (t->type == T_COMMENT) {
         }
+        else {
+            ASSERT(0, "Unexpected token -> "SFMT " ; %s", SARG(t->value), token_type_name_as_cstr(t->type));
+        }
 
-        ASSERT(0, "Unexpected token -> "SFMT, SARG(t->value));
-
+        t = eat_and_get_next_token();
+        ASSERT(!t || t->type == T_LINE_BREAK, "Expect line break after instruction");
         eat_token();
     };
 
+    // for (int i = 0; i < parser.instructions.count; i++) {
+    //     Instruction* inst = parser.instructions.data[i];
+    // }
+
+    // printf("DONE!\n");
 }
