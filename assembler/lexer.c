@@ -201,7 +201,7 @@ void parse_identifier(bool expect_label)
             String identifier = get_cursor_range(true);
 
             Token_Type type = T_IDENTIFIER;
-            if (c == ':') {
+            if (expect_label && c == ':') {
                 type = T_LABEL;
                 eat_next_char();
             }
