@@ -28,6 +28,10 @@ void build_bytecodes(Array instructions)
             }
             else {
                 if (inst->b.type == OPERAND_IMMEDIATE) {
+                    // In the 8086_family_Users_Manual_1_.pdf on page 164, we can encode 'immediate to register' in two ways.
+                    // However, we're using the 'Immediate to register/memory' for both memory and registers. 
+                    // This approach allows us to write less code.
+
                     u8 opcode = 0b11000110;
                     opcode |= (W(inst) << 0);
                     fwrite(&opcode, 1, 1, fp);
