@@ -27,6 +27,7 @@ typedef unsigned long u64;
 #define COLOR_CYAN "\033[0;36m"
 
 #define ZERO_MEMORY(dest, len) memset(((u8 *)dest), 0, (len))
+#define NEW(_type) ((_type *)malloc(sizeof(_type)))
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr)[0])
 #define CSTR_EQUAL(str1, str2) (strcmp(str1, str2) == 0)
@@ -219,7 +220,7 @@ u8 reg_rm(Register reg)
 
 u8 mem_rm(Effective_Address_Expression address, MOD mod)
 {
-
+    assert(mod >= 0 && mod <= 3);
     if (mod != MOD_MEM) assert(address.base != EFFECTIVE_ADDR_DIRECT);
 
     static u8 rm[3][9] = {
@@ -244,6 +245,7 @@ u8 mem_rm(Effective_Address_Expression address, MOD mod)
             [EFFECTIVE_ADDR_DI]     = 0b101,
             [EFFECTIVE_ADDR_BP]     = 0b110,
             [EFFECTIVE_ADDR_BX]     = 0b111,
+            [EFFECTIVE_ADDR_DIRECT] = 0b000,
         },
         {
             // Memory mode, 16 bit displacement follows
@@ -255,6 +257,7 @@ u8 mem_rm(Effective_Address_Expression address, MOD mod)
             [EFFECTIVE_ADDR_DI]     = 0b101,
             [EFFECTIVE_ADDR_BP]     = 0b110,
             [EFFECTIVE_ADDR_BX]     = 0b111,
+            [EFFECTIVE_ADDR_DIRECT] = 0b000,
         }
     };
 

@@ -1,8 +1,6 @@
 #include "assembler.h"
 #include "new_string.h"
 
-#define NEW(_type) ((_type *)malloc(sizeof(_type)))
-
 typedef struct {
     int byte_offset; // we have to track this because of jumps
 
@@ -17,6 +15,7 @@ Parser parser; // @XXX: Multi-Thread
 
 #define NEW_INST() \
     Instruction *inst = NEW(Instruction); \
+    ZERO_MEMORY(inst, sizeof(Instruction)); \
     array_add(&parser.instructions, inst); \
 
 inline Token *current_token()
@@ -164,7 +163,6 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
                 }
                 else if (t->type == T_NUMERIC_LITERAL) {
                     operand->address.displacement = eval_numeric_expr();
-                    inst->mod = GUESS_MOD(operand->address.displacement);
                 }
                 else {
                     ASSERT(0, "Invalid memory address at -> "SFMT " ; %s", SARG(t->value), token_type_name_as_cstr(t->type));
@@ -176,7 +174,6 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
                     ASSERT(t->type == T_NUMERIC_LITERAL, "Expect number as displacement");
 
                     operand->address.displacement = eval_numeric_expr();
-                    inst->mod = GUESS_MOD(operand->address.displacement);
                     t = eat_and_get_next_token();
                 }
             }
@@ -188,7 +185,6 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
 
             if (t->type == T_PLUS_OP) {
                 operand->address.displacement = eval_numeric_expr();
-                inst->mod = GUESS_MOD(operand->address.displacement);
                 t = eat_and_get_next_token();
             }
         }
@@ -199,13 +195,17 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
 
             if (t->type == T_PLUS_OP) {
                 operand->address.displacement = eval_numeric_expr();
-                inst->mod = GUESS_MOD(operand->address.displacement);
                 t = eat_and_get_next_token();
             }
         }
         else {
             ASSERT(0, "Unexpected token -> "SFMT"\n", SARG(t->value));
         }
+
+        if (operand->address.displacement) {
+            inst->mod = GUESS_MOD(operand->address.displacement);
+        }
+
     }
     else if (t->type == T_NUMERIC_LITERAL) {
         // expect direct address

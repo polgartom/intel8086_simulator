@@ -15,5 +15,7 @@ int main(int argc, char **argv)
 
     build_bytecodes(parser.instructions);
 
+    printf(COLOR_CYAN"\n%d instructions assembled!\n"COLOR_DEFAULT, parser.instructions.count);
+
     return 0;
 }
