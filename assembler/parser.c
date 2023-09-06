@@ -268,6 +268,8 @@ void mov_inst()
     if (t->type == T_LEFT_BLOCK_BRACKET) {
         ASSERT(inst->a.type == OPERAND_REGISTER, "Invalid combination of opcode and operands");
 
+        inst->d = REG_FIELD_IS_DEST;
+
         parse_effective_addr_expr(inst, &inst->b);
     }
     else if (t->type == T_IDENTIFIER) {
