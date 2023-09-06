@@ -351,7 +351,7 @@ void dump_tokens_out(Lexer *l)
 void tokenize(String input)
 {
     lexer.str    = input;
-    lexer.tokens = array_create(1);
+    lexer.tokens = array_create(64);
 
     char c;
     while ((c = current_char())) {

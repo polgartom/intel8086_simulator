@@ -71,8 +71,6 @@ Register decide_register(String s)
     return REG_NONE;
 }
 
-#define IS_16BIT(_num) (_num & 0xff00)
-
 int operator_scores[] = {
     [T_PLUS_OP]  = 1,
     [T_MINUS_OP] = 1,
@@ -280,12 +278,10 @@ void mov_inst()
             ASSERT(register_size(inst->a.reg) == register_size(inst->b.reg), "Invalid combination of opcode and operands");
             inst->d = REG_FIELD_IS_DEST;
             inst->mod = MOD_REG;
-            inst->rm = reg_rm(inst->b.reg);
         }
         else if (inst->a.type == OPERAND_MEMORY) {
             inst->size = register_size(inst->b.reg);
             inst->d = REG_FIELD_IS_SRC;
-            inst->rm = mem_rm(inst->b.address.base, inst->mod);
         }
         else {
             assert(0);
@@ -293,7 +289,7 @@ void mov_inst()
 
     }
     else if (t->type == T_NUMERIC_LITERAL || t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
-        ASSERT(inst->a.type != OPERAND_MEMORY, "Immediate to memory is not allowed! At first, you must move the immediate to a register -> "SFMT, SARG(t->value));
+        // ASSERT(inst->a.type != OPERAND_MEMORY, "Immediate to memory is not allowed! At first, you must move the immediate to a register -> "SFMT, SARG(t->value));
 
         inst->b.type      = OPERAND_IMMEDIATE;
         inst->b.immediate = eval_numeric_expr();
@@ -305,7 +301,7 @@ void mov_inst()
             inst->size = register_size(inst->a.reg);
         } 
         else if (inst->a.type = OPERAND_MEMORY)  {
-            inst->size = IS_16BIT(inst->b.immediate) ? W_WORD : W_BYTE;
+            // inst->size = IS_16BIT(inst->b.immediate) ? W_WORD : W_BYTE;
         }
         else {
             assert(0);

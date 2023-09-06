@@ -35,6 +35,8 @@ typedef unsigned long u64;
 
 #define BYTE_SWAP(__val) (((__val >> 8)) | ((__val << 8)))
 
+#define IS_16BIT(_num) (_num & 0xFF00)
+
 #define ASSERT(__cond, __fmt_msg, ...) { \
     if (!(__cond)) { \
         printf(COLOR_RED __fmt_msg COLOR_DEFAULT "\n", ##__VA_ARGS__); \
@@ -215,9 +217,10 @@ u8 reg_rm(Register reg)
     return rm[(s32)reg];
 }
 
-u8 mem_rm(Effective_Address_Base address_base, MOD mod)
+u8 mem_rm(Effective_Address_Expression address, MOD mod)
 {
-    if (mod != MOD_MEM) assert(address_base != EFFECTIVE_ADDR_DIRECT);
+
+    if (mod != MOD_MEM) assert(address.base != EFFECTIVE_ADDR_DIRECT);
 
     static u8 rm[3][9] = {
         {
@@ -255,7 +258,7 @@ u8 mem_rm(Effective_Address_Base address_base, MOD mod)
         }
     };
 
-    return rm[(s32)mod][(s32)address_base];
+    return rm[(s32)mod][(s32)address.base];
 }
 
 #endif
