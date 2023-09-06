@@ -48,9 +48,7 @@ void build_bytecodes(Array instructions)
                     if (disp != 0) {
                         fwrite(&disp, 2, 1, fp);
                     }
-                    printf(">>> reg: %d ; disp: %d ; disp_is_16: %d\n", reg.reg, disp, IS_16BIT(disp));
                 }
-
             }
             else {
                 // In the 8086_family_Users_Manual_1_.pdf on page 164, we can encode 'immediate to register' in two ways.
@@ -78,17 +76,11 @@ void build_bytecodes(Array instructions)
 
                     fwrite(&inst->a.address.displacement, 2, 1, fp);
                 }
-                else {
-                    ASSERT(0, "What?");
-                }
 
                 u16 immediate = inst->b.immediate & 0xFFFF;
                 // if (W(inst)) immediate = BYTE_SWAP(immediate); 
                 fwrite(&immediate, inst->size, 1, fp);
             }
-            // else {
-            //     ASSERT(0, "This MOV instruction type is not implemented or just invalid!");
-            // }
 
         }
     }
