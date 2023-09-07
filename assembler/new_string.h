@@ -21,7 +21,7 @@ typedef struct {
 #define SARG(__s) (int) (__s).count, (__s).data 
 // Usage: printf("This is an example: " SFMT "\n", SARG(value));
 
-inline String string_create(char *data)
+String string_create(char *data)
 {
     String s;
     s.data  = data;
@@ -30,7 +30,7 @@ inline String string_create(char *data)
     return s;
 }
 
-inline String string_make_alloc(unsigned int size)
+String string_make_alloc(unsigned int size)
 {
     String s;
     s.alloc_location = (char *)malloc(size+1);
@@ -40,7 +40,7 @@ inline String string_make_alloc(unsigned int size)
     return s;
 }
 
-inline String string_advance(String s, unsigned int step)
+String string_advance(String s, unsigned int step)
 {
     assert(s.count >= step && step >= 0);
 
@@ -51,7 +51,7 @@ inline String string_advance(String s, unsigned int step)
     return new_s;
 }
 
-inline char *string_to_cstr(String s)
+char *string_to_cstr(String s)
 {
     // @Leak:
     char *c_str = memset(((char *)malloc(s.count+1)), 0, (s.count+1));
@@ -59,7 +59,7 @@ inline char *string_to_cstr(String s)
     return c_str;
 }
 
-inline bool string_equal(String a, String b)
+bool string_equal(String a, String b)
 {
     if (a.count != b.count) return false;
     int max_count = a.count > b.count ? a.count : b.count;
@@ -81,7 +81,7 @@ inline bool string_equal_cstr(String a, char *b)
     return string_equal(a, string_create(b));
 }
 
-inline String string_trim_white(String s)
+String string_trim_white(String s)
 {
     // Trim left
     while (s.count && IS_SPACE(*s.data)) {
@@ -97,7 +97,7 @@ inline String string_trim_white(String s)
     return s;
 }
 
-inline int string_atoi(String s, bool *failed)
+int string_atoi(String s, bool *failed)
 {
     char *cstr = string_to_cstr(s);
     int num    = atoi(cstr);

@@ -57,6 +57,8 @@ typedef enum {
 
 typedef enum {
     M_MOV,
+    M_ADD,
+    M_SUB,
 } Mnemonic;
 
 typedef enum {
@@ -135,6 +137,7 @@ typedef enum {
 
 typedef struct {
     Operand_Type type;
+    bool is_segreg;
 
     union {
         Register reg;
@@ -183,7 +186,7 @@ typedef struct {
     Operand a;
     Operand b;
 
-    Register segment_reg;
+    Register segment_reg; // segment override
 
 } Instruction;
 

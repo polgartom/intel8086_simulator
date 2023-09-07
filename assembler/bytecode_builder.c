@@ -19,8 +19,45 @@ void build_bytecodes(Array instructions)
         }
 
         if (inst->type == INST_MOVE) {
+            if (inst->a.is_segreg || inst->b.is_segreg) {
+                Operand sr; Operand r_m;
+                u8 opcode = 0; u8 operand = 0;
 
-            if (inst->b.type != OPERAND_IMMEDIATE) {
+                if (inst->a.is_segreg) {
+                    opcode = 0b10001110;
+                    sr = inst->a;
+                    r_m = inst->b;
+                } else {
+                    opcode = 0b10001100;
+                    sr = inst->b;
+                    r_m = inst->a;
+                }
+
+                fwrite(&opcode,  1, 1, fp);
+
+                operand |= ((u8)inst->mod << 6);
+                operand |= (reg_rm(sr.reg) << 3);
+
+                if (r_m.type == OPERAND_REGISTER) {
+                    operand |= (reg_rm(r_m.reg) << 0);
+                    fwrite(&operand, 1, 1, fp);
+                } else {
+                    operand |= (mem_rm(r_m.address, inst->mod) << 0);
+                    fwrite(&operand, 1, 1, fp);
+
+                    u16 disp = r_m.address.displacement;
+                    if (inst->mod != MOD_MEM) {
+                        // 8 or 16 bit displacement
+                        fwrite(&disp, IS_16BIT(disp) ? 2 : 1, 1, fp);
+                    } else {
+                        // Direct address
+                        if (disp != 0) {
+                            fwrite(&disp, 2, 1, fp);
+                        }
+                    }
+                }
+            }
+            else if (inst->b.type != OPERAND_IMMEDIATE) {
                 u8 opcode = 0b10001000;
                 opcode |= (inst->d << 1);
                 opcode |= (W(inst) << 0);
@@ -34,7 +71,7 @@ void build_bytecodes(Array instructions)
                     operand |= reg_rm(inst->b.reg) << 0;
 
                     fwrite(&operand, 1, 1, fp);
-                } 
+                }
                 else {
                     Operand reg = inst->a.type == OPERAND_REGISTER ? inst->a : inst->b;
                     Operand r_m = inst->a.type == OPERAND_MEMORY   ? inst->a : inst->b;

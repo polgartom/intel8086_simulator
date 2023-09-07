@@ -104,8 +104,6 @@ int eval_numeric_expr()
 
 void parse_effective_addr_expr(Instruction *inst, Operand *operand)
 {
-    #define GUESS_MOD(__num) (IS_16BIT(__num) ? MOD_MEM_16BIT_DISP : MOD_MEM_8BIT_DISP);
-
     assert(current_token()->type == T_LEFT_BLOCK_BRACKET);
 
     operand->type = OPERAND_MEMORY;
@@ -129,7 +127,6 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
                 } 
                 else if (t->type == T_NUMERIC_LITERAL) {
                     operand->address.displacement = eval_numeric_expr();
-                    inst->mod = GUESS_MOD(operand->address.displacement);
                 }
                 else {
                     ASSERT(0, "Invalid memory address at -> "SFMT " ; %s", SARG(t->value), TOKSTR(t->type));
@@ -141,7 +138,6 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
                     ASSERT(t->type == T_NUMERIC_LITERAL, "Expect number as displacement");
 
                     operand->address.displacement = eval_numeric_expr();
-                    inst->mod = GUESS_MOD(operand->address.displacement);
                     t = eat_and_get_next_token();
                 }
             }
@@ -202,9 +198,7 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
             ASSERT(0, "Unexpected token -> "SFMT"\n", SARG(t->value));
         }
 
-        // if (operand->address.displacement) {
-            inst->mod = GUESS_MOD(operand->address.displacement);
-        // }
+        inst->mod = (IS_16BIT(operand->address.displacement) ? MOD_MEM_16BIT_DISP : MOD_MEM_8BIT_DISP);
 
     }
     else if (t->type == T_NUMERIC_LITERAL) {
@@ -225,12 +219,8 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
     return;
 }
 
-void mov_inst()
+void parse_basic_reg_mem_imm(Instruction *inst)
 {
-    NEW_INST();
-    inst->mnemonic = M_MOV;
-    inst->type     = INST_MOVE;
-
     Token *t = eat_and_get_next_token();
 
     if (t->type == T_IDENTIFIER) {
@@ -260,8 +250,9 @@ void mov_inst()
             parse_effective_addr_expr(inst, &inst->a);
 
         } else {
-            inst->a.type = OPERAND_REGISTER;
             inst->a.reg  = decide_register(t->value);
+            inst->a.type = OPERAND_REGISTER;
+            inst->a.is_segreg = IS_SEGREG(inst->a.reg);
 
             inst->size = register_size(inst->a.reg);
         }
@@ -296,8 +287,9 @@ void mov_inst()
             parse_effective_addr_expr(inst, &inst->b);
         }
         else {
-            inst->b.type = OPERAND_REGISTER;
             inst->b.reg  = decide_register(t->value);
+            inst->b.type = OPERAND_REGISTER;
+            inst->b.is_segreg = IS_SEGREG(inst->b.reg);
 
             if (inst->a.type == OPERAND_REGISTER) {
                 ASSERT(register_size(inst->a.reg) == register_size(inst->b.reg), "Invalid combination of opcode and operands");
@@ -340,6 +332,38 @@ void mov_inst()
     ASSERT(inst->size != W_UNDEFINED, "Operation size is not specified!");
 }
 
+void parse_mov()
+{
+    NEW_INST();
+    inst->mnemonic = M_MOV;
+    inst->type     = INST_MOVE;
+
+    parse_basic_reg_mem_imm(inst);
+
+    ASSERT(
+        !(inst->mod == MOD_REG && IS_SEGREG(inst->a.reg) && IS_SEGREG(inst->b.reg)),
+        "Move to segment to segment register is invalid. At first, you need to move the data to a general register"
+    );
+}
+
+void parse_add()
+{
+    NEW_INST();
+    inst->mnemonic = M_ADD;
+    inst->type     = INST_ARITHMETIC;
+
+    parse_basic_reg_mem_imm(inst);
+}
+
+void parse_sub()
+{
+    NEW_INST();
+    inst->mnemonic = M_SUB;
+    inst->type     = INST_ARITHMETIC;
+
+    parse_basic_reg_mem_imm(inst);
+}
+
 void parse_tokens()
 {
     parser.instructions = array_create(32);
@@ -352,7 +376,11 @@ void parse_tokens()
 
         if (t->type == T_IDENTIFIER) {
             if (string_equal_cstr(t->value, "mov")) {
-                mov_inst();
+                parse_mov();
+            } else if (string_equal_cstr(t->value, "add")) {
+                parse_add();
+            } else if (string_equal_cstr(t->value, "sub")) {
+                parse_sub();
             } else {
                 ASSERT(0, "Unexpected identifier -> "SFMT, SARG(t->value));
             }

@@ -19,6 +19,9 @@ if ($code !== 0) {
 
 exec('call .\build\assembler.exe', $out, $code);
 echo pout($out);
+if ($code !== 0) { 
+    exit(1); 
+}
 
 exec('nasm.exe mock\listing_0039_more_movs.asm', $out, $code);
 if ($code !== 0) { 
