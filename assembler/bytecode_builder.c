@@ -2,6 +2,26 @@
 
 #define W(_inst) (_inst->size == W_WORD)
 
+#define OUT(_data, _bytes) { u16 _out = (_data); fwrite(&_out, _bytes, 1, fp); }
+#define OUTB(_data) OUT(_data, W_BYTE)
+#define OUTW(_data) OUT(_data, W_WORD)
+
+#define MOD_XXX_RM(_mod, _xxx, _rm) \
+    OUTB(( 0b00000000 | ((_mod & 3) << 6) | ((_xxx & 7) << 3) | (_rm & 7) << 0 ));
+
+// Encode displacement by the MOD field and the operand (memory) address type
+#define DISP_MOD(_operand) { \
+    if (_operand.type == OPERAND_MEMORY) { \
+        u16 _disp = _operand.address.displacement; \
+        if (inst->mod != MOD_MEM) { \
+            /* 8 or 16 bit displacement */ \
+            OUT(_operand.address.displacement, IS_16BIT(_disp) ? W_WORD : W_BYTE); \
+        } else if (_disp != 0) { \
+            OUT(_operand.address.displacement, W_WORD); \
+        } \
+    } \
+} \
+
 void build_bytecodes(Array instructions)
 {
     FILE *fp = fopen("mock/a.out", "wb");
@@ -14,115 +34,46 @@ void build_bytecodes(Array instructions)
         Instruction *inst = (Instruction *)instructions.data[i];
 
         if (inst->prefixes & INST_PREFIX_SEGMENT) {
-            u8 prefix = 0b00100110 | (reg_rm(inst->segment_reg) << 3);
-            fwrite(&prefix, 1, 1, fp);
+            OUTB(0b00100110 | (segreg(inst->segment_reg) << 3));
         }
 
         if (inst->type == INST_MOVE) {
             if (inst->a.is_segreg || inst->b.is_segreg) {
-                Operand sr; Operand r_m;
-                u8 opcode = 0; u8 operand = 0;
+                u8 opcode = 0; 
+                Operand sr, r_m;
 
                 if (inst->a.is_segreg) {
-                    opcode = 0b10001110;
+                    // Register/memory to segment register
+                    OUTB(0b10001110);
                     sr = inst->a;
                     r_m = inst->b;
                 } else {
-                    opcode = 0b10001100;
+                    // Segment register to register/memory
+                    OUTB(0b10001100);
                     sr = inst->b;
                     r_m = inst->a;
                 }
 
-                fwrite(&opcode,  1, 1, fp);
-
-                operand |= ((u8)inst->mod << 6);
-                operand |= (reg_rm(sr.reg) << 3);
-
-                if (r_m.type == OPERAND_REGISTER) {
-                    operand |= (reg_rm(r_m.reg) << 0);
-                    fwrite(&operand, 1, 1, fp);
-                } else {
-                    operand |= (mem_rm(r_m.address, inst->mod) << 0);
-                    fwrite(&operand, 1, 1, fp);
-
-                    u16 disp = r_m.address.displacement;
-                    if (inst->mod != MOD_MEM) {
-                        // 8 or 16 bit displacement
-                        fwrite(&disp, IS_16BIT(disp) ? 2 : 1, 1, fp);
-                    } else {
-                        // Direct address
-                        if (disp != 0) {
-                            fwrite(&disp, 2, 1, fp);
-                        }
-                    }
-                }
+                MOD_XXX_RM(inst->mod, segreg(sr.reg), reg_rm(r_m));
+                DISP_MOD(r_m);
             }
             else if (inst->b.type != OPERAND_IMMEDIATE) {
-                u8 opcode = 0b10001000;
-                opcode |= (inst->d << 1);
-                opcode |= (W(inst) << 0);
-                fwrite(&opcode, 1, 1, fp);
-                
-                u8 operand = 0;
-                operand |= ((u8)inst->mod << 6);
 
-                if (inst->a.type == OPERAND_REGISTER && inst->b.type == OPERAND_REGISTER) {
-                    operand |= reg_rm(inst->a.reg) << 3;
-                    operand |= reg_rm(inst->b.reg) << 0;
+                Operand reg = inst->a.type == OPERAND_REGISTER ? inst->a : inst->b;
+                Operand r_m = inst->a.type == OPERAND_MEMORY   ? inst->a : inst->b;
 
-                    fwrite(&operand, 1, 1, fp);
-                }
-                else {
-                    Operand reg = inst->a.type == OPERAND_REGISTER ? inst->a : inst->b;
-                    Operand r_m = inst->a.type == OPERAND_MEMORY   ? inst->a : inst->b;
-
-                    operand |= reg_rm(reg.reg) << 3;
-                    operand |= mem_rm(r_m.address, inst->mod) << 0;
-
-                    fwrite(&operand, 1, 1, fp);
-
-                    u16 disp = r_m.address.displacement;
-                    if (inst->mod != MOD_MEM) {
-                        // 8 or 16 bit displacement
-                        fwrite(&disp, IS_16BIT(disp) ? 2 : 1, 1, fp);
-                    } else {
-                        // Direct address
-                        if (disp != 0) {
-                            fwrite(&disp, 2, 1, fp);
-                        }
-                    }
-                }
+                OUTB((0b10001000 | (inst->d << 1) | (W(inst) << 0)));
+                MOD_XXX_RM(inst->mod, reg_rm(reg), reg_rm(r_m));
+                DISP_MOD(r_m);
             }
             else {
                 // In the 8086_family_Users_Manual_1_.pdf on page 164, we can encode 'immediate to register' in two ways.
                 // However, we're using the 'Immediate to register/memory' for both memory and registers. 
                 // This approach allows us to write less code.
-
-                u8 opcode = 0b11000110;
-                opcode |= (W(inst) << 0);
-                fwrite(&opcode, 1, 1, fp);
-
-                u16 operand = 0;
-                operand |= ((u8)inst->mod << 6);
-
-                u16 disp = 0;
-
-                if (inst->a.type == OPERAND_REGISTER) {
-                    operand |= reg_rm(inst->a.reg);
-                    fwrite(&operand, 1, 1, fp);
-
-                    // empty 16bit displacement
-                } 
-                else if (inst->a.type == OPERAND_MEMORY) {
-                    operand |= mem_rm(inst->a.address, inst->mod);
-                    fwrite(&operand, 1, 1, fp);
-
-                    fwrite(&inst->a.address.displacement, 2, 1, fp);
-                }
-
-                u16 immediate = inst->b.immediate & 0xFFFF;
-                // if (W(inst)) immediate = BYTE_SWAP(immediate); 
-                fwrite(&immediate, inst->size, 1, fp);
+                OUTB(0b11000110 | (W(inst) << 0));
+                MOD_XXX_RM(inst->mod, 0b000, reg_rm(inst->a));
+                DISP_MOD(inst->a);
+                OUT(inst->b.immediate, inst->size);
             }
 
         }

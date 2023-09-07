@@ -16,6 +16,8 @@ Parser parser; // @XXX: Multi-Thread
 #define NEW_INST() \
     Instruction *inst = NEW(Instruction); \
     ZERO_MEMORY(inst, sizeof(Instruction)); \
+    inst->a.inst = inst; \
+    inst->b.inst = inst; \
     array_add(&parser.instructions, inst); \
 
 inline Token *current_token()

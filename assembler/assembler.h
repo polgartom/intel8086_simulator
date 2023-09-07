@@ -49,6 +49,8 @@ typedef unsigned long u64;
 #define REG_FIELD_IS_SRC  0
 #define REG_FIELD_IS_DEST 1
 
+typedef struct Instruction Instruction;
+
 typedef enum {
     W_UNDEFINED = 0,
     W_BYTE      = 1,
@@ -136,6 +138,8 @@ typedef enum {
 } Operand_Type;
 
 typedef struct {
+    Instruction *inst;
+
     Operand_Type type;
     bool is_segreg;
 
@@ -172,7 +176,7 @@ typedef enum {
 
 } Instruction_Prefix;
 
-typedef struct {
+struct Instruction {
     Mnemonic mnemonic;
     Instruction_Type type;
 
@@ -188,7 +192,7 @@ typedef struct {
 
     Register segment_reg; // segment override
 
-} Instruction;
+};
 
 inline Width register_size(Register r)
 {
@@ -220,50 +224,66 @@ inline Width register_size(Register r)
     return W_UNDEFINED;
 }
 
-u8 reg_rm(Register reg)
+u8 reg_rm(Operand op)
 {
-    static u8 rm[] = {
-        [REG_AL] = 0b000, [REG_AX] = 0b000,
-        [REG_CL] = 0b001, [REG_CX] = 0b001,
-        [REG_DL] = 0b010, [REG_DX] = 0b010,
-        [REG_BL] = 0b011, [REG_BX] = 0b011,
-        [REG_AH] = 0b100, [REG_SP] = 0b100,
-        [REG_CH] = 0b101, [REG_BP] = 0b101,
-        [REG_DH] = 0b110, [REG_SI] = 0b110,
-        [REG_BH] = 0b111, [REG_DI] = 0b111,
+    if (op.type == OPERAND_REGISTER) {
+        static u8 rm[] = {
+            [REG_AL] = 0b000, [REG_AX] = 0b000,
+            [REG_CL] = 0b001, [REG_CX] = 0b001,
+            [REG_DL] = 0b010, [REG_DX] = 0b010,
+            [REG_BL] = 0b011, [REG_BX] = 0b011,
+            [REG_AH] = 0b100, [REG_SP] = 0b100,
+            [REG_CH] = 0b101, [REG_BP] = 0b101,
+            [REG_DH] = 0b110, [REG_SI] = 0b110,
+            [REG_BH] = 0b111, [REG_DI] = 0b111,
 
+            // [REG_ES] = 0b0000,  [REG_CS] = 0b0001,
+            // [REG_SS] = 0b0010,  [REG_DS] = 0b0011,
+        };
+
+        return rm[op.reg];
+    }
+    else if (op.type == OPERAND_MEMORY) {
+        MOD mod = op.inst->mod; 
+
+        assert(mod >= 0 && mod <= 3);
+        if (mod != MOD_MEM) {
+            ASSERT(
+                op.address.base != EFFECTIVE_ADDR_DIRECT, 
+                "Something really bad happened, because the address base is not direct address, and the mod field is not MOD_MEM"
+            );
+        }
+
+        static u8 rm[] = {
+            [EFFECTIVE_ADDR_BX_SI]  = 0b000,
+            [EFFECTIVE_ADDR_BX_DI]  = 0b001,
+            [EFFECTIVE_ADDR_BP_SI]  = 0b010,
+            [EFFECTIVE_ADDR_BP_DI]  = 0b011,
+            [EFFECTIVE_ADDR_SI]     = 0b100,
+            [EFFECTIVE_ADDR_DI]     = 0b101,
+            [EFFECTIVE_ADDR_DIRECT] = 0b110, [EFFECTIVE_ADDR_BP] = 0b110,
+            [EFFECTIVE_ADDR_BX]     = 0b111,
+        };
+
+        return rm[op.address.base];
+    }
+
+    ASSERT(0, "DUDE!");
+    return 0; // dummy compiler
+}
+
+#define IS_SEGREG(_reg) (_reg >= REG_ES && _reg <= REG_DS)
+
+u8 segreg(Register reg)
+{
+    assert(IS_SEGREG(reg));
+
+    static u8 sg[] = {
         [REG_ES] = 0b0000,  [REG_CS] = 0b0001,
         [REG_SS] = 0b0010,  [REG_DS] = 0b0011,
     };
 
-    return rm[reg];
+    return sg[reg];
 }
-
-u8 mem_rm(Effective_Address_Expression address, MOD mod)
-{
-    assert(mod >= 0 && mod <= 3);
-
-    if (mod != MOD_MEM) {
-        ASSERT(
-            address.base != EFFECTIVE_ADDR_DIRECT, 
-            "Something really bad happened, because the address base is not direct address, and the mod field is not MOD_MEM"
-        );
-    }
-
-    static u8 rm[] = {
-        [EFFECTIVE_ADDR_BX_SI]  = 0b000,
-        [EFFECTIVE_ADDR_BX_DI]  = 0b001,
-        [EFFECTIVE_ADDR_BP_SI]  = 0b010,
-        [EFFECTIVE_ADDR_BP_DI]  = 0b011,
-        [EFFECTIVE_ADDR_SI]     = 0b100,
-        [EFFECTIVE_ADDR_DI]     = 0b101,
-        [EFFECTIVE_ADDR_DIRECT] = 0b110, [EFFECTIVE_ADDR_BP] = 0b110,
-        [EFFECTIVE_ADDR_BX]     = 0b111,
-    };
-
-    return rm[address.base];
-}
-
-#define IS_SEGREG(reg) (reg >= REG_ES && reg <= REG_DS)
 
 #endif
