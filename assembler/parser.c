@@ -66,7 +66,7 @@ Register decide_register(String s)
     if (string_equal_cstr(s, "ip")) return REG_IP;
 
     // @Todo: proper error report
-    ASSERT(0, "Unknown register -> "SFMT, SARG(s));
+    ASSERT(0, "Unknown register -> '"SFMT"'", SARG(s));
     return REG_NONE;
 }
 
@@ -252,10 +252,10 @@ void mov_inst()
             inst->segment_reg = decide_register(t->value);
             inst->prefixes |= INST_PREFIX_SEGMENT;
 
-            ASSERT(IS_SEGREG(inst->segment_reg), "Invalid segment override -> "SFMT" is invalid segment register!", SARG(t->value));
+            ASSERT(IS_SEGREG(inst->segment_reg), "Invalid segment override -> '"SFMT"' is invalid segment register!", SARG(t->value));
             t = eat_and_get_next_token(); // expected token -> '['
 
-            ASSERT(t->type == T_LEFT_BLOCK_BRACKET, "An effective address expected after segment register, but %s was received instead!", TOKSTR(t->type));
+            ASSERT(t->type == T_LEFT_BLOCK_BRACKET, "An effective address expected after segment register, but '"SFMT"' (%s) was received instead!", SARG(t->value), TOKSTR(t->type));
 
             parse_effective_addr_expr(inst, &inst->a);
 

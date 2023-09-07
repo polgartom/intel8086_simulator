@@ -233,54 +233,32 @@ u8 reg_rm(Register reg)
         [REG_SS] = 0b0010,  [REG_DS] = 0b0011,
     };
 
-    return rm[(s32)reg];
+    return rm[reg];
 }
 
 u8 mem_rm(Effective_Address_Expression address, MOD mod)
 {
     assert(mod >= 0 && mod <= 3);
-    if (mod != MOD_MEM) assert(address.base != EFFECTIVE_ADDR_DIRECT);
 
-    static u8 rm[3][9] = {
-        {
-            // Memory mode, no displacement follows
-            [EFFECTIVE_ADDR_BX_SI]  = 0b000,
-            [EFFECTIVE_ADDR_BX_DI]  = 0b001,
-            [EFFECTIVE_ADDR_BP_SI]  = 0b010,
-            [EFFECTIVE_ADDR_BP_DI]  = 0b011,
-            [EFFECTIVE_ADDR_SI]     = 0b100,
-            [EFFECTIVE_ADDR_DI]     = 0b101,
-            [EFFECTIVE_ADDR_DIRECT] = 0b110,
-            [EFFECTIVE_ADDR_BX]     = 0b111,
-            [EFFECTIVE_ADDR_BP]     = 0b000, // @Todo: throw an error
-        },
-        {
-            // Memory mode, 8 bit displacement follows
-            [EFFECTIVE_ADDR_BX_SI]  = 0b000,
-            [EFFECTIVE_ADDR_BX_DI]  = 0b001,
-            [EFFECTIVE_ADDR_BP_SI]  = 0b010,
-            [EFFECTIVE_ADDR_BP_DI]  = 0b011,
-            [EFFECTIVE_ADDR_SI]     = 0b100,
-            [EFFECTIVE_ADDR_DI]     = 0b101,
-            [EFFECTIVE_ADDR_BP]     = 0b110,
-            [EFFECTIVE_ADDR_BX]     = 0b111,
-            [EFFECTIVE_ADDR_DIRECT] = 0b000, // @Todo: throw an error
-        },
-        {
-            // Memory mode, 16 bit displacement follows
-            [EFFECTIVE_ADDR_BX_SI]  = 0b000,
-            [EFFECTIVE_ADDR_BX_DI]  = 0b001,
-            [EFFECTIVE_ADDR_BP_SI]  = 0b010,
-            [EFFECTIVE_ADDR_BP_DI]  = 0b011,
-            [EFFECTIVE_ADDR_SI]     = 0b100,
-            [EFFECTIVE_ADDR_DI]     = 0b101,
-            [EFFECTIVE_ADDR_BP]     = 0b110,
-            [EFFECTIVE_ADDR_BX]     = 0b111,
-            [EFFECTIVE_ADDR_DIRECT] = 0b000, // @Todo: throw an error
-        }
+    if (mod != MOD_MEM) {
+        ASSERT(
+            address.base != EFFECTIVE_ADDR_DIRECT, 
+            "Something really bad happened, because the address base is not direct address, and the mod field is not MOD_MEM"
+        );
+    }
+
+    static u8 rm[] = {
+        [EFFECTIVE_ADDR_BX_SI]  = 0b000,
+        [EFFECTIVE_ADDR_BX_DI]  = 0b001,
+        [EFFECTIVE_ADDR_BP_SI]  = 0b010,
+        [EFFECTIVE_ADDR_BP_DI]  = 0b011,
+        [EFFECTIVE_ADDR_SI]     = 0b100,
+        [EFFECTIVE_ADDR_DI]     = 0b101,
+        [EFFECTIVE_ADDR_DIRECT] = 0b110, [EFFECTIVE_ADDR_BP] = 0b110,
+        [EFFECTIVE_ADDR_BX]     = 0b111,
     };
 
-    return rm[(s32)mod][(s32)address.base];
+    return rm[address.base];
 }
 
 #define IS_SEGREG(reg) (reg >= REG_ES && reg <= REG_DS)
