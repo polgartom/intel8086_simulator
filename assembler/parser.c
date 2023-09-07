@@ -35,11 +35,11 @@ inline Token *eat_and_get_next_token()
     return current_token();
 }
 
-// inline Token *peak_next_token()
-// {
-//     if (*parser.tokens.data == *parser.last_token) return NULL;
-//     return *(parser.tokens.data+1);
-// }
+inline Token *peak_next_token()
+{
+    ASSERT(parser.ti+1 < parser.tokens.count, "Next token is not exists!");
+    return (Token *)parser.tokens.data[parser.ti+1];
+}
 
 Register decide_register(String s)
 {
@@ -132,7 +132,7 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
                     inst->mod = GUESS_MOD(operand->address.displacement);
                 }
                 else {
-                    ASSERT(0, "Invalid memory address at -> "SFMT " ; %s", SARG(t->value), token_type_name_as_cstr(t->type));
+                    ASSERT(0, "Invalid memory address at -> "SFMT " ; %s", SARG(t->value), TOKSTR(t->type));
                 }
 
                 t = eat_and_get_next_token();
@@ -165,7 +165,7 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
                     operand->address.displacement = eval_numeric_expr();
                 }
                 else {
-                    ASSERT(0, "Invalid memory address at -> "SFMT " ; %s", SARG(t->value), token_type_name_as_cstr(t->type));
+                    ASSERT(0, "Invalid memory address at -> "SFMT " ; %s", SARG(t->value), TOKSTR(t->type));
                 }
 
                 t = eat_and_get_next_token();
@@ -189,7 +189,7 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
             }
         }
         else if (string_equal_cstr(t->value, "di")) {
-            operand->address.base = EFFECTIVE_ADDR_BP;
+            operand->address.base = EFFECTIVE_ADDR_DI;
 
             t = eat_and_get_next_token();
 
@@ -202,9 +202,9 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
             ASSERT(0, "Unexpected token -> "SFMT"\n", SARG(t->value));
         }
 
-        if (operand->address.displacement) {
+        // if (operand->address.displacement) {
             inst->mod = GUESS_MOD(operand->address.displacement);
-        }
+        // }
 
     }
     else if (t->type == T_NUMERIC_LITERAL) {
@@ -216,12 +216,12 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
         t = eat_and_get_next_token();
 
     } else {
-        ASSERT(0, "Unexpected token -> "SFMT" ; type: %s\n", SARG(t->value), token_type_name_as_cstr(t->type));
+        ASSERT(0, "Unexpected token -> "SFMT" ; type: %s\n", SARG(t->value), TOKSTR(t->type));
     }
 
     t = current_token();
     Token *pt = (Token *)parser.tokens.data[parser.ti-1];
-    ASSERT(t->type == T_RIGHT_BLOCK_BRACKET, "Unexpected token -> "SFMT"\n ; prev: "SFMT " , type: %s", SARG(t->value), SARG(pt->value), token_type_name_as_cstr(pt->type));
+    ASSERT(t->type == T_RIGHT_BLOCK_BRACKET, "Unexpected token -> "SFMT"\n ; prev: "SFMT " , type: %s", SARG(t->value), SARG(pt->value), TOKSTR(pt->type));
     return;
 }
 
@@ -245,53 +245,79 @@ void mov_inst()
         }
     }
 
-    if (t->type == T_LEFT_BLOCK_BRACKET) {
+    if (t->type == T_IDENTIFIER) {
+        if (peak_next_token()->type == T_COLON) {
+            eat_token();
+
+            inst->segment_reg = decide_register(t->value);
+            inst->prefixes |= INST_PREFIX_SEGMENT;
+
+            ASSERT(IS_SEGREG(inst->segment_reg), "Invalid segment override -> "SFMT" is invalid segment register!", SARG(t->value));
+            t = eat_and_get_next_token(); // expected token -> '['
+
+            ASSERT(t->type == T_LEFT_BLOCK_BRACKET, "An effective address expected after segment register, but %s was received instead!", TOKSTR(t->type));
+
+            parse_effective_addr_expr(inst, &inst->a);
+
+        } else {
+            inst->a.type = OPERAND_REGISTER;
+            inst->a.reg  = decide_register(t->value);
+
+            inst->size = register_size(inst->a.reg);
+        }
+
+    } 
+    else if (t->type == T_LEFT_BLOCK_BRACKET) {
         inst->a.type = OPERAND_MEMORY;
         parse_effective_addr_expr(inst, &inst->a);
-    }
-    else if (t->type == T_IDENTIFIER) {
-        // @Incomplete: It can be macro?
-        inst->a.type = OPERAND_REGISTER;
-        inst->a.reg  = decide_register(t->value);
-
-        inst->size = register_size(inst->a.reg);
     }
     else {
         ASSERT(0, "Unexpected identifier -> "SFMT, SARG(t->value));
     }
 
-    t = eat_and_get_next_token();
-    ASSERT(t->type == T_COMMA, "Expect ',' after first operand");
-
+    ASSERT(eat_and_get_next_token()->type == T_COMMA, "Expect ',' after first operand");
     t = eat_and_get_next_token();
 
-    if (t->type == T_LEFT_BLOCK_BRACKET) {
+    if (t->type == T_IDENTIFIER) {
+        if (peak_next_token()->type == T_COLON) {
+            ASSERT(inst->a.type == OPERAND_REGISTER, "Invalid combination of opcode and operands");
+            
+            eat_token();
+
+            inst->segment_reg = decide_register(t->value);
+            inst->prefixes |= INST_PREFIX_SEGMENT;
+
+            ASSERT(IS_SEGREG(inst->segment_reg), "Invalid segment override -> "SFMT" is invalid segment register!", SARG(t->value));
+            t = eat_and_get_next_token(); // expected token -> '['
+
+            ASSERT(t->type == T_LEFT_BLOCK_BRACKET, "An effective address expected after segment register, but %s was received instead!", TOKSTR(t->type));
+
+            inst->d = REG_FIELD_IS_DEST;
+            parse_effective_addr_expr(inst, &inst->b);
+        }
+        else {
+            inst->b.type = OPERAND_REGISTER;
+            inst->b.reg  = decide_register(t->value);
+
+            if (inst->a.type == OPERAND_REGISTER) {
+                ASSERT(register_size(inst->a.reg) == register_size(inst->b.reg), "Invalid combination of opcode and operands");
+                inst->d = REG_FIELD_IS_DEST;
+                inst->mod = MOD_REG;
+            }
+            else if (inst->a.type == OPERAND_MEMORY) {
+                inst->size = register_size(inst->b.reg);
+                inst->d = REG_FIELD_IS_SRC;
+            }
+        }
+
+    }
+    else if (t->type == T_LEFT_BLOCK_BRACKET) {
         ASSERT(inst->a.type == OPERAND_REGISTER, "Invalid combination of opcode and operands");
 
         inst->d = REG_FIELD_IS_DEST;
-
         parse_effective_addr_expr(inst, &inst->b);
     }
-    else if (t->type == T_IDENTIFIER) {
-        inst->b.type = OPERAND_REGISTER;
-        inst->b.reg  = decide_register(t->value);
-
-        if (inst->a.type == OPERAND_REGISTER) {
-            ASSERT(register_size(inst->a.reg) == register_size(inst->b.reg), "Invalid combination of opcode and operands");
-            inst->d = REG_FIELD_IS_DEST;
-            inst->mod = MOD_REG;
-        }
-        else if (inst->a.type == OPERAND_MEMORY) {
-            inst->size = register_size(inst->b.reg);
-            inst->d = REG_FIELD_IS_SRC;
-        }
-        else {
-            assert(0);
-        }
-
-    }
     else if (t->type == T_NUMERIC_LITERAL || t->type == T_PLUS_OP || t->type == T_MINUS_OP) {
-        // ASSERT(inst->a.type != OPERAND_MEMORY, "Immediate to memory is not allowed! At first, you must move the immediate to a register -> "SFMT, SARG(t->value));
 
         inst->b.type      = OPERAND_IMMEDIATE;
         inst->b.immediate = eval_numeric_expr();
@@ -300,6 +326,7 @@ void mov_inst()
         inst->d = REG_FIELD_IS_DEST;
 
         if (inst->a.type == OPERAND_REGISTER) {
+            inst->mod = MOD_REG;
             inst->size = register_size(inst->a.reg);
         } 
         else if (inst->a.type = OPERAND_MEMORY)  {
@@ -335,7 +362,7 @@ void parse_tokens()
         else if (t->type == T_COMMENT) {
         }
         else {
-            ASSERT(0, "Unexpected token -> "SFMT " ; %s", SARG(t->value), token_type_name_as_cstr(t->type));
+            ASSERT(0, "Unexpected token -> "SFMT " ; %s", SARG(t->value), TOKSTR(t->type));
         }
 
         t = eat_and_get_next_token();

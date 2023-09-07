@@ -26,6 +26,13 @@ typedef unsigned long u64;
 #define COLOR_PURPLE "\033[0;35m"
 #define COLOR_CYAN "\033[0;36m"
 
+#define ASSERT(__cond, __fmt_msg, ...) { \
+    if (!(__cond)) { \
+        printf(COLOR_RED __fmt_msg COLOR_DEFAULT "\n", ##__VA_ARGS__); \
+        assert(__cond); \
+    } \
+}
+
 #define ZERO_MEMORY(dest, len) memset(((u8 *)dest), 0, (len))
 #define NEW(_type) ((_type *)malloc(sizeof(_type)))
 
@@ -35,15 +42,9 @@ typedef unsigned long u64;
 #define XSTR(x) #x
 
 #define BYTE_SWAP(__val) (((__val >> 8)) | ((__val << 8)))
-
 #define IS_16BIT(_num) (_num & 0xFF00)
 
-#define ASSERT(__cond, __fmt_msg, ...) { \
-    if (!(__cond)) { \
-        printf(COLOR_RED __fmt_msg COLOR_DEFAULT "\n", ##__VA_ARGS__); \
-        assert(__cond); \
-    } \
-}
+//////////////////
 
 #define REG_FIELD_IS_SRC  0
 #define REG_FIELD_IS_DEST 1
@@ -158,9 +159,21 @@ typedef enum {
     INST_COUNT,
 } Instruction_Type;
 
+typedef enum {
+    INST_PREFIX_NONE = 0,
+
+    INST_PREFIX_LOCK    = 0b0001,
+    INST_PREFIX_SEGMENT = 0b0010,
+    INST_PREFIX_REPE    = 0b0100,
+    INST_PREFIX_REPNE   = 0b1000,
+
+} Instruction_Prefix;
+
 typedef struct {
     Mnemonic mnemonic;
     Instruction_Type type;
+
+    u16 prefixes;
 
     Width size;
     bool d; // direction
@@ -169,6 +182,8 @@ typedef struct {
 
     Operand a;
     Operand b;
+
+    Register segment_reg;
 
 } Instruction;
 
@@ -213,6 +228,9 @@ u8 reg_rm(Register reg)
         [REG_CH] = 0b101, [REG_BP] = 0b101,
         [REG_DH] = 0b110, [REG_SI] = 0b110,
         [REG_BH] = 0b111, [REG_DI] = 0b111,
+
+        [REG_ES] = 0b0000,  [REG_CS] = 0b0001,
+        [REG_SS] = 0b0010,  [REG_DS] = 0b0011,
     };
 
     return rm[(s32)reg];
@@ -234,6 +252,7 @@ u8 mem_rm(Effective_Address_Expression address, MOD mod)
             [EFFECTIVE_ADDR_DI]     = 0b101,
             [EFFECTIVE_ADDR_DIRECT] = 0b110,
             [EFFECTIVE_ADDR_BX]     = 0b111,
+            [EFFECTIVE_ADDR_BP]     = 0b000, // @Todo: throw an error
         },
         {
             // Memory mode, 8 bit displacement follows
@@ -245,7 +264,7 @@ u8 mem_rm(Effective_Address_Expression address, MOD mod)
             [EFFECTIVE_ADDR_DI]     = 0b101,
             [EFFECTIVE_ADDR_BP]     = 0b110,
             [EFFECTIVE_ADDR_BX]     = 0b111,
-            [EFFECTIVE_ADDR_DIRECT] = 0b000,
+            [EFFECTIVE_ADDR_DIRECT] = 0b000, // @Todo: throw an error
         },
         {
             // Memory mode, 16 bit displacement follows
@@ -257,11 +276,13 @@ u8 mem_rm(Effective_Address_Expression address, MOD mod)
             [EFFECTIVE_ADDR_DI]     = 0b101,
             [EFFECTIVE_ADDR_BP]     = 0b110,
             [EFFECTIVE_ADDR_BX]     = 0b111,
-            [EFFECTIVE_ADDR_DIRECT] = 0b000,
+            [EFFECTIVE_ADDR_DIRECT] = 0b000, // @Todo: throw an error
         }
     };
 
     return rm[(s32)mod][(s32)address.base];
 }
+
+#define IS_SEGREG(reg) (reg >= REG_ES && reg <= REG_DS)
 
 #endif

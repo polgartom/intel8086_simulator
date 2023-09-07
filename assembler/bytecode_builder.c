@@ -2,11 +2,6 @@
 
 #define W(_inst) (_inst->size == W_WORD)
 
-#define RM(_operand, _mod) \
-    _operand.type == OPERAND_REGISTER \
-        ? reg_rm(_operand.reg) \
-        : mem_rm(_operand.address, _mod)
-
 void build_bytecodes(Array instructions)
 {
     FILE *fp = fopen("mock/a.out", "wb");
@@ -17,6 +12,11 @@ void build_bytecodes(Array instructions)
 
     for (int i = 0; i < instructions.count; i++) {
         Instruction *inst = (Instruction *)instructions.data[i];
+
+        if (inst->prefixes & INST_PREFIX_SEGMENT) {
+            u8 prefix = 0b00100110 | (reg_rm(inst->segment_reg) << 3);
+            fwrite(&prefix, 1, 1, fp);
+        }
 
         if (inst->type == INST_MOVE) {
 
@@ -45,8 +45,14 @@ void build_bytecodes(Array instructions)
                     fwrite(&operand, 1, 1, fp);
 
                     u16 disp = r_m.address.displacement;
-                    if (disp != 0) {
-                        fwrite(&disp, 2, 1, fp);
+                    if (inst->mod != MOD_MEM) {
+                        // 8 or 16 bit displacement
+                        fwrite(&disp, IS_16BIT(disp) ? 2 : 1, 1, fp);
+                    } else {
+                        // Direct address
+                        if (disp != 0) {
+                            fwrite(&disp, 2, 1, fp);
+                        }
                     }
                 }
             }

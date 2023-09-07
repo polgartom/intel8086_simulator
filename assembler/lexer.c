@@ -117,9 +117,11 @@ const char *token_type_name_as_cstr(Token_Type type) {
     return "";
 }
 
+#define TOKSTR(_token_type) (token_type_name_as_cstr(_token_type))
+
 void lexer_add_token(String value, Token_Type type)
 {
-    //printf("[add_token] -> " SFMT " ; %s ; #%d\n", SARG(value), token_type_name_as_cstr(type), lexer.tokens.count); 
+    //printf("[add_token] -> " SFMT " ; %s ; #%d\n", SARG(value), TOKSTR(type), lexer.tokens.count); 
     
     Token *token = (Token *)malloc(sizeof(Token));
     token->value = value;
@@ -338,7 +340,7 @@ void parse_simple_token()
 
 void print_token(Token *t)
 {
-    printf("{type: \"%s\", value: \""SFMT"\"}\n", token_type_name_as_cstr(t->type), SARG(t->value));
+    printf("{type: \"%s\", value: \""SFMT"\"}\n", TOKSTR(t->type), SARG(t->value));
 }
 
 void dump_tokens_out(Lexer *l)

@@ -193,7 +193,9 @@ void print_instruction(CPU *cpu, u8 with_end_line)
 
     Instruction *instruction = &cpu->instruction;
 
-    fprintf(dest, "%08X\t", instruction->mem_address);
+    if (!cpu->hide_inst_mem_addr) {
+        fprintf(dest, "%08X\t", instruction->mem_address);
+    }
 
     if (instruction->flags & Inst_Repz) {
         fprintf(dest, "repz ");

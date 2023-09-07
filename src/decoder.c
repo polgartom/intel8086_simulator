@@ -74,6 +74,8 @@ void mod_reg_rm(CPU *cpu, Instruction *inst)
         inst->reg = (byte >> 3) & 0b111;
         inst->r_m = byte & 0b111;
 
+        // printf(">> mod: %d\n", inst->mod);
+
         inst->mod_reg_rm_decoded = 1;
     }
 }

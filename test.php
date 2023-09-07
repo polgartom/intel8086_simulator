@@ -27,11 +27,11 @@ if ($code !== 0) {
     exit(1); 
 }
 
-exec('call .\build\main.exe .\mock\a.out --decode', $myassembler_output, $code);
+exec('call .\build\main.exe .\mock\a.out --decode --hide_inst_mem_addr', $myassembler_output, $code);
 $myassembler_output = pout($myassembler_output);
 echo $myassembler_output;
 
-exec('call .\build\main.exe .\mock\listing_0039_more_movs --decode', $nasm_output, $code);
+exec('call .\build\main.exe .\mock\listing_0039_more_movs --decode --hide_inst_mem_addr', $nasm_output, $code);
 $nasm_output = pout($nasm_output);
 echo $nasm_output;
 

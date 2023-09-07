@@ -210,6 +210,7 @@ typedef struct {
     // Options
     u8 dump_out;
     u8 decode_only;
+    u8 hide_inst_mem_addr;
     u8 debug_mode;
 
     FILE *out; // @Debug
