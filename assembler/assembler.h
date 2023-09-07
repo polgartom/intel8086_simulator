@@ -224,9 +224,25 @@ inline Width register_size(Register r)
     return W_UNDEFINED;
 }
 
+#define IS_SEGREG(_reg) (_reg >= REG_ES && _reg <= REG_DS)
+
+u8 segreg(Register reg)
+{
+    assert(IS_SEGREG(reg));
+
+    static u8 sg[] = {
+        [REG_ES] = 0b00,  [REG_CS] = 0b01,
+        [REG_SS] = 0b10,  [REG_DS] = 0b11,
+    };
+
+    return sg[reg];
+}
+
 u8 reg_rm(Operand op)
 {
     if (op.type == OPERAND_REGISTER) {
+        if (IS_SEGREG(op.reg)) return segreg(op.reg);
+
         static u8 rm[] = {
             [REG_AL] = 0b000, [REG_AX] = 0b000,
             [REG_CL] = 0b001, [REG_CX] = 0b001,
@@ -272,18 +288,7 @@ u8 reg_rm(Operand op)
     return 0; // dummy compiler
 }
 
-#define IS_SEGREG(_reg) (_reg >= REG_ES && _reg <= REG_DS)
-
-u8 segreg(Register reg)
-{
-    assert(IS_SEGREG(reg));
-
-    static u8 sg[] = {
-        [REG_ES] = 0b0000,  [REG_CS] = 0b0001,
-        [REG_SS] = 0b0010,  [REG_DS] = 0b0011,
-    };
-
-    return sg[reg];
-}
+#define IS_OPERAND_REG(_op, _reg) (_op.type == OPERAND_REGISTER && _op.reg == _reg)
+#define IS_OPERAND_MEM(_op) (op.type == OPERAND_MEMORY)
 
 #endif

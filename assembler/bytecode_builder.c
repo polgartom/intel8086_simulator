@@ -7,7 +7,7 @@
 #define OUTW(_data) OUT(_data, W_WORD)
 
 #define MOD_XXX_RM(_mod, _xxx, _rm) \
-    OUTB(( 0b00000000 | ((_mod & 3) << 6) | ((_xxx & 7) << 3) | (_rm & 7) << 0 ));
+    OUTB(( 0b00000000 | ((_mod & 3) << 6) | ((_xxx & 7) << 3) | ((_rm & 7) << 0) ));
 
 // Encode displacement by the MOD field and the operand (memory) address type
 #define DISP_MOD(_operand) { \
@@ -22,6 +22,10 @@
     } \
 } \
 
+#define DECIDE_REG(_inst) _inst->a.type == OPERAND_REGISTER ? _inst->a : _inst->b
+// DECIDE_RM will return a register type operand if both a and b is register type
+#define DECIDE_RM(_inst)  _inst->a.type == OPERAND_MEMORY   ? _inst->a : _inst->b
+ 
 void build_bytecodes(Array instructions)
 {
     FILE *fp = fopen("mock/a.out", "wb");
@@ -37,46 +41,68 @@ void build_bytecodes(Array instructions)
             OUTB(0b00100110 | (segreg(inst->segment_reg) << 3));
         }
 
-        if (inst->type == INST_MOVE) {
-            if (inst->a.is_segreg || inst->b.is_segreg) {
-                u8 opcode = 0; 
-                Operand sr, r_m;
+        switch (inst->mnemonic) {
+            case M_MOV: {
+                if (inst->b.type == OPERAND_IMMEDIATE) {
 
-                if (inst->a.is_segreg) {
-                    // Register/memory to segment register
-                    OUTB(0b10001110);
-                    sr = inst->a;
-                    r_m = inst->b;
+                    // Immediate to register / memory
+                    OUTB(0b11000110 | W(inst));
+                    MOD_XXX_RM(inst->mod, 0b000, reg_rm(inst->a));
+                    DISP_MOD(inst->a);
+                    OUT(inst->b.immediate, inst->size);
+
                 } else {
-                    // Segment register to register/memory
-                    OUTB(0b10001100);
-                    sr = inst->b;
-                    r_m = inst->a;
+                    
+                    Operand reg_or_sr, r_m;
+
+                    if (IS_SEGREG(inst->a.reg)) {
+                        // Register/memory to segment register
+                        reg_or_sr  = inst->a;
+                        r_m        = inst->b;
+                        OUTB(0b10001110);                    
+                    } else if (IS_SEGREG(inst->b.reg)) {
+                        // Segment register to register/memory
+                        reg_or_sr = inst->b;
+                        r_m       = inst->a; 
+                        OUTB(0b10001100);
+                    } else {
+                        // Register/memory to/from register
+                        reg_or_sr = DECIDE_REG(inst);
+                        r_m       = DECIDE_RM(inst);
+                        OUTB((0b10001000 | (inst->d << 1) | W(inst)));
+                    }
+
+                    MOD_XXX_RM(inst->mod, reg_rm(reg_or_sr), reg_rm(r_m));
+                    DISP_MOD(r_m);
+
                 }
-
-                MOD_XXX_RM(inst->mod, segreg(sr.reg), reg_rm(r_m));
-                DISP_MOD(r_m);
+                break;
             }
-            else if (inst->b.type != OPERAND_IMMEDIATE) {
+            case M_ADD: {
+                if (inst->b.type == OPERAND_IMMEDIATE) {
+                    
+                    u8 s = 0; // @Incomplete: immediate size by 's' and 'w' field
+                    OUTB(0b10000000 | (s << 1) | W(inst));
+                    MOD_XXX_RM(inst->mod, 0b000, reg_rm(inst->a));
+                    DISP_MOD(inst->a);
+                    OUT(inst->b.immediate, inst->size); // @Incomplete: s: w=01
 
-                Operand reg = inst->a.type == OPERAND_REGISTER ? inst->a : inst->b;
-                Operand r_m = inst->a.type == OPERAND_MEMORY   ? inst->a : inst->b;
+                } else {
+                    
+                    // Register/memory with register to either
+                    OUTB(0b00000000 | (inst->d << 1) | W(inst));
 
-                OUTB((0b10001000 | (inst->d << 1) | (W(inst) << 0)));
-                MOD_XXX_RM(inst->mod, reg_rm(reg), reg_rm(r_m));
-                DISP_MOD(r_m);
+                    Operand reg = DECIDE_REG(inst);
+                    Operand r_m = DECIDE_RM(inst);
+
+                    MOD_XXX_RM(inst->mod, reg_rm(reg), reg_rm(r_m));
+                    DISP_MOD(r_m);
+
+                }
+                break;
             }
-            else {
-                // In the 8086_family_Users_Manual_1_.pdf on page 164, we can encode 'immediate to register' in two ways.
-                // However, we're using the 'Immediate to register/memory' for both memory and registers. 
-                // This approach allows us to write less code.
-                OUTB(0b11000110 | (W(inst) << 0));
-                MOD_XXX_RM(inst->mod, 0b000, reg_rm(inst->a));
-                DISP_MOD(inst->a);
-                OUT(inst->b.immediate, inst->size);
-            }
-
         }
+
     }
 
     fclose(fp);
