@@ -294,7 +294,7 @@ u8 reg_rm(Operand op)
 
 // @Speedup: just horrible
 // ACC -> Accumulator
-#define OPERAND_ACC(_op) (IS_OPERAND_REG(_op, REG_AL) || IS_OPERAND_REG(_op, REG_AH) || IS_OPERAND_REG(_op, REG_AX) )
+#define OPERAND_ACC(_op) (IS_OPERAND_REG(_op, REG_AL) || IS_OPERAND_REG(_op, REG_AX) )
 #define ACC(_inst) ( OPERAND_ACC(_inst->a) || OPERAND_ACC(inst->b) )
 
 #endif

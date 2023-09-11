@@ -50,12 +50,12 @@ void build_bytecodes(Array instructions)
 
         switch (inst->mnemonic) {
             case M_MOV: {
-                if (IS_OPERAND_REG(inst->a, REG_AX) && IS_OPERAND_MEM(inst->b) && inst->b.address.base == EFFECTIVE_ADDR_DIRECT) {
+                if (OPERAND_ACC(inst->a) && IS_OPERAND_MEM(inst->b) && inst->b.address.base == EFFECTIVE_ADDR_DIRECT) {
                     // Memory to accumulator
                     OUTB(0b10100000 | W(inst));
                     DISP_MOD(inst->b);
                 }
-                else if (IS_OPERAND_MEM(inst->a) && inst->a.address.base == EFFECTIVE_ADDR_DIRECT && IS_OPERAND_REG(inst->b, REG_AX)) {
+                else if (OPERAND_ACC(inst->b) && IS_OPERAND_MEM(inst->a) && inst->a.address.base == EFFECTIVE_ADDR_DIRECT) {
                     // Accumulator to memory
                     OUTB(0b10100010 | W(inst));
                     DISP_MOD(inst->a);
@@ -103,7 +103,10 @@ void build_bytecodes(Array instructions)
             }
             case M_ADD: {
                 if (inst->b.type == OPERAND_IMMEDIATE) {
-                    
+                    if (inst->a.reg == REG_AX) {
+
+                    }
+
                     u8 s = 0; // @Incomplete: immediate size by 's' and 'w' field
                     OUTB(0b10000000 | (s << 1) | W(inst));
                     MOD_XXX_RM(inst->mod, 0b000, reg_rm(inst->a));
