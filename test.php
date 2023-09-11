@@ -30,21 +30,34 @@ if ($code !== 0) {
     exit(1); 
 }
 
-exec('call .\build\main.exe .\mock\a.out --decode --hide_inst_mem_addr', $myassembler_output, $code);
+// exec('call .\build\main.exe .\mock\a.out --decode --hide_inst_mem_addr', $myassembler_output, $code);
+exec('call .\build\main.exe .\mock\a.out --decode', $myassembler_output, $code);
 $myassembler_output = pout($myassembler_output);
-echo $myassembler_output;
 
-exec('call .\build\main.exe .\mock\listing_0039_more_movs --decode --hide_inst_mem_addr', $nasm_output, $code);
+// exec('call .\build\main.exe .\mock\listing_0039_more_movs --decode --hide_inst_mem_addr', $nasm_output, $code);
+exec('call .\build\main.exe .\mock\listing_0039_more_movs --decode', $nasm_output, $code);
 $nasm_output = pout($nasm_output);
-echo $nasm_output;
-
-// print("\n\nmyssembler:".md5($myassembler_output) . "\nnasm:". md5($nasm_output));
-// exit;
 
 if ($myassembler_output !== $nasm_output) {
+    $a = explode("\n", $myassembler_output);
+    $b = explode("\n", $nasm_output);
+
+    $len = min(count($a), count($b));
+    for ($i = 0; $i < $len; $i++) {
+        if ($a[$i] !== $b[$i]) {
+            printf("%s%s <-> %s%s\n", COLOR_RED, $a[$i], $b[$i], COLOR_DEFAULT);
+        } else {
+            printf("%s\n", $a[$i]);
+        }
+    }
+
     printf("\n\n%s[ERROR]: DECODED BINARY ARE NOT THE SAME!%s\n", COLOR_RED, COLOR_DEFAULT);
+
     exit(1);
 }
+
+echo $myassembler_output;
+// echo $nasm_output;
 
 printf("\n\n%sPASSED!%s\n\n", COLOR_GREEN, COLOR_DEFAULT);
 
