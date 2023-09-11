@@ -202,6 +202,8 @@ typedef struct {
   u8 r_m;
   u8 mod_reg_rm_decoded;
 
+  u64 raw;
+
 } Instruction;
 
 typedef struct {
@@ -223,6 +225,7 @@ typedef struct {
     u8 dump_out;
     u8 decode_only;
     u8 hide_inst_mem_addr;
+    u8 show_raw_bin;
     u8 debug_mode;
 
     FILE *out; // @Debug

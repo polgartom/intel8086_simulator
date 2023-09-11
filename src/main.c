@@ -35,6 +35,9 @@ int main(int argc, char **argv)
                 else if (STR_EQUAL(argv[i], "--hide_inst_mem_addr")) {
                     cpu.hide_inst_mem_addr = 1;
                 }
+                else if (STR_EQUAL(argv[i], "--show_raw_bin")) {
+                    cpu.show_raw_bin = 1;
+                }
             } else {
                 input_filename = argv[i];
                 continue;

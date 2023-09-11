@@ -193,6 +193,14 @@ void print_instruction(CPU *cpu, u8 with_end_line)
 
     Instruction *instruction = &cpu->instruction;
 
+    if (cpu->show_raw_bin) {
+        for (int i = 0; i < instruction->size; i++) {
+            u8 b = (instruction->raw >> (8*(instruction->size-i-1))) & 0xFF;
+            fprintf(dest, "%02x ", b);
+        }
+        fprintf(dest, "\n");
+    }
+
     if (!cpu->hide_inst_mem_addr) {
         fprintf(dest, "%08X\t", instruction->mem_address);
     }

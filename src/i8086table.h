@@ -132,13 +132,6 @@ struct i8086_Inst_Table {
     Instruction_Type type;
 };
 
-/*
-  Instruction_Type_move
-  Instruction_Type_arithmetic,
-  Instruction_Type_flow,
-  Instruction_Type_stack,
-*/
-
 static const i8086_Inst_Table i8086_inst_table[] = {
     { 0x00, Mnemonic_add, "Eb", "Gb", Instruction_Type_arithmetic },
     { 0x01, Mnemonic_add, "Ev", "Gv", Instruction_Type_arithmetic },

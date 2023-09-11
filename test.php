@@ -10,6 +10,9 @@ function pout(array $output) {
     return implode("\n", $output); 
 }
 
+$strict_mode = false;
+foreach ($argv as $v) { if($v==='--strict') { $strict_mode = true; break; } }
+
 exec('call .\build.bat', $out, $code);
 if ($code !== 0) { 
     echo pout($out); 
@@ -31,11 +34,11 @@ if ($code !== 0) {
 }
 
 // exec('call .\build\main.exe .\mock\a.out --decode --hide_inst_mem_addr', $myassembler_output, $code);
-exec('call .\build\main.exe .\mock\a.out --decode', $myassembler_output, $code);
+exec('call .\build\main.exe .\mock\a.out --decode ' . ($strict_mode ? '--show_raw_bin' : ''), $myassembler_output, $code);
 $myassembler_output = pout($myassembler_output);
 
 // exec('call .\build\main.exe .\mock\listing_0039_more_movs --decode --hide_inst_mem_addr', $nasm_output, $code);
-exec('call .\build\main.exe .\mock\listing_0039_more_movs --decode', $nasm_output, $code);
+exec('call .\build\main.exe .\mock\listing_0039_more_movs --decode ' . ($strict_mode ? '--show_raw_bin' : ''), $nasm_output, $code);
 $nasm_output = pout($nasm_output);
 
 exec('call hexdump .\mock\a.out', $ha, $code);
@@ -45,7 +48,6 @@ foreach ($ha as $i => $x) { $ha[$i] = substr($ha[$i], strpos($ha[$i], ' ', 0)); 
 foreach ($hb as $i => $x) { $hb[$i] = substr($hb[$i], strpos($hb[$i], ' ', 0)); }
 $ha = explode(' ', implode("\n", $ha));
 $hb = explode(' ', implode("\n", $hb));
-
 
 printf("\n---------HEX---------\n\n");
 

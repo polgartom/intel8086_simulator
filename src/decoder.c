@@ -381,4 +381,10 @@ void decode_next_instruction(CPU *cpu)
 
     cpu->decoder_cursor++;
     cpu->instruction.size = cpu->decoder_cursor - instruction_byte_start_offset;
+    inst->raw = 0;
+    for (int i = 0; i < cpu->instruction.size; i++) {
+        u32 start = cpu->decoder_cursor-inst->size;
+        u8 b = cpu->memory[start+i];
+        inst->raw |= ( b << (8*(inst->size-i-1)) );
+    }
 }
