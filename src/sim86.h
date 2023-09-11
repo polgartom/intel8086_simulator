@@ -109,6 +109,18 @@ typedef enum {
 
 } Operand_Type;
 
+const char *operand_type_to_cstr(Operand_Type type) {
+  switch (type) { 
+    case Operand_None: return XSTR(Operand_None);
+    case Operand_Memory: return XSTR(Operand_Memory);
+    case Operand_Register: return XSTR(Operand_Register);
+    case Operand_Immediate: return XSTR(Operand_Immediate);
+    case Operand_Relative_Immediate: return XSTR(Operand_Relative_Immediate);
+  } 
+
+  return "!!Operand_Unknown!!";
+}
+
 typedef enum {
   Effective_Address_direct,
 

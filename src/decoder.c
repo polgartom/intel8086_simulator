@@ -63,6 +63,11 @@ void decode_memory_address_with_displacement(CPU *cpu, Instruction_Operand *oper
     else if (inst->mod == 0x01) {
         operand->address.displacement = (u8)ASMD_NEXT_BYTE(cpu);
     }
+
+    // printf(
+    //     "[ mod: %d ; r_m: %d ; op.type: %s ; addr.base: %s ; addr.disp: %d ]\n", 
+    //     inst->mod, inst->r_m, operand_type_to_cstr(operand->type), "base", operand->address.displacement
+    // );
 }
 
 void mod_reg_rm(CPU *cpu, Instruction *inst)

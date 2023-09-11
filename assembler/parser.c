@@ -57,18 +57,22 @@ Register decide_register(String s)
     if (string_equal_cstr(s, "cx")) return REG_CX;
     if (string_equal_cstr(s, "dx")) return REG_DX;
     if (string_equal_cstr(s, "bx")) return REG_BX;
+
     if (string_equal_cstr(s, "sp")) return REG_SP;
     if (string_equal_cstr(s, "bp")) return REG_BP;
+
     if (string_equal_cstr(s, "si")) return REG_SI;
     if (string_equal_cstr(s, "di")) return REG_DI;
+
     if (string_equal_cstr(s, "es")) return REG_ES;
     if (string_equal_cstr(s, "cs")) return REG_CS;
     if (string_equal_cstr(s, "ss")) return REG_SS;
     if (string_equal_cstr(s, "ds")) return REG_DS;
-    if (string_equal_cstr(s, "ip")) return REG_IP;
 
+    if (string_equal_cstr(s, "ip")) return REG_IP;
+    
     // @Todo: proper error report
-    ASSERT(0, "Unknown register -> '"SFMT"'", SARG(s));
+    ASSERT(0, "Unknown/invalid general register -> '"SFMT"'", SARG(s));
     return REG_NONE;
 }
 
@@ -200,8 +204,6 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
             ASSERT(0, "Unexpected token -> "SFMT"\n", SARG(t->value));
         }
 
-        inst->mod = (IS_16BIT(operand->address.displacement) ? MOD_MEM_16BIT_DISP : MOD_MEM_8BIT_DISP);
-
     }
     else if (t->type == T_NUMERIC_LITERAL) {
         // expect direct address
@@ -213,6 +215,13 @@ void parse_effective_addr_expr(Instruction *inst, Operand *operand)
 
     } else {
         ASSERT(0, "Unexpected token -> "SFMT" ; type: %s\n", SARG(t->value), TOKSTR(t->type));
+    }
+
+    // @Testit
+    if (operand->address.base != EFFECTIVE_ADDR_DIRECT) {
+        if (operand->address.base == EFFECTIVE_ADDR_BP || operand->address.displacement != 0) {
+            inst->mod = (IS_16BIT(operand->address.displacement) ? MOD_MEM_16BIT_DISP : MOD_MEM_8BIT_DISP);
+        }
     }
 
     t = current_token();

@@ -10,12 +10,19 @@
     OUTB(( 0b00000000 | ((_mod & 3) << 6) | ((_xxx & 7) << 3) | ((_rm & 7) << 0) ));
 
 // Encode displacement by the MOD field and the operand (memory) address type
+// @Testit
 #define DISP_MOD(_operand) { \
     if (_operand.type == OPERAND_MEMORY) { \
         u16 _disp = _operand.address.displacement; \
         if (inst->mod != MOD_MEM) { \
-            /* 8 or 16 bit displacement */ \
-            OUT(_operand.address.displacement, IS_16BIT(_disp) ? W_WORD : W_BYTE); \
+            /* 8 or 16 bit displacement @todo */ \
+            if (_operand.address.base == EFFECTIVE_ADDR_BP) { \
+                OUT(_operand.address.displacement, IS_16BIT(_disp) ? W_WORD : W_BYTE); \
+            } else { \
+                if (_disp) {\
+                    OUT(_operand.address.displacement, IS_16BIT(_disp) ? W_WORD : W_BYTE); \
+                }\
+            }\
         } else if (_disp != 0) { \
             OUT(_operand.address.displacement, W_WORD); \
         } \
@@ -43,16 +50,32 @@ void build_bytecodes(Array instructions)
 
         switch (inst->mnemonic) {
             case M_MOV: {
-                if (inst->b.type == OPERAND_IMMEDIATE) {
-
-                    // Immediate to register / memory
-                    OUTB(0b11000110 | W(inst));
-                    MOD_XXX_RM(inst->mod, 0b000, reg_rm(inst->a));
+                if (IS_OPERAND_REG(inst->a, REG_AX) && IS_OPERAND_MEM(inst->b) && inst->b.address.base == EFFECTIVE_ADDR_DIRECT) {
+                    // Memory to accumulator
+                    OUTB(0b10100000 | W(inst));
+                    DISP_MOD(inst->b);
+                }
+                else if (IS_OPERAND_MEM(inst->a) && inst->b.address.base == EFFECTIVE_ADDR_DIRECT && IS_OPERAND_REG(inst->b, REG_AX)) {
+                    // Accumulator to memory
+                    OUTB(0b10100010 | W(inst));
                     DISP_MOD(inst->a);
+                }
+                else if (inst->b.type == OPERAND_IMMEDIATE) {
+                    if (inst->a.type == OPERAND_REGISTER) {
+                        // Immediate to register
+                        OUTB(0b10110000 | (W(inst)<<3) | reg_rm(inst->a));
+                    } else {
+                        // When are we using this to encode immediate to register???
+
+                        // Immediate to register / memory
+                        OUTB(0b11000110 | W(inst));
+                        MOD_XXX_RM(inst->mod, 0b000, reg_rm(inst->a));
+                        DISP_MOD(inst->a);
+                    }
+
                     OUT(inst->b.immediate, inst->size);
 
                 } else {
-                    
                     Operand reg_or_sr, r_m;
 
                     if (IS_SEGREG(inst->a.reg)) {
@@ -74,8 +97,8 @@ void build_bytecodes(Array instructions)
 
                     MOD_XXX_RM(inst->mod, reg_rm(reg_or_sr), reg_rm(r_m));
                     DISP_MOD(r_m);
-
                 }
+
                 break;
             }
             case M_ADD: {

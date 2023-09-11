@@ -263,10 +263,10 @@ u8 reg_rm(Operand op)
         MOD mod = op.inst->mod; 
 
         assert(mod >= 0 && mod <= 3);
-        if (mod != MOD_MEM) {
+        if (mod == MOD_MEM) {
             ASSERT(
-                op.address.base != EFFECTIVE_ADDR_DIRECT, 
-                "Something really bad happened, because the address base is not direct address, and the mod field is not MOD_MEM"
+                op.address.base != EFFECTIVE_ADDR_BP, 
+                "Something really bad happened, because the address base is EFFECTIVE_ADDR_BP and the mod field is MOD_MEM, but those two isn't compatible with each other!"
             );
         }
 
@@ -289,6 +289,12 @@ u8 reg_rm(Operand op)
 }
 
 #define IS_OPERAND_REG(_op, _reg) (_op.type == OPERAND_REGISTER && _op.reg == _reg)
-#define IS_OPERAND_MEM(_op) (op.type == OPERAND_MEMORY)
+#define IS_OPERAND_MEM(_op) (_op.type == OPERAND_MEMORY)
+
+
+// @Speedup: just horrible
+// ACC -> Accumulator
+#define OPERAND_ACC(_op) (IS_OPERAND_REG(_op, REG_AL) || IS_OPERAND_REG(_op, REG_AH) || IS_OPERAND_REG(_op, REG_AX) )
+#define ACC(_inst) ( OPERAND_ACC(_inst->a) || OPERAND_ACC(inst->b) )
 
 #endif
