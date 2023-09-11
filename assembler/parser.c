@@ -383,6 +383,7 @@ void parse_tokens()
     parser.last_token = (Token *)array_last_item(&lexer.tokens);
 
     Token *t = NULL;
+
     while (t = current_token()) {
 
         if (t->type == T_IDENTIFIER) {
@@ -392,7 +393,12 @@ void parse_tokens()
                 parse_add();
             } else if (string_equal_cstr(t->value, "sub")) {
                 parse_sub();
-            } else {
+            } 
+            else if (string_equal_cstr(t->value, "cpu")) {
+                t = eat_and_get_next_token();
+                ASSERT(string_equal_cstr(t->value, "8086"), "Non-supported cpu type -> '"SFMT"'", SARG(t->value));
+            }
+            else {
                 ASSERT(0, "Unexpected identifier -> "SFMT, SARG(t->value));
             }
         }

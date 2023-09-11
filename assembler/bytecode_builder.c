@@ -73,7 +73,7 @@ void build_bytecodes(Array instructions)
                         DISP_MOD(inst->a);
                     }
 
-                    OUT(inst->b.immediate, inst->size);
+                    OUT(inst->b.immediate, inst->size); 
 
                 } else {
                     Operand reg_or_sr, r_m;
@@ -103,14 +103,15 @@ void build_bytecodes(Array instructions)
             }
             case M_ADD: {
                 if (inst->b.type == OPERAND_IMMEDIATE) {
-                    if (inst->a.reg == REG_AX) {
-
+                    if (OPERAND_ACC(inst->a)) {
+                        OUTB(0b00000100 | W(inst));
+                    } else {
+                        u8 s = 0; // @Incomplete: immediate size by 's' and 'w' field
+                        OUTB(0b10000000 | (s << 1) | W(inst));
+                        MOD_XXX_RM(inst->mod, 0b000, reg_rm(inst->a));
+                        DISP_MOD(inst->a);
                     }
 
-                    u8 s = 0; // @Incomplete: immediate size by 's' and 'w' field
-                    OUTB(0b10000000 | (s << 1) | W(inst));
-                    MOD_XXX_RM(inst->mod, 0b000, reg_rm(inst->a));
-                    DISP_MOD(inst->a);
                     OUT(inst->b.immediate, inst->size); // @Incomplete: s: w=01
 
                 } else {

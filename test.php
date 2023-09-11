@@ -38,6 +38,30 @@ $myassembler_output = pout($myassembler_output);
 exec('call .\build\main.exe .\mock\listing_0039_more_movs --decode', $nasm_output, $code);
 $nasm_output = pout($nasm_output);
 
+exec('call hexdump .\mock\a.out', $ha, $code);
+exec('call hexdump .\mock\listing_0039_more_movs', $hb, $code);
+
+foreach ($ha as $i => $x) { $ha[$i] = substr($ha[$i], strpos($ha[$i], ' ', 0)); }
+foreach ($hb as $i => $x) { $hb[$i] = substr($hb[$i], strpos($hb[$i], ' ', 0)); }
+$ha = explode(' ', implode("\n", $ha));
+$hb = explode(' ', implode("\n", $hb));
+
+
+printf("\n---------HEX---------\n\n");
+
+$len = min(count($ha), count($hb));
+for ($i = 0; $i < $len; $i++) {
+    if ($ha[$i] !== $hb[$i]) {
+        printf("%s%s%s|%s%s%s ", COLOR_RED, $ha[$i], COLOR_DEFAULT, COLOR_GREEN, $hb[$i], COLOR_DEFAULT);
+    } else {
+        printf("%s ", $ha[$i]);
+    }
+
+    if (!($i+1 % 16)) printf("\n");
+}
+
+printf("\n\n\n-------DECODED-------\n");
+
 if ($myassembler_output !== $nasm_output) {
     $a = explode("\n", $myassembler_output);
     $b = explode("\n", $nasm_output);
@@ -45,20 +69,25 @@ if ($myassembler_output !== $nasm_output) {
     $len = min(count($a), count($b));
     for ($i = 0; $i < $len; $i++) {
         if ($a[$i] !== $b[$i]) {
-            printf("%s%s <-> %s%s\n", COLOR_RED, $a[$i], $b[$i], COLOR_DEFAULT);
+            printf("%s%s%s | %s%s%s\n", COLOR_RED, $a[$i], COLOR_DEFAULT, COLOR_GREEN, $b[$i], COLOR_DEFAULT);
         } else {
             printf("%s\n", $a[$i]);
         }
     }
 
-    printf("\n\n%s[ERROR]: DECODED BINARY ARE NOT THE SAME!%s\n", COLOR_RED, COLOR_DEFAULT);
+    printf("\n--------------------\n");
+
+    printf("\n%s[ERROR]: DECODED BINARY ARE NOT THE SAME!%s\n", COLOR_RED, COLOR_DEFAULT);
 
     exit(1);
 }
 
 echo $myassembler_output;
+
+printf("\n\n--------------------\n");
+
 // echo $nasm_output;
 
-printf("\n\n%sPASSED!%s\n\n", COLOR_GREEN, COLOR_DEFAULT);
+printf("\n%sPASSED!%s\n\n", COLOR_GREEN, COLOR_DEFAULT);
 
 exit(0);
