@@ -55,7 +55,7 @@ void build_bytecodes(Array instructions)
                     OUTB(0b10100000 | W(inst));
                     DISP_MOD(inst->b);
                 }
-                else if (IS_OPERAND_MEM(inst->a) && inst->b.address.base == EFFECTIVE_ADDR_DIRECT && IS_OPERAND_REG(inst->b, REG_AX)) {
+                else if (IS_OPERAND_MEM(inst->a) && inst->a.address.base == EFFECTIVE_ADDR_DIRECT && IS_OPERAND_REG(inst->b, REG_AX)) {
                     // Accumulator to memory
                     OUTB(0b10100010 | W(inst));
                     DISP_MOD(inst->a);
